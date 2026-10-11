@@ -16,6 +16,7 @@ inline namespace jf {
 class JPTrayFeeder {
 public:
     static constexpr const char* kClass = "org.openpnp.machine.reference.feeder.ReferenceTrayFeeder";
+    static constexpr const char* kKey = "tray";
 
     int        countX = 1, countY = 1;
     JPLocation offsets { JPLengthUnit::Millimeters };

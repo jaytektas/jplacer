@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cmath>
 #include <regex>
+#include <type_traits>
 #include <cstdlib>
 
 inline namespace jf {
@@ -51,28 +52,61 @@ JPFeeder JPFeeder::create(const std::string& className, const std::string& partI
     return f;
 }
 
+namespace {
+
+// The typed kind of `type` (a class's simple name) made from OpenPnP's settings or jplacer's (JSON); false: none.
+template <class Own, size_t I = 1>
+bool typedFromXml(const std::string& type, const JPXmlNode& own, Own& out) {
+    if constexpr (I < std::variant_size_v<Own>) {
+        using K = std::variant_alternative_t<I, Own>;
+        if (type == JPFeeder::simpleName(K::kClass)) {
+            out = K::fromXml(own);
+            return true;
+        }
+        return typedFromXml<Own, I + 1>(type, own, out);
+    } else {
+        return false;
+    }
+}
+
+template <class Own, size_t I = 1>
+bool typedFromJson(const std::string& type, const JJson& j, Own& out) {
+    if constexpr (I < std::variant_size_v<Own>) {
+        using K = std::variant_alternative_t<I, Own>;
+        if (type == JPFeeder::simpleName(K::kClass)) {
+            out = K::fromJson(j[K::kKey]);
+            return true;
+        }
+        return typedFromJson<Own, I + 1>(type, j, out);
+    } else {
+        return false;
+    }
+}
+
+} // namespace
+
 void JPFeeder::ownFrom(JPXmlNode own) {
-    if (typeName() == simpleName(JPTrayFeeder::kClass)) m_own = JPTrayFeeder::fromXml(own);
-    else m_own = std::move(own);
+    if (!typedFromXml(typeName(), own, m_own)) m_own = std::move(own);
 }
 
 bool JPFeeder::autoTune() const {
-    if (tray()) return false;
+    if (typed()) return false;
     const JPXmlNode& n = std::get<JPXmlNode>(m_own);
     const std::string* v = n.get("auto-tune");
     return v ? *v == "true" : true;
 }
 
 int JPFeeder::feedCount() const {
-    if (const JPTrayFeeder* t = tray()) return t->feedCount;
+    if (const JPTrayFeeder* t = as<JPTrayFeeder>()) return t->feedCount;
+    if (typed()) return 0;
     const JPXmlNode* n = std::get_if<JPXmlNode>(&m_own);
     const std::string* v = n ? n->get("feed-count") : nullptr;
     return v && !v->empty() ? std::atoi(v->c_str()) : 0;
 }
 
 void JPFeeder::setFeedCount(int n) {
-    if (JPTrayFeeder* t = tray()) t->feedCount = n;
-    else setNumber("feed-count", n);
+    if (JPTrayFeeder* t = as<JPTrayFeeder>()) t->feedCount = n;
+    else if (!typed()) setNumber("feed-count", n);
 }
 
 const std::vector<std::string>& JPFeeder::classNames() {
@@ -258,7 +292,7 @@ std::pair<JPLocation, JPLocation> JPFeeder::idealLineLocations() const {
 
 std::optional<JPLocation> JPFeeder::pickLocation() const {
     const std::string kind = typeName();
-    if (const JPTrayFeeder* t = tray()) return t->pickLocation(location());
+    if (const JPTrayFeeder* t = as<JPTrayFeeder>()) return t->pickLocation(location());
     if (kind == "ReferenceRotatedTrayFeeder") {
         const int cols = std::max(number("tray-count-cols", 1), 1), rows = std::max(number("tray-count-rows", 1), 1);
         const int count = feedCount();
@@ -395,7 +429,12 @@ JPFeeder JPFeeder::fromXml(const JPXmlElement& e) {
     f.m_pickRetryCount = std::atoi(take("pick-retry-count", "3").c_str());
     f.m_priority = priorityFrom(take("priority", "Normal"));
     f.m_feedOptions = feedOptionsFrom(take("feed-options", "Normal"));
-    take("version");   // OpenPnP's file's
+    // As OpenPnP brings a feeder of its version 1.0 to 1.1: its retry count is its feed retries, no pick retries.
+    const std::string retries = take("retry-count", "3");
+    if (std::strtod(take("version", "1.0").c_str(), nullptr) < 1.1) {
+        f.m_feedRetryCount = std::atoi(retries.c_str());
+        f.m_pickRetryCount = 0;
+    }
     if (const JPXmlNode* l = own.child("location")) {
         f.m_location = JPLocationXml::from(*l);
         std::erase_if(own.children, [](const JPXmlNode& c) { return c.name == "location"; });
@@ -424,8 +463,7 @@ JPFeeder JPFeeder::fromJson(const JJson& j) {
     f.m_priority = priorityFrom(j["priority"].str());
     f.m_feedOptions = feedOptionsFrom(j["feedOptions"].str());
     f.m_location = JPLocationJson::from(j["location"]);
-    if (f.typeName() == simpleName(JPTrayFeeder::kClass)) f.m_own = JPTrayFeeder::fromJson(j["tray"]);
-    else f.m_own = JPXmlJson::node("feeder", j["openpnp"]);
+    if (!typedFromJson(f.typeName(), j, f.m_own)) f.m_own = JPXmlJson::node("feeder", j["openpnp"]);
     return f;
 }
 
@@ -441,8 +479,13 @@ JJson JPFeeder::toJson() const {
     j["priority"] = priorityName(m_priority);
     j["feedOptions"] = feedOptionsKey(m_feedOptions);
     j["location"] = JPLocationJson::to(m_location);
-    if (const JPTrayFeeder* t = tray()) j["tray"] = t->toJson();
-    else j["openpnp"] = JPXmlJson::from(std::get<JPXmlNode>(m_own));
+    std::visit(
+        [&j](const auto& own) {
+            using K = std::decay_t<decltype(own)>;
+            if constexpr (std::is_same_v<K, JPXmlNode>) j["openpnp"] = JPXmlJson::from(own);
+            else j[K::kKey] = own.toJson();
+        },
+        m_own);
     return j;
 }
 
@@ -454,7 +497,7 @@ bool JPFeeder::partHeightAbovePickLocation() const {
 bool JPFeeder::feed(std::string& why, bool* empty) {
     if (empty) *empty = false;
     const std::string kind = typeName();
-    if (JPTrayFeeder* t = tray()) {
+    if (JPTrayFeeder* t = as<JPTrayFeeder>()) {
         if (t->empty()) {
             why = "Feeder: " + name() + " (" + partId() + ") - tray empty.";
             if (empty) *empty = true;

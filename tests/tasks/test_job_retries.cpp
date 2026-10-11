@@ -120,8 +120,8 @@ struct Bench {
         f.setLocation(at(x, y, z, 0));
         f.setEnabled(true);
         if (explicitEmpty) {
-            f.tray()->countX = parts;
-            f.tray()->countY = 1;
+            f.as<JPTrayFeeder>()->countX = parts;
+            f.as<JPTrayFeeder>()->countY = 1;
         } else {
             f.setText("actuator-name", id);
         }

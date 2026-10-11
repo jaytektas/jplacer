@@ -174,8 +174,20 @@ int main() {
         assert(back.id() == "FDR2" && back.plainName() == "Tray" && back.enabled() && back.partId() == "U1");
         assert(back.feedRetryCount() == 5 && back.pickRetryCount() == 1 && back.priority() == JPFeeder::Priority::High);
         assert(back.feedOptions() == JPFeeder::FeedOptions::SkipNext && back.className() == made.className());
-        assert(back.location() == made.location() && back.tray() && back.tray()->countY == 2);
-        assert(back.tray()->offsets.x() == 5 && back.pickLocation() && back.pickLocation()->x() == made.pickLocation()->x());
+        assert(back.location() == made.location() && back.as<JPTrayFeeder>() && back.as<JPTrayFeeder>()->countY == 2);
+        assert(back.as<JPTrayFeeder>()->offsets.x() == 5 && back.pickLocation() && back.pickLocation()->x() == made.pickLocation()->x());
+    }
+    // A feeder of OpenPnP's version 1.0: its retry count its feed retries, no pick retries (as OpenPnP brings it to 1.1).
+    {
+        const JPFeeder old = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceTubeFeeder" id="T" name="T" enabled="true" part-id="R1" retry-count="5">
+   <location units="Millimeters" x="1.0" y="2.0" z="0.0" rotation="0.0"/>
+</feeder>)");
+        assert(old.feedRetryCount() == 5 && old.pickRetryCount() == 0);
+        // A tube: typed, with nothing of its own; picked where it is.
+        const JJson j = old.toJson();
+        assert(old.as<JPTubeFeeder>() && j["tube"].isObject() && !j.contains("openpnp"));
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(j.dump()));
+        assert(back.as<JPTubeFeeder>() && back.pickLocation() && back.pickLocation()->x() == 1);
     }
     return 0;
 }

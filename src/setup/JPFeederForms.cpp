@@ -299,7 +299,7 @@ void trayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
               std::function<void(const std::string&)> warn) {
     general(add, config, f, false);
     pickLocation(add, f);
-    auto t = [f]() -> JPTrayFeeder& { return *f().tray(); };
+    auto t = [f]() -> JPTrayFeeder& { return *f().as<JPTrayFeeder>(); };
     // As OpenPnP's saveToModel: an offset of 0 with more than one part that way is kept, and said.
     auto check = [t, warn] {
         if (!warn) return;

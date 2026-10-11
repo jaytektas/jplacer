@@ -6,6 +6,7 @@
 #include "JPLength.h"
 #include "JPLocation.h"
 #include "JPTrayFeeder.h"
+#include "JPTubeFeeder.h"
 
 #include "openpnp/JPXmlElement.h"
 #include "openpnp/JPXmlNode.h"
@@ -24,8 +25,8 @@ inline namespace jf {
 // (ReferenceStripFeeder, ReferenceTrayFeeder…), id, name, enabled, part,
 // retries, priority and feed option, and where it is, each its own; and what
 // its kind adds (a strip's hole locations and pitches, a tray's counts, a
-// vision pipeline): a typed kind's its own (a tray's: tray()); the others' as
-// OpenPnP keeps them (by name: text(), number()…). Kept in jplacer's
+// vision pipeline): a typed kind's its own (as<JPTrayFeeder>()); the others'
+// as OpenPnP keeps them (by name: text(), number()…). Kept in jplacer's
 // feeders.json (toJson): what every feeder has by name, a typed kind's own
 // under its kind's key ("tray"), the others' under "openpnp" (JPXmlJson).
 class JPFeeder {
@@ -48,7 +49,8 @@ public:
     // does (its Rotation In Tape 90 degrees less).
     static JPFeeder fromXml(const JPXmlElement& e);
     // As jplacer's feeders.json keeps it: {"class", "id", "name", "enabled", "part", "feedRetryCount",
-    // "pickRetryCount", "priority", "feedOptions", "location", and its kind's own: "tray", else "openpnp"}.
+    // "pickRetryCount", "priority", "feedOptions", "location", and its kind's own under its key ("tray"), else
+    // "openpnp"}.
     static JPFeeder fromJson(const JJson& j);
     JJson toJson() const;
 
@@ -56,9 +58,11 @@ public:
     // The class's simple name, as OpenPnP's Type column shows it.
     std::string typeName() const;
 
-    // A tray feeder's own (none: another kind).
-    JPTrayFeeder*       tray() { return std::get_if<JPTrayFeeder>(&m_own); }
-    const JPTrayFeeder* tray() const { return std::get_if<JPTrayFeeder>(&m_own); }
+    // Its kind's own, when it is of kind `K` (JPTrayFeeder, JPTubeFeeder…); none: another kind.
+    template <class K> K*       as() { return std::get_if<K>(&m_own); }
+    template <class K> const K* as() const { return std::get_if<K>(&m_own); }
+    // Whether its kind is typed (its settings its own, none by OpenPnP's name).
+    bool typed() const { return !std::holds_alternative<JPXmlNode>(m_own); }
 
     // Whether the head camera is tuned for its looks on its first look of a run (its Auto-Tune?; a kind with no
     // vision: no).
@@ -279,8 +283,9 @@ private:
     Priority         m_priority = Priority::Normal;
     FeedOptions      m_feedOptions = FeedOptions::Normal;
     JPLocation       m_location { JPLengthUnit::Millimeters };
-    // Its kind's own settings.
-    std::variant<JPXmlNode, JPTrayFeeder> m_own { JPXmlNode("feeder") };
+    // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
+    using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder>;
+    Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;
     std::deque<bool> m_jobFaults;
