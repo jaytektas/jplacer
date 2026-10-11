@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPBatchedChange.h"
 #include "JPTableModel.h"
 
 #include "model/JPConfiguration.h"
@@ -103,7 +104,19 @@ public:
     Status status(const JPPlacement& p) const;
     static const char* statusName(Status s);
 
+    std::optional<JPFieldSet::Of> fieldsOf() const override { return JPFieldSet::Of::Placements; }
+    const JPFieldValues* custom(int row) const override;
+    bool   setCustom(int row, const std::string& key, const JJson& value) override;
+    bool   customEditable(int row) const override;
+    void   beginEdits() override { m_said.begin(); }
+    void   endEdits() override { m_said.end(onChanged); }
+
 private:
+    Column heading(int c) const;
+    const JPFieldValues* customOf(int row) const;
+    // The field a column shows (JPFieldSet's built-in's key).
+    std::string keyAt(int c) const;
+    JPBatchedChange m_said;
     // The board definition an edit here changes (the board shown, or a job's board where its definition is
     // edited); null for a panel, or a job's use of a board edited alone.
     JPBoard* editedBoard() const;

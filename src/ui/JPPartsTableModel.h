@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPBatchedChange.h"
 #include "JPTableModel.h"
 
 #include "model/JPCatalog.h"
@@ -45,6 +46,11 @@ public:
     std::optional<JComboBox::Search> choiceSearch(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
     void   setChoice(int row, int c, int index) override;
+    std::optional<JPFieldSet::Of> fieldsOf() const override { return JPFieldSet::Of::Parts; }
+    const JPFieldValues* custom(int row) const override;
+    bool   setCustom(int row, const std::string& key, const JJson& value) override;
+    void   beginEdits() override { m_said.begin(); }
+    void   endEdits() override { m_said.end(onChanged); }
 
     // The library's rows read again, with the open boards that use each (the Source column, Show).
     void reload();
@@ -63,6 +69,7 @@ public:
     int     rowOf(const JPPart* part) const;
 
 private:
+    Column heading(int c) const;
     // The vision settings a column offers, sorted by name, then none.
     std::vector<const JPVisionSettings*> visionChoices(JPVisionSettings::Kind kind) const;
     std::vector<const JPPackage*>        packageChoices() const;
@@ -78,6 +85,7 @@ private:
     std::vector<std::vector<std::shared_ptr<JPBoard>>> m_usedBy;
     std::map<std::string, std::vector<JPStockLot>>     m_stock;   // each part's open lots, by its id, as last read
     std::string                                        m_show = kShowAll;
+    JPBatchedChange                                    m_said;
 };
 
 } // inline namespace jf

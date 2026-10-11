@@ -67,6 +67,7 @@ JJson JPLibraryJson::part(const JPPart& p) {
     }
     o["offers"] = offers;
     o["openpnp"] = JPXmlJson::from(p.toXml());
+    JPFieldValues::write(o, p.custom);
     return o;
 }
 
@@ -108,6 +109,7 @@ JPPart JPLibraryJson::part(const JJson& j) {
         for (const JJson& x : j["offers"].arr())
             p.offers.push_back({ s(x, "supplier"), s(x, "sku"), s(x, "packaging"), int(x["moq"].number()), s(x, "priceBreaks"),
                                  s(x, "link"), s(x, "lastPrice"), s(x, "lastWhen") });
+    p.custom = JPFieldValues::read(j);
     return p;
 }
 
@@ -116,6 +118,15 @@ JJson JPLibraryJson::package(const JPPackage& k) {
     o["id"] = k.id;
     o["uuid"] = k.uuid;
     o["openpnp"] = JPXmlJson::from(k.toXml());
+    JPFieldValues::write(o, k.custom);
+    // Its pads' values, in its footprint's order (none: none has any).
+    JJson pads = JJson::array();
+    bool any = false;
+    for (const JPFootprint::Pad& p : k.footprint.pads) {
+        pads.push(p.custom.toJson());
+        any = any || !p.custom.empty();
+    }
+    if (any) o["padsCustom"] = pads;
     return o;
 }
 
@@ -152,6 +163,9 @@ JPPackage JPLibraryJson::package(const JJson& j) {
     JPPackage k = JPPackage::fromXml(JPXmlJson::element("package", j["openpnp"]));
     if (j["id"].isString()) k.id = j["id"].str();
     if (j["uuid"].isString()) k.uuid = j["uuid"].str();
+    k.custom = JPFieldValues::read(j);
+    const JJson& pads = j["padsCustom"];
+    for (size_t i = 0; i < k.footprint.pads.size() && i < pads.size(); ++i) k.footprint.pads[i].custom = JPFieldValues::fromJson(pads[i]);
     return k;
 }
 

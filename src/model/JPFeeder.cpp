@@ -598,6 +598,7 @@ JPFeeder JPFeeder::fromJson(const JJson& j) {
     f.m_priority = priorityFrom(j["priority"].str());
     f.m_feedOptions = feedOptionsFrom(j["feedOptions"].str());
     f.m_location = JPLocationJson::from(j["location"]);
+    f.custom = JPFieldValues::read(j);
     if (!typedFromJson(f.typeName(), j, f.m_own)) f.m_own = JPXmlJson::node("feeder", j["openpnp"]);
     return f;
 }
@@ -614,6 +615,7 @@ JJson JPFeeder::toJson() const {
     j["priority"] = priorityName(m_priority);
     j["feedOptions"] = feedOptionsKey(m_feedOptions);
     j["location"] = JPLocationJson::to(m_location);
+    JPFieldValues::write(j, custom);
     std::visit(
         [&j](const auto& own) {
             using K = std::decay_t<decltype(own)>;

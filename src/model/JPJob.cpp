@@ -190,6 +190,7 @@ std::unique_ptr<JPJob> JPJob::fromJson(const JJson& j) {
     for (const auto& [k, v] : j["placementErrorHandling"].obj())
         job->errorHandlingStateMap[k] = JPPlacement::errorHandlingFrom(v.str());
     job->planSort = j["plan"]["sort"].str();
+    job->custom = JPFieldValues::read(j);
     for (const JJson& id : j["plan"]["order"].arr()) job->planOrder.push_back(id.str());
     return job;
 }
@@ -206,6 +207,7 @@ JJson JPJob::toJson() const {
     JJson eh = JJson::object();
     for (const auto& [k, v] : errorHandlingStateMap) eh[k] = JPPlacement::errorHandlingName(v);
     j["placementErrorHandling"] = eh;
+    JPFieldValues::write(j, custom);
     if (!planSort.empty() || !planOrder.empty()) {
         JJson plan = JJson::object();
         if (!planSort.empty()) plan["sort"] = planSort;

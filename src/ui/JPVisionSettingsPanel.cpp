@@ -63,6 +63,7 @@ JPVisionSettingsPanel::JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration
     m_copy->onClicked.connect([this] { copySettings(); });
     tool("Create Vision Settings from Clipboard", "paste", "Create a new vision setting from a definition on the clipboard.")
         ->onClicked.connect([this] { pasteSettings(); });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     bar->add(toolSeparator(graph));
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JLabel* typeLabel = bar->add(std::make_unique<JLabel>(graph, "Type"));
@@ -85,6 +86,7 @@ JPVisionSettingsPanel::JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("vision");
     m_table->setModel(&m_model);
+    m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] { showForm(); });
     m_table->onEditRefused = [](const std::string&) {};
     m_form = m_formPane->add(std::make_unique<JPSetupForm>(graph));

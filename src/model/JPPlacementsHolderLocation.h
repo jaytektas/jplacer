@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPAffineTransform.h"
+#include "JPFieldValues.h"
 #include "JPLocation.h"
 #include "JPPlacementsHolder.h"
 #include "JPSide.h"
@@ -43,6 +44,7 @@ public:
     std::string fileName;
     bool        checkFiducials = false;
     bool        locallyEnabled = true;
+    JPFieldValues custom;   // its values of the fields added to board locations
     JPPanelLocation*                    parent = nullptr;
     std::shared_ptr<JPPlacementsHolder> holder;   // its board or panel (an instance)
 

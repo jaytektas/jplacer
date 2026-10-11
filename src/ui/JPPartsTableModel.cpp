@@ -21,6 +21,10 @@ namespace {
 
 enum Col { kSource, kId, kName, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
            kFeeders, kPackagings, kSuppliers, kMakers, kStock, kDatasheet, kColumns };
+// Each column's field (JPFieldSet::Of::Parts), in their order.
+constexpr const char* kKeys[kColumns] = { "source", "id", "name", "description", "value", "mpn", "height", "depth", "package",
+                                          "speed", "bottomVision", "fiducialVision", "placements", "feeders", "packaging",
+                                          "suppliers", "manufacturer", "stock", "datasheet" };
 
 // OpenPnP's PercentConverter.
 std::string percent(double d) {
@@ -91,6 +95,12 @@ std::string JPPartsTableModel::displayText(int row, int c) const {
 int JPPartsTableModel::columnCount() const { return kColumns; }
 
 JPTableModel::Column JPPartsTableModel::column(int c) const {
+    Column col = heading(c);
+    if (c >= 0 && c < kColumns) col.key = kKeys[c];
+    return col;
+}
+
+JPTableModel::Column JPPartsTableModel::heading(int c) const {
     switch (c) {
         case kSource:         return JPSourceColumn::column();
         case kId:             return { "ID", "What placements, feeders and jobs know it by (a new part's a GUID)", Kind::Text };
@@ -373,7 +383,7 @@ bool JPPartsTableModel::setText(int row, int c, const std::string& text, std::st
         }
         default: return false;
     }
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
     return true;
 }
 
@@ -390,7 +400,24 @@ void JPPartsTableModel::setChoice(int row, int c, int index) {
     } else {
         return;
     }
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+const JPFieldValues* JPPartsTableModel::custom(int row) const {
+    const JPPart* p = part(row);
+    return p ? &p->custom : nullptr;
+}
+
+bool JPPartsTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    JPPart* p = part(row);
+    if (!p) return false;
+    p->custom.set(key, value);
+    m_said.changed(onChanged);
+    return true;
 }
 
 } // inline namespace jf

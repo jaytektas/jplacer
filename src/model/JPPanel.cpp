@@ -243,6 +243,7 @@ JPPanel JPPanel::fromJson(const JJson& j) {
     if (j["name"].isString()) p.name = j["name"].str();
     p.convertedFrom = j["convertedFrom"].str();
     p.dimensions = JPLocationJson::from(j["dimensions"]);
+    p.custom = JPFieldValues::read(j);
     for (const JJson& e : j["placements"].arr()) {
         JPPlacement placement = JPPlacement::fromJson(e);
         placement.partId = e["libraryPart"].str();
@@ -261,6 +262,7 @@ JJson JPPanel::toJson(bool asFile) const {
         j["version"] = 1;
         if (name) j["name"] = *name;
         if (!convertedFrom.empty()) j["convertedFrom"] = convertedFrom;
+        JPFieldValues::write(j, custom);
     }
     j["dimensions"] = JPLocationJson::to(dimensions);
     JJson ps = JJson::array();

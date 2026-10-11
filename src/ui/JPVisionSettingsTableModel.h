@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPBatchedChange.h"
 #include "JPTableModel.h"
 
 #include "model/JPConfiguration.h"
@@ -37,7 +38,17 @@ public:
     JPVisionSettings* settings(int row) const;
     int rowOf(const std::string& id) const;
 
+    std::optional<JPFieldSet::Of> fieldsOf() const override { return JPFieldSet::Of::Vision; }
+    const JPFieldValues* custom(int row) const override;
+    bool   setCustom(int row, const std::string& key, const JJson& value) override;
+    void   beginEdits() override { m_said.begin(); }
+    void   endEdits() override { m_said.end(onChanged); }
+
 private:
+    Column heading(int c) const;
+    // The field a column shows (JPFieldSet's built-in's key).
+    std::string keyAt(int c) const;
+    JPBatchedChange m_said;
     JPConfiguration&       m_config;
     JPVisionSettings::Kind m_kind = JPVisionSettings::Kind::Bottom;
 };

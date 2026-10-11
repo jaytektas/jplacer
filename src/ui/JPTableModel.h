@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include "model/JPFieldSet.h"
+#include "model/JPFieldValues.h"
+
 #include <j/core/JComboBox.h>
 
 #include <cstdint>
@@ -15,7 +18,11 @@ inline namespace jf {
 // What a JPTable shows and edits, as a Swing TableModel: columns with a
 // name, a tooltip and a kind (which decides how a cell is drawn, edited and
 // sorted), and rows of cells. Rows are the model's; the table sorts and
-// filters a view of them without moving them.
+// filters a view of them without moving them. A model whose rows are things
+// with fields (parts, placements, feeders: fieldsOf) gives each column the
+// key of the built-in field it shows, and keeps each row's values of the
+// fields added (custom, setCustom); the table shows those fields as columns
+// of their own and leaves out the built-ins removed (JPFieldsModel).
 class JPTableModel {
 public:
     enum class Kind {
@@ -39,7 +46,12 @@ public:
         // Hidden until chosen (a table's Columns…): more about each row, kept out of the way of those who do
         // not want it. Hidden in a table whose kept layout has never had it, and again on Reset Columns.
         bool        hiddenAtFirst = false;
+        // What it is for good, whatever its heading says (the built-in field it shows, JPField::key); empty:
+        // its name. What a table keeps of its columns is kept by it.
+        std::string key;
     };
+    // A column's key: its own, else its name.
+    static std::string keyOf(const Column& c) { return c.key.empty() ? c.name : c.key; }
 
     virtual ~JPTableModel() = default;
 
@@ -92,6 +104,23 @@ public:
     // A Picker cell clicked (or F2): its window opened; what it chooses, the model sets itself.
     virtual void pick(int, int) {}
     virtual void setChecked(int, int, bool) {}
+
+    // The kind of thing its rows are, whose fields it shows; none: rows of jplacer's own (a log's lines, the
+    // issues found), with no fields to add.
+    virtual std::optional<JPFieldSet::Of> fieldsOf() const { return std::nullopt; }
+    // A row's values of the fields added; null: the row keeps none (a panel's pseudo-placement).
+    virtual const JPFieldValues* custom(int) const { return nullptr; }
+    // Whether a row's values of the fields added may be changed here (a job's use of a board edited alone
+    // keeps none of its own: they are the board's).
+    virtual bool customEditable(int row) const { return custom(row) != nullptr; }
+    // One of a row's values set (null: taken out), as an edit of the row is made (saved, its uses told).
+    // False when the row keeps none.
+    virtual bool setCustom(int, const std::string& /*key*/, const JJson& /*value*/) { return false; }
+
+    // Edits to many rows at once (a value typed into all the rows chosen, a paste): begun, then ended, so the
+    // model says the change once (saved and redrawn once, not once a row).
+    virtual void beginEdits() {}
+    virtual void endEdits() {}
 };
 
 } // inline namespace jf

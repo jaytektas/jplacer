@@ -76,6 +76,7 @@ public:
     // jplacer's plan (DESIGN.md, Job execution; JPJobPlan): how the job's part groups are ordered, by a sort
     // rule (JPJobPlan::kSorts) and the parts moved by hand (in their order; the rest after them, sorted).
     std::string                                       planSort;
+    JPFieldValues                                     custom;   // its values of the fields added to jobs
     std::vector<std::string>                          planOrder;
     std::optional<double>                             version;   // OpenPnP's file's; none: an older one
     std::string                                       file;

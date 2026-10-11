@@ -7,6 +7,7 @@
 #include "JPBoardLocation.h"
 #include "JPJob.h"
 #include "JPFeeder.h"
+#include "JPFields.h"
 #include "JPPhotonProperties.h"
 #include "JPDropBoxes.h"
 #include "JPSlotBanks.h"
@@ -66,6 +67,10 @@ public:
     void restoreLibrary(const JPLibraryStore::Contents& snapshot);
     // Writes the parts, packages, vision settings and feeders.
     bool save(std::string& error) const;
+    // Every kind's fields (fields.json): read with the rest, written by save and, alone, by saveFields.
+    JPFields&       fields() { return m_fields; }
+    const JPFields& fields() const { return m_fields; }
+    bool saveFields(std::string& error) const;
 
     // The library's parts: the only parts there are; a board's parts point at them.
     const std::vector<std::shared_ptr<JPPart>>& parts() const { return m_parts; }
@@ -257,6 +262,7 @@ private:
     void linkPartsByName(std::vector<JPPlacement>& placements) const;
 
     std::string                                          m_directory;
+    JPFields                                             m_fields;
     std::vector<std::shared_ptr<JPLibraryFootprint>>     m_footprints;
     std::vector<JPManufacturer>                          m_manufacturers;
     // The library's file (library.db): written on save (from a const save, so mutable).

@@ -279,6 +279,8 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
         ->setTooltip("The job's parts against the stock: left to place, attrition, in stock, short, where kept.");
     entry(keys, job, graph, "job.runs", "Job", "Runs\xE2\x80\xA6", none, [&app] { app.tabs().openRuns(); })
         ->setTooltip("The runs of jobs: when, how each ended, the boards at their revisions, what it placed.");
+    entry(keys, job, graph, "job.fields", "Job", "Job Fields\xE2\x80\xA6", none, [&app] { app.tabs().openJobFields(); })
+        ->setTooltip("The job's own values in the fields added to jobs (an order number, a customer): add a field, fill it in.");
     // OpenPnP's descriptions, as its menu entries' tooltips.
     step->setTooltip("Process one step of the job and pause.");
     stop->setTooltip("Stop processing the job.");

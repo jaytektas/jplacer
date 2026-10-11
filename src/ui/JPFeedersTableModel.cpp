@@ -20,6 +20,12 @@ JPFeedersTableModel::JPFeedersTableModel(JPConfiguration& config) : m_config(con
 int JPFeedersTableModel::columnCount() const { return kColumns; }
 
 JPTableModel::Column JPFeedersTableModel::column(int c) const {
+    Column col = heading(c);
+    col.key = keyAt(c);
+    return col;
+}
+
+JPTableModel::Column JPFeedersTableModel::heading(int c) const {
     switch (c) {
         case kName:     return { "Name", "", Kind::Text };
         case kPart:     return { "Part", "", Kind::Text };
@@ -106,7 +112,7 @@ bool JPFeedersTableModel::setText(int row, int c, const std::string& text, std::
     JPFeeder* f = feeder(row);
     if (!f || c != kName) return false;
     f->setName(text);
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
     return true;
 }
 
@@ -116,14 +122,36 @@ void JPFeedersTableModel::setChoice(int row, int c, int index) {
     if (c == kPriority) f->setPriority(kPriorities[index]);
     else if (c == kFeed && f->supportsFeedOptions()) f->setFeedOptions(kFeedOptions[index]);
     else return;
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
 }
 
 void JPFeedersTableModel::setChecked(int row, int c, bool on) {
     JPFeeder* f = feeder(row);
     if (!f || c != kEnabled) return;
     f->setEnabled(on);
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+std::string JPFeedersTableModel::keyAt(int c) const {
+    static const char* const keys[] = { "name", "part", "type", "priority", "faults", "enabled", "feed" };
+    return c >= 0 && c < 7 ? keys[c] : std::string();
+}
+
+const JPFieldValues* JPFeedersTableModel::custom(int row) const {
+    const JPFeeder* r = feeder(row);
+    return r ? &r->custom : nullptr;
+}
+
+bool JPFeedersTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    JPFeeder* r = feeder(row);
+    if (!r) return false;
+    r->custom.set(key, value);
+    m_said.changed(onChanged);
+    return true;
 }
 
 } // inline namespace jf

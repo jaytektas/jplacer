@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldValues.h"
 #include "JPLocation.h"
 #include "JPPlacement.h"
 #include "JPProfile.h"
@@ -37,6 +38,8 @@ public:
     std::optional<JPProfile>   profile;
     std::string                file;    // its file's full path; empty: none
     bool                       dirty = false;
+    // Its values of the fields added to boards (or panels): the definition's, kept in its file.
+    JPFieldValues              custom;
 
     // The definition this is an instance of; itself, when it is one.
     const JPPlacementsHolder* definition() const { return m_definition ? m_definition : this; }

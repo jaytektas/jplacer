@@ -336,6 +336,7 @@ JPBoard JPBoard::fromJson(const JJson& j) {
     if (j["name"].isString()) b.name = j["name"].str();
     if (j["convertedFrom"].isString()) b.convertedFrom = j["convertedFrom"].str();
     if (j["dimensions"].isObject()) b.dimensions = JPLocationJson::from(j["dimensions"]);
+    b.custom = JPFieldValues::read(j);
     if (j["parts"].isArray())
         for (const JJson& p : j["parts"].arr()) b.m_parts->push_back(JPBoardPart::fromJson(p));
     if (j["placements"].isArray())
@@ -362,6 +363,7 @@ JJson JPBoard::toJson() const {
     if (name) j["name"] = *name;
     if (!convertedFrom.empty()) j["convertedFrom"] = convertedFrom;
     j["dimensions"] = JPLocationJson::to(dimensions);
+    JPFieldValues::write(j, custom);
     JJson parts = JJson::array();
     for (const JPBoardPart& p : *m_parts) parts.push(p.toJson());
     j["parts"] = parts;

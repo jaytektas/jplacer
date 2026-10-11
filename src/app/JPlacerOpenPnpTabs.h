@@ -7,6 +7,7 @@
 #include "JPlacerJobRun.h"
 #include "JPlacerLayout.h"
 #include "JPlacerMachine.h"
+#include "JPlacerFieldWindows.h"
 #include "JPlacerPipelines.h"
 #include "JPlacerOcrRegionSetup.h"
 #include "JPlacerStripAutoSetup.h"
@@ -71,6 +72,8 @@ public:
     void openShortages();
     // Job > Runs…: the runs of jobs (JPlacerRunsDialog).
     void openRuns();
+    // The job's values of the fields added to jobs (JPlacerJobFieldsDialog).
+    void openJobFields();
     // Job > Check Job…: the job's data checked before a run (JPlacerJobRun::checkJob).
     void checkJob();
     // Job > Plan…: the job's part groups in run order (JPlacerPlanDialog).
@@ -96,6 +99,8 @@ private:
     void showFootprint(const void* from, const JPFootprint* footprint);
     // A change to the library (a part, package, footprint or manufacturer): a step to undo, and saved.
     void libraryChanged();
+    // Fields added, changed or removed (their values with them): the library's undo noted, the boards shown anew.
+    void fieldsChanged();
     // The machine's default vision settings (bottom vision's, the fiducial locator's).
     std::pair<std::string, std::string> machineVisionDefaults() const;
     // The machine's PhotonFeederData actuator made when a Photon feeder needs it.
@@ -131,6 +136,7 @@ private:
     std::unique_ptr<JPFeedersPanel>  m_feeders;
     JPlacerPipelines                 m_pipelines;
     JPLibraryHistory                 m_libraryHistory;
+    JPlacerFieldWindows              m_fieldWindows;
     std::unique_ptr<JDockWidget>     m_feedersDock;
     std::unique_ptr<JPBoardsPanel>   m_boards;
     std::unique_ptr<JDockWidget>     m_boardsDock;

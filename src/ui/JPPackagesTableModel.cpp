@@ -53,6 +53,12 @@ std::string JPPackagesTableModel::displayText(int row, int c) const {
 }
 
 JPTableModel::Column JPPackagesTableModel::column(int c) const {
+    Column col = heading(c);
+    col.key = keyAt(c);
+    return col;
+}
+
+JPTableModel::Column JPPackagesTableModel::heading(int c) const {
     switch (c) {
         case kSource:         return JPSourceColumn::column();
         case kId:          return { "ID", "", Kind::Text };
@@ -130,7 +136,7 @@ bool JPPackagesTableModel::setText(int row, int c, const std::string& text, std:
     if (c == kDescription) p->description = text;
     else if (c == kTape) p->tapeSpecification = text;
     else return false;
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
     return true;
 }
 
@@ -140,7 +146,29 @@ void JPPackagesTableModel::setChoice(int row, int c, int index) {
     const auto vs = visionChoices(c == kBottomVision ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial);
     if (index < 0 || size_t(index) >= vs.size()) return;
     (c == kBottomVision ? p->bottomVisionId : p->fiducialVisionId) = vs[size_t(index)] ? vs[size_t(index)]->id : std::string();
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+std::string JPPackagesTableModel::keyAt(int c) const {
+    static const char* const keys[] = { "source", "id", "description", "tape", "bottomVision", "fiducialVision" };
+    return c >= 0 && c < 6 ? keys[c] : std::string();
+}
+
+const JPFieldValues* JPPackagesTableModel::custom(int row) const {
+    const JPPackage* r = package(row);
+    return r ? &r->custom : nullptr;
+}
+
+bool JPPackagesTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    JPPackage* r = package(row);
+    if (!r) return false;
+    r->custom.set(key, value);
+    m_said.changed(onChanged);
+    return true;
 }
 
 } // inline namespace jf

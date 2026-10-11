@@ -79,6 +79,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_moveTool = tool("Move Tool...", "position-nozzle-on-feeder",
                       "Move the tool to the selected feeder's current pick location.");
     m_moveTool->onClicked.connect([this] { moveToPick(Tool::Nozzle); });
+    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
     searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);

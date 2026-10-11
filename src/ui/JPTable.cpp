@@ -76,20 +76,30 @@ JPTable::JPTable(JSceneGraph& graph) : JControl(graph, "JPTable") {
     setHSizePolicy(JSizePolicyMode::Expanding, 1);
     setVSizePolicy(JSizePolicyMode::Expanding, 1);
     setContextMenu(nullptr);
-    m_headerMenu = std::make_unique<JMenu>("Columns");
-    JMenuItem* reset = m_headerMenu->add(graph, "Reset Columns");
-    reset->setTooltip("Put this table's columns back as they first were: their order, their widths, no sort");
-    reset->onTriggered.connect([this] { resetColumns(); });
+    buildHeaderMenu(-1);
+    s_tables.insert(this);
 }
 
-JPTable::~JPTable() = default;
+JPTable::~JPTable() { s_tables.erase(this); }
+
+void JPTable::fieldsChanged() {
+    for (JPTable* t : s_tables) {
+        t->stopEditing(false);
+        t->rebuildView();
+    }
+}
 
 void JPTable::setModel(JPTableModel* model) {
     stopEditing(false);
-    m_model = model;
+    // Its rows' fields with it, where they have them.
+    m_fieldsModel.reset();
+    if (model && s_fields)
+        if (const std::optional<JPFieldSet::Of> of = model->fieldsOf())
+            m_fieldsModel = std::make_unique<JPFieldsModel>(*model, *s_fields, *of);
+    m_model = m_fieldsModel ? m_fieldsModel.get() : model;
     m_widths.clear();
     m_sortKeys.clear();
-    m_orderNames.clear();   // the order made again for its columns, the kept state taken
+    m_orderKeys.clear();   // the order made again for its columns, the kept state taken
     m_selected.clear();
     m_lead = m_anchor = -1;
     applySort();
@@ -99,7 +109,7 @@ void JPTable::setModel(JPTableModel* model) {
 void JPTable::setStateKey(const std::string& key) {
     m_stateKey = key;
     m_state = s_loadState ? s_loadState(key) : JJson();
-    m_orderNames.clear();
+    m_orderKeys.clear();
     m_widths.clear();
     m_sortKeys.clear();
     applySort();
@@ -109,7 +119,7 @@ void JPTable::setStateKey(const std::string& key) {
 void JPTable::resetColumns() {
     endColumnDrag(false);
     m_state = JJson();
-    m_orderNames.clear();
+    m_orderKeys.clear();
     m_widths.clear();
     m_sortKeys.clear();
     keepState();
@@ -117,12 +127,12 @@ void JPTable::resetColumns() {
 }
 
 const std::vector<int>& JPTable::order() const {
-    std::vector<std::string> names;
-    for (int c = 0; m_model && c < m_model->columnCount(); ++c) names.push_back(m_model->column(c).name);
-    if (names != m_orderNames) {
-        m_orderNames = std::move(names);
+    std::vector<std::string> keys;
+    for (int c = 0; m_model && c < m_model->columnCount(); ++c) keys.push_back(JPTableModel::keyOf(m_model->column(c)));
+    if (keys != m_orderKeys) {
+        m_orderKeys = std::move(keys);
         m_order.clear();
-        for (size_t c = 0; c < m_orderNames.size(); ++c) m_order.push_back(int(c));
+        for (size_t c = 0; c < m_orderKeys.size(); ++c) m_order.push_back(int(c));
         m_widths.clear();
         m_hidden.clear();
         applyState();
@@ -132,14 +142,30 @@ const std::vector<int>& JPTable::order() const {
             for (const JJson& n : m_state["order"].arr())
                 if (n.isString()) known.insert(n.str());
         for (int c = 0; m_model && c < m_model->columnCount(); ++c)
-            if (m_model->column(c).hiddenAtFirst && !known.count(m_orderNames[size_t(c)])) m_hidden.insert(m_orderNames[size_t(c)]);
+            if (m_model->column(c).hiddenAtFirst && !known.count(m_orderKeys[size_t(c)])) m_hidden.insert(m_orderKeys[size_t(c)]);
+        // A field added here: shown, after the column it was added after.
+        bool placed = false;
+        for (const auto& [key, after] : m_addedHere) {
+            const auto at = std::find(m_orderKeys.begin(), m_orderKeys.end(), key);
+            if (at == m_orderKeys.end()) continue;
+            const int c = int(at - m_orderKeys.begin());
+            m_hidden.erase(key);
+            std::erase(m_order, c);
+            auto to = m_order.end();
+            for (auto it = m_order.begin(); it != m_order.end(); ++it)
+                if (m_orderKeys[size_t(*it)] == after) to = it + 1;
+            m_order.insert(to, c);
+            placed = true;
+        }
+        if (placed) m_addedHere.clear();
         // The hidden ones out of what is shown, kept in their places.
         m_allOrder = m_order;
-        std::erase_if(m_order, [this](int c) { return m_hidden.count(m_orderNames[size_t(c)]) > 0; });
+        std::erase_if(m_order, [this](int c) { return m_hidden.count(m_orderKeys[size_t(c)]) > 0; });
         if (m_order.empty() && !m_allOrder.empty()) {   // never none shown
             m_hidden.clear();
             m_order = m_allOrder;
         }
+        if (placed) keepState();
     }
     return m_order;
 }
@@ -163,15 +189,17 @@ std::vector<int> JPTable::allColumns() const {
 
 std::vector<JPTable::ColumnShown> JPTable::columnsShown() const {
     std::vector<ColumnShown> out;
-    for (const int c : allColumns()) out.push_back({ m_orderNames[size_t(c)], m_hidden.count(m_orderNames[size_t(c)]) == 0 });
+    for (const int c : allColumns())
+        out.push_back({ m_orderKeys[size_t(c)], m_model->column(c).name, m_hidden.count(m_orderKeys[size_t(c)]) == 0 });
     return out;
 }
 
-void JPTable::setColumnShown(const std::string& name, bool shown) {
+void JPTable::setColumnShown(const std::string& key, bool shown) {
+    const std::string& name = key;
     endColumnDrag(false);
     stopEditing(true);
     const std::vector<int> all = allColumns();
-    const bool known = std::any_of(all.begin(), all.end(), [&](int c) { return m_orderNames[size_t(c)] == name; });
+    const bool known = std::any_of(all.begin(), all.end(), [&](int c) { return m_orderKeys[size_t(c)] == name; });
     if (!known || shown == (m_hidden.count(name) == 0)) return;
     if (!shown && order().size() <= 1) return;   // the last one shown stays
     m_allOrder = all;
@@ -186,8 +214,8 @@ void JPTable::setColumnShown(const std::string& name, bool shown) {
                 sum += m_widths[size_t(c)];
                 ++counted;
             }
-        for (int c = 0; c < int(m_orderNames.size()); ++c)
-            if (m_orderNames[size_t(c)] == name && size_t(c) < m_widths.size() && m_model->column(c).width <= 0)
+        for (int c = 0; c < int(m_orderKeys.size()); ++c)
+            if (m_orderKeys[size_t(c)] == name && size_t(c) < m_widths.size() && m_model->column(c).width <= 0)
                 m_widths[size_t(c)] = counted ? sum / float(counted) : JStyle::current().gridDefaultColumnWidth;
         m_hidden.erase(name);
     } else {
@@ -195,7 +223,7 @@ void JPTable::setColumnShown(const std::string& name, bool shown) {
     }
     m_order.clear();
     for (const int c : m_allOrder)
-        if (!m_hidden.count(m_orderNames[size_t(c)])) m_order.push_back(c);
+        if (!m_hidden.count(m_orderKeys[size_t(c)])) m_order.push_back(c);
     keepState();
     m_graph.invalidateNode(m_nodeId, DirtySelf);
 }
@@ -208,7 +236,8 @@ JMenu* JPTable::columnsMenu() {
         // A column without a title (an icon's) by what its tooltip says it is, before its colon.
         std::string label = c.name;
         for (int k = 0; label.empty() && m_model && k < m_model->columnCount(); ++k)
-            if (m_model->column(k).name == c.name) label = m_model->column(k).tooltip.substr(0, m_model->column(k).tooltip.find(':'));
+            if (JPTableModel::keyOf(m_model->column(k)) == c.key)
+                label = m_model->column(k).tooltip.substr(0, m_model->column(k).tooltip.find(':'));
         JMenuItem* item = m_columnsMenu->add(m_graph, label);
         item->setCheckable(true);
         item->setChecked(c.shown);
@@ -217,9 +246,27 @@ JMenu* JPTable::columnsMenu() {
             item->setTooltip("The last column shown stays");
         }
         // The tick has already flipped when this runs: it says what is wanted.
-        item->onTriggered.connect([this, item, name = c.name] { setColumnShown(name, item->isChecked()); });
+        item->onTriggered.connect([this, item, key = c.key] { setColumnShown(key, item->isChecked()); });
     }
     m_columnsMenu->addSeparator(m_graph);
+    if (const std::optional<JPFieldSet::Of> of = m_fieldsModel ? m_fieldsModel->fieldsOf() : std::nullopt) {
+        const std::string kind = JPFieldSet::plural(*of);
+        JMenuItem* add = m_columnsMenu->add(m_graph, "Add Field…");
+        add->setTooltip("A field of your own for " + kind + ": shown here, offered by every table of " + kind
+                        + " and by the import");
+        add->setEnabled(bool(s_fieldHooks.add));
+        add->onTriggered.connect([this, of] {
+            if (s_fieldHooks.add) s_fieldHooks.add(*of, [this](const std::string& key) { fieldAdded(key, std::string()); });
+        });
+        JMenuItem* edit = m_columnsMenu->add(m_graph, "Edit Fields…");
+        edit->setTooltip("Every field of " + kind + ": rename one, change what an import matches it by, add one, delete "
+                         "one (those jplacer needs stay)");
+        edit->setEnabled(bool(s_fieldHooks.manage));
+        edit->onTriggered.connect([of] {
+            if (s_fieldHooks.manage) s_fieldHooks.manage(*of);
+        });
+        m_columnsMenu->addSeparator(m_graph);
+    }
     JMenuItem* reset = m_columnsMenu->add(m_graph, "Reset Columns");
     reset->setTooltip("Put this table's columns back as they first were: every one shown, their order, their widths, "
                       "no sort");
@@ -237,7 +284,7 @@ void JPTable::applyState() const {
     const JJson& state = m_state;   // read only: a missing key is not made
     if (!state.isObject()) return;
     std::map<std::string, int> byName;
-    for (size_t c = 0; c < m_orderNames.size(); ++c) byName.emplace(m_orderNames[c], int(c));
+    for (size_t c = 0; c < m_orderKeys.size(); ++c) byName.emplace(m_orderKeys[c], int(c));
     // The columns hidden, by name.
     if (state["hidden"].isArray())
         for (const JJson& n : state["hidden"].arr())
@@ -249,7 +296,7 @@ void JPTable::applyState() const {
             if (n.isString())
                 if (const auto it = byName.find(n.str()); it != byName.end() && std::find(o.begin(), o.end(), it->second) == o.end())
                     o.push_back(it->second);
-        for (int c = 0; c < int(m_orderNames.size()); ++c) {
+        for (int c = 0; c < int(m_orderKeys.size()); ++c) {
             if (std::find(o.begin(), o.end(), c) != o.end()) continue;
             auto at = o.begin();
             for (int before = c - 1; before >= 0; --before)
@@ -264,11 +311,11 @@ void JPTable::applyState() const {
     // The widths kept, as shares of the whole (a column without one takes the average); laid out to the
     // table's width as it is (materialiseWidths).
     if (state["widths"].isObject()) {
-        std::vector<float> shares(m_orderNames.size(), 0.f);
+        std::vector<float> shares(m_orderKeys.size(), 0.f);
         float sum = 0;
         int known = 0;
-        for (size_t c = 0; c < m_orderNames.size(); ++c)
-            if (const JJson& w = state["widths"][m_orderNames[c]]; w.isNumber() && w.number() > 0) {
+        for (size_t c = 0; c < m_orderKeys.size(); ++c)
+            if (const JJson& w = state["widths"][m_orderKeys[c]]; w.isNumber() && w.number() > 0) {
                 shares[c] = float(w.number());
                 sum += shares[c];
                 ++known;
@@ -291,7 +338,7 @@ void JPTable::applySort() {
     for (const JJson& k : state["sort"].arr()) {
         if (!k["column"].isString()) continue;
         for (int c = 0; c < m_model->columnCount(); ++c)
-            if (m_model->column(c).name == k["column"].str() && m_sortKeys.size() < kMostSortKeys)
+            if (JPTableModel::keyOf(m_model->column(c)) == k["column"].str() && m_sortKeys.size() < kMostSortKeys)
                 m_sortKeys.push_back({ c, !k["ascending"].isBool() || k["ascending"].boolean() });
     }
 }
@@ -300,7 +347,7 @@ void JPTable::keepState() const {
     if (!m_model) return;
     JJson st = JJson::object();
     JJson o = JJson::array();
-    for (const int c : allColumns()) o.push(JJson(m_orderNames[size_t(c)]));
+    for (const int c : allColumns()) o.push(JJson(m_orderKeys[size_t(c)]));
     st["order"] = o;
     JJson hidden = JJson::array();
     for (const std::string& name : m_hidden) hidden.push(JJson(name));
@@ -311,14 +358,14 @@ void JPTable::keepState() const {
         // (it takes the others' average when it comes back).
         JJson w = JJson::object();
         for (const int c : order())
-            if (size_t(c) < m_widths.size()) w[m_orderNames[size_t(c)]] = double(m_widths[size_t(c)] / total);
+            if (size_t(c) < m_widths.size()) w[m_orderKeys[size_t(c)]] = double(m_widths[size_t(c)] / total);
         st["widths"] = w;
     }
     JJson sort = JJson::array();
     for (const SortKey& k : m_sortKeys)
-        if (k.column >= 0 && size_t(k.column) < m_orderNames.size()) {
+        if (k.column >= 0 && size_t(k.column) < m_orderKeys.size()) {
             JJson key = JJson::object();
-            key["column"] = m_orderNames[size_t(k.column)];
+            key["column"] = m_orderKeys[size_t(k.column)];
             key["ascending"] = k.ascending;
             sort.push(key);
         }
@@ -519,7 +566,7 @@ void JPTable::setColumnWidth(int c, float w) {
     materialiseWidths();
     const std::vector<int>& o = order();
     const int at = positionOf(c);
-    if (at < 0 || size_t(at) + 1 >= o.size() || m_widths.size() != m_orderNames.size()) return;
+    if (at < 0 || size_t(at) + 1 >= o.size() || m_widths.size() != m_orderKeys.size()) return;
     const float least = JStyle::current().gridMinColumnWidth;
     float after = 0;
     for (size_t i = size_t(at) + 1; i < o.size(); ++i) after += m_widths[size_t(o[i])];
@@ -1093,11 +1140,58 @@ bool JPTable::handleScroll(float mx, float my, float wheel) {
     return true;
 }
 
+void JPTable::fieldAdded(const std::string& key, const std::string& after) {
+    m_addedHere.push_back({ key, after });
+    m_orderKeys.clear();   // the columns made again, the field among them
+    m_widths.clear();
+    fieldsChanged();
+}
+
+void JPTable::buildHeaderMenu(int column) {
+    // Kept until the next is made: the one open is this one.
+    m_headerMenu = std::make_unique<JMenu>("Columns");
+    const JPField* field = m_fieldsModel && column >= 0 ? m_fieldsModel->fieldAt(column) : nullptr;
+    const std::optional<JPFieldSet::Of> of = m_fieldsModel ? m_fieldsModel->fieldsOf() : std::nullopt;
+    if (m_model && column >= 0) {
+        const JPTableModel::Column col = m_model->column(column);
+        const std::string key = JPTableModel::keyOf(col);
+        const std::string name = col.name.empty() ? col.tooltip.substr(0, col.tooltip.find(':')) : col.name;
+        JMenuItem* hide = m_headerMenu->add(m_graph, "Hide \"" + name + "\"");
+        hide->setTooltip("Not shown in this table (Columns… shows it again)");
+        hide->setEnabled(order().size() > 1);
+        hide->onTriggered.connect([this, key] { setColumnShown(key, false); });
+        if (of) {
+            m_headerMenu->addSeparator(m_graph);
+            JMenuItem* add = m_headerMenu->add(m_graph, "Add Field After \"" + name + "\"…");
+            add->setTooltip(std::string("A field of your own for ") + JPFieldSet::plural(*of) + ", shown after this column");
+            add->setEnabled(bool(s_fieldHooks.add));
+            add->onTriggered.connect([this, of, key] {
+                if (s_fieldHooks.add) s_fieldHooks.add(*of, [this, key](const std::string& added) { fieldAdded(added, key); });
+            });
+            if (field) {
+                JMenuItem* edit = m_headerMenu->add(m_graph, "Edit Field \"" + field->name + "\"…");
+                edit->setTooltip(field->builtIn ? "Rename it, or change the headings an import matches it by"
+                                                : "Rename it, change its type, its choices or the headings an import matches "
+                                                  "it by, or delete it");
+                edit->setEnabled(bool(s_fieldHooks.edit));
+                edit->onTriggered.connect([of, fk = field->key] {
+                    if (s_fieldHooks.edit) s_fieldHooks.edit(*of, fk);
+                });
+            }
+        }
+        m_headerMenu->addSeparator(m_graph);
+    }
+    JMenuItem* reset = m_headerMenu->add(m_graph, "Reset Columns");
+    reset->setTooltip("Put this table's columns back as they first were: their order, their widths, no sort");
+    reset->onTriggered.connect([this] { resetColumns(); });
+}
+
 void JPTable::prepareContextMenu(float mx, float my) {
-    // Over the headings, the columns' menu; over the rows, the owner's.
+    // Over the headings, the columns' menu (for the column under the pointer); over the rows, the owner's.
     if (contextMenu() != m_headerMenu.get()) m_rowsMenu = contextMenu();
     const JRect b = bounds();
     if (m_headerShown && my >= b.y && my < b.y + headerHeight()) {
+        buildHeaderMenu(columnAt(mx));
         setContextMenu(m_headerMenu.get());
         return;
     }

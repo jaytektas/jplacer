@@ -27,8 +27,9 @@ class JPLibraryStore {
 public:
     static constexpr const char* kFile = "library.db";
     // 5: a part known by its id (a GUID) with its Name and last packaging chosen, its OpenPnP-shaped data as
-    // JPXmlJson writes it; a library of another schema is refused (start a fresh one).
-    static constexpr int         kSchema = 5;
+    // JPXmlJson writes it. 6: its parts' and packages' (and their pads') values of the fields added (a library
+    // of 5 is brought up to 6 as it is opened); a library of another schema is refused (start a fresh one).
+    static constexpr int         kSchema = 6;
 
     bool open(const std::string& path, std::string& error);
     bool isOpen() const { return m_db.isOpen(); }

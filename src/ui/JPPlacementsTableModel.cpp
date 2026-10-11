@@ -79,6 +79,12 @@ int JPPlacementsTableModel::columnOf(Col c) const {
 }
 
 JPTableModel::Column JPPlacementsTableModel::column(int c) const {
+    Column col = heading(c);
+    col.key = keyAt(c);
+    return col;
+}
+
+JPTableModel::Column JPPlacementsTableModel::heading(int c) const {
     Column col;
     col.align = Align::Center;
     switch (m_shown[size_t(c)]) {
@@ -325,13 +331,13 @@ JPBoard* JPPlacementsTableModel::editedBoard() const {
 void JPPlacementsTableModel::edit(const std::string& id, const std::function<void(JPPlacement&)>& set) {
     if (!m_holder) return;
     apply(id, set);
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
 }
 
 void JPPlacementsTableModel::editEach(const std::vector<std::string>& ids, const std::function<void(JPPlacement&)>& set) {
     if (!m_holder || ids.empty()) return;
     for (const std::string& id : ids) apply(id, set);
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
 }
 
 void JPPlacementsTableModel::apply(const std::string& id, const std::function<void(JPPlacement&)>& set) {
@@ -361,7 +367,7 @@ void JPPlacementsTableModel::setPlacedEach(const std::vector<int>& rows, bool pl
             m_placedJob->storePlacedStatus(*m_location, p->id, placed);
             any = true;
         }
-    if (any && onChanged) onChanged();   // once for all of them
+    if (any) m_said.changed(onChanged);   // once for all of them
 }
 
 bool JPPlacementsTableModel::setText(int row, int c, const std::string& text, std::string&) {
@@ -459,7 +465,7 @@ void JPPlacementsTableModel::applyPart(JPBoard* board, const std::string& placem
             q.partId = partId;
         });
     board->dropUnusedParts();
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
 }
 
 void JPPlacementsTableModel::setChoice(int row, int c, int index) {
@@ -509,10 +515,38 @@ void JPPlacementsTableModel::setChecked(int row, int c, bool on) {
         if (on) panel->disabledPseudoPlacements.erase(p->id);
         else panel->disabledPseudoPlacements.insert(p->id);
         reload();
-        if (onChanged) onChanged();
+        m_said.changed(onChanged);
         return;
     }
     if (p && m_shown[size_t(c)] == kEnabled) edit(p->id, [on](JPPlacement& q) { q.enabled = on; });
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+std::string JPPlacementsTableModel::keyAt(int c) const {
+    static const char* const keys[kColumns] = { "enabled", "id", "part", "side", "x", "y", "rotation", "type", "placed",
+                                                "status", "errorHandling", "rank", "comments", "verified" };
+    return c >= 0 && size_t(c) < m_shown.size() ? keys[m_shown[size_t(c)]] : std::string();
+}
+
+const JPFieldValues* JPPlacementsTableModel::customOf(int row) const {
+    const JPPlacement* p = isPseudo(row) ? nullptr : placement(row);
+    return p ? &p->custom : nullptr;
+}
+
+bool JPPlacementsTableModel::customEditable(int row) const {
+    // On the definition: a job's use of a board edited alone keeps none of its own.
+    return customOf(row) && !m_onlyEnabled && (!m_location || m_editDefinition);
+}
+
+const JPFieldValues* JPPlacementsTableModel::custom(int row) const { return customOf(row); }
+
+bool JPPlacementsTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    if (!customEditable(row)) return false;
+    edit(placement(row)->id, [&key, &value](JPPlacement& q) { q.custom.set(key, value); });
+    return true;
 }
 
 } // inline namespace jf

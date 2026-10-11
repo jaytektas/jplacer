@@ -109,6 +109,31 @@ Job (.jpjob)                                   Library (library.db)
 A job places with the library's parts as they are: placement → board part →
 library part → its package.
 
+### Fields
+
+Every kind of thing a table shows (parts, packages, pads, placements, boards
+and panels where they lie, boards, panels, feeders, vision settings, and the
+job) has **fields**: jplacer's own (built-in: the columns its tables have
+always had, and the import's fields no table shows, a part's Footprint and
+Quantity, a placement's Do Not Place) and any number the user adds (an LCSC
+number, a supplier, a customer's order). A field belongs to the kind, not to
+a table: every table of placements shows the placements' fields.
+
+- A field has a key for good (a built-in's own, an added one's `u1`, `u2`, …,
+  never given again), a name (unique within its kind, renamed freely: the
+  tables keep their layout by key), a type for an added one (text, number,
+  length in mm, yes/no, a choice), and the headings an import's column is
+  matched to it by.
+- The fields jplacer cannot work without are **required** and stay (a part's
+  ID, Height and Package; a placement's ID, Part, Side, X, Y and rotation…).
+  Any other built-in can be **removed**: out of every table, the import and
+  the search, its values left (jplacer may use them), until restored. An
+  added field is **deleted** with its values.
+- The definitions are the configuration's (`fields.json`). Each thing keeps
+  its values of the added fields with it, by key ("custom"), in its own file:
+  so a board carries its placements' values wherever it goes, and a value
+  whose field is unknown is kept, not dropped.
+
 ### Import
 
 From the bare minimum to as much as the user has:
@@ -295,6 +320,7 @@ effect.)
 | Job | `*.jpjob`, JSON | Carries copies of its boards and panels (each with its source file noted) and the plan; opens and runs anywhere |
 | Run history | `runs.db`, SQLite | Append-only progress; resume after a crash; parts used, for the ledger |
 | Cells | `cells/<name>.json`; lines in `lines.json` | Hardware configuration, calibration and feeders (each carrying a stock lot), one file per machine |
+| Fields | `fields.json`, JSON | Every kind's fields: those added, and the built-ins renamed, given import matches or removed (the values live with the things) |
 | Preferences | `JSettings`, keys in `JPlacerSettings` | As now |
 
 A board file, in outline (a job carries boards in this shape):

@@ -18,6 +18,12 @@ JPPlacementsHolderTableModel::JPPlacementsHolderTableModel(JPConfiguration& conf
     : m_config(config), m_kind(kind), m_job(std::move(job)) {}
 
 JPTableModel::Column JPPlacementsHolderTableModel::column(int c) const {
+    Column col = heading(c);
+    col.key = keyAt(c);
+    return col;
+}
+
+JPTableModel::Column JPPlacementsHolderTableModel::heading(int c) const {
     Column col;
     switch (c) {
         case kName:
@@ -92,7 +98,30 @@ bool JPPlacementsHolderTableModel::setText(int row, int c, const std::string& te
         const JPLocation dims = h->dimensions.withField(f, *length, false);
         changes.holder(*h, [&dims](JPPlacementsHolder& x) { x.setDimensions(dims); });
     }
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
+    return true;
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+std::string JPPlacementsHolderTableModel::keyAt(int c) const {
+    static const char* const keys[] = { "name", "width", "length" };
+    return c >= 0 && c < 3 ? keys[c] : std::string();
+}
+
+const JPFieldValues* JPPlacementsHolderTableModel::custom(int row) const {
+    const JPPlacementsHolder* r = holder(row);
+    return r ? &r->custom : nullptr;
+}
+
+bool JPPlacementsHolderTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    JPPlacementsHolder* h = holder(row);
+    if (!h) return false;
+    // On the definition, kept in its file, and carried to its uses.
+    JPDefinitionChanges(m_config, m_job()).holder(*h, [&key, &value](JPPlacementsHolder& x) { x.custom.set(key, value); });
+    m_said.changed(onChanged);
     return true;
 }
 

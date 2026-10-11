@@ -168,6 +168,7 @@ JJson JPPlacementsHolderLocation::toJson() const {
     j["checkFiducials"] = checkFiducials;
     j["enabled"] = locallyEnabled;
     j["location"] = JPLocationJson::to(m_location);
+    JPFieldValues::write(j, custom);
     return j;
 }
 
@@ -186,6 +187,7 @@ std::unique_ptr<JPPlacementsHolderLocation> JPPlacementsHolderLocation::fromJson
     l->checkFiducials = j["checkFiducials"].boolean(false);
     l->locallyEnabled = j["enabled"].boolean(true);
     l->m_location = JPLocationJson::from(j["location"]);
+    l->custom = JPFieldValues::read(j);
     return l;
 }
 

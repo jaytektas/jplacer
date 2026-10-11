@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldsModel.h"
 #include "JPTableModel.h"
 
 #include <j/config/Json.h>
@@ -46,8 +47,13 @@ inline namespace jf {
 //    Right-click a heading: Reset Columns (the order, widths and sort as
 //    shipped). A column can be hidden (columnsMenu, a toolbar's Columns…)
 //    and shown again in its place. With a state key, the order, widths, sort
-//    and hidden columns are kept (by the columns' names) and brought back,
+//    and hidden columns are kept (by the columns' keys) and brought back,
 //    every table alike.
+//  - FIELDS: a model whose rows have fields (JPTableModel::fieldsOf) is shown
+//    with them (JPFieldsModel over it, the app's fields, s_fields): a column
+//    for each field added, none for a built-in removed. The Columns… menu and
+//    a heading's right-click add a field (shown here, hidden in the other
+//    tables of its kind until chosen) and edit them (s_fieldHooks).
 //
 // Rows are the model's: what the table reports and is told is always a
 // model row, whatever the sort.
@@ -60,6 +66,21 @@ public:
     static bool alternateRows() { return s_alternateRows; }
 
     void setModel(JPTableModel* model);
+    // The model shown: the one given, or its fields' over it.
+    JPTableModel* model() const { return m_model; }
+
+    // The app's fields, every table's (null: none, the models shown as they are).
+    static inline JPFields* s_fields = nullptr;
+    // The app's windows for fields: adding one to a kind (`added` told its key, once added), editing one (its
+    // key), and the kind's every field (Edit Fields…).
+    struct FieldHooks {
+        std::function<void(JPFieldSet::Of, std::function<void(const std::string& key)> added)> add;
+        std::function<void(JPFieldSet::Of, const std::string& key)>                           edit;
+        std::function<void(JPFieldSet::Of)>                                                   manage;
+    };
+    static inline FieldHooks s_fieldHooks;
+    // Fields changed (added, renamed, removed): every table shows them as they are now.
+    static void fieldsChanged();
     // Where its columns' order, widths and sort are kept (the app's hooks, s_loadState and s_saveState): brought
     // back now (and when the model's columns change), kept as they are changed. Every table has one of its own.
     void setStateKey(const std::string& key);
@@ -70,12 +91,13 @@ public:
     // Which columns are shown: each of the model's, by name, in its place among them (a hidden one keeps its
     // place and width for when it is shown again).
     struct ColumnShown {
-        std::string name;
+        std::string key;    // what the column is for good (JPTableModel::keyOf)
+        std::string name;   // its heading
         bool        shown = true;
     };
     std::vector<ColumnShown> columnsShown() const;
-    // `name` shown or hidden, kept with the rest; the last one shown stays.
-    void setColumnShown(const std::string& name, bool shown);
+    // The column `key` (JPTableModel::keyOf) shown or hidden, kept with the rest; the last one shown stays.
+    void setColumnShown(const std::string& key, bool shown);
     // A toolbar's Columns… menu: each column with a tick when it is shown (a click shows or hides it), then
     // Reset Columns. Made afresh each time it is asked for.
     JMenu* columnsMenu();
@@ -135,6 +157,13 @@ public:
 
 private:
     static inline bool s_alternateRows = true;
+    // Every table there is, for fieldsChanged.
+    static inline std::set<JPTable*> s_tables;
+    // A field added here: shown here (hidden in the other tables of its kind), after the column `after`
+    // (a key; empty: at the end).
+    void fieldAdded(const std::string& key, const std::string& after);
+    // The headings' right-click menu for the column under `mx` (-1: none).
+    void buildHeaderMenu(int column);
     struct SortKey {
         int  column;
         bool ascending;
@@ -185,12 +214,15 @@ private:
     void copySelection() const;
 
     JPTableModel*                  m_model = nullptr;
+    std::unique_ptr<JPFieldsModel> m_fieldsModel;     // the model given, with its fields
+    // Fields added here, to be shown (and where) once the columns are made again.
+    mutable std::vector<std::pair<std::string, std::string>> m_addedHere;
     std::string                    m_stateKey;
-    mutable JJson                  m_state;           // as kept: order, widths and sort by the columns' names
+    mutable JJson                  m_state;           // as kept: order, widths and sort by the columns' keys
     mutable std::vector<int>       m_order;           // view position -> model column (the columns shown)
     mutable std::vector<int>       m_allOrder;        // every column in its place, the hidden ones too, as last made
-    mutable std::set<std::string>  m_hidden;          // the hidden columns, by name
-    mutable std::vector<std::string> m_orderNames;    // the model's columns' names m_order was made for
+    mutable std::set<std::string>  m_hidden;          // the hidden columns, by key
+    mutable std::vector<std::string> m_orderKeys;     // the model's columns' keys m_order was made for
     // A heading pressed (a click sorts it) and, moved far enough, dragged: the column, where in it it was taken,
     // the pointer, and the order to put back.
     int                            m_headerPress = -1;

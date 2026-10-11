@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldValues.h"
 #include "JPLength.h"
 #include "JPLocation.h"
 #include "JPAdvancedLoosePartFeeder.h"
@@ -158,6 +159,8 @@ public:
     std::optional<int>        photonSlot;
     bool                      photonInitialized = false;
     std::optional<JPLocation> photonSlotLocation;
+    // Its values of the fields added to feeders (jplacer's own, never OpenPnP's).
+    JPFieldValues custom;
     // Why it cannot be picked from yet, as OpenPnP says it; empty: it can.
     std::string photonUnconfigured() const;
     // OpenPnP's setHardwareId: its hardware id, and its name too while it is still named as its class.

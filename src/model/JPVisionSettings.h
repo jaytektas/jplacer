@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldValues.h"
 #include "JPLocation.h"
 
 #include "openpnp/JPXmlElement.h"
@@ -32,6 +33,8 @@ public:
     std::string name;
     Kind        kind = Kind::Other;
     bool        enabled = true;
+    // Its values of the fields added to vision settings (JPFieldSet::Of::Vision).
+    JPFieldValues custom;
 
     static JPVisionSettings fromXml(const JPXmlElement& e);
     JPXmlNode toXml() const;

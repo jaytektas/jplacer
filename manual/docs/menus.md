@@ -119,6 +119,7 @@ What is chosen by a link chooses nothing further. A part with no feeder leaves t
 | **Check Job…** | The job's data checked as Start checks it (see [Running the job](jobs.md#running-the-job)). |
 | **Shortages…** | The job's parts against the stock (see [Shortages](jobs.md#shortages)). |
 | **Runs…** | The runs of jobs, and whether their parts are in the stock's ledger (see [Runs](jobs.md#runs)). |
+| **Job Fields…** | The job's own values in the fields added to jobs, and adding one (see [Job fields](tables.md#job-fields)). |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the Job menu); src/ui/JPJobPanel.cpp (setMenuItems, resetAllPlaced, updateJobActions) -->
 

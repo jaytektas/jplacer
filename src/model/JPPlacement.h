@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldValues.h"
 #include "JPLocation.h"
 #include "JPSide.h"
 
@@ -46,6 +47,7 @@ public:
     ErrorHandling              errorHandling = ErrorHandling::Default;
     bool                       enabled = true;
     int                        rank = 0;
+    JPFieldValues              custom;   // its values of the fields added to placements
 
     static const char* typeName(Type t) { return t == Type::Fiducial ? "Fiducial" : "Placement"; }
     static const char* errorHandlingName(ErrorHandling e);

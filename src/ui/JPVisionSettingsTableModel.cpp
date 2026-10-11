@@ -8,6 +8,12 @@ inline namespace jf {
 JPVisionSettingsTableModel::JPVisionSettingsTableModel(JPConfiguration& config) : m_config(config) {}
 
 JPTableModel::Column JPVisionSettingsTableModel::column(int c) const {
+    Column col = heading(c);
+    col.key = keyAt(c);
+    return col;
+}
+
+JPTableModel::Column JPVisionSettingsTableModel::heading(int c) const {
     return c == 0 ? Column { "Name", "", Kind::Text } : Column { "Assigned To", "", Kind::Text };
 }
 
@@ -51,7 +57,26 @@ bool JPVisionSettingsTableModel::setText(int row, int c, const std::string& text
     JPVisionSettings* v = settings(row);
     if (!v || c != 0 || v->isStock()) return false;
     v->name = text;
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
+    return true;
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+std::string JPVisionSettingsTableModel::keyAt(int c) const { return c == 0 ? "name" : "assignedTo"; }
+
+const JPFieldValues* JPVisionSettingsTableModel::custom(int row) const {
+    const JPVisionSettings* r = settings(row);
+    return r ? &r->custom : nullptr;
+}
+
+bool JPVisionSettingsTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    JPVisionSettings* r = settings(row);
+    if (!r) return false;
+    r->custom.set(key, value);
+    m_said.changed(onChanged);
     return true;
 }
 

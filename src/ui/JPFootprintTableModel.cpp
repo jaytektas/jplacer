@@ -31,6 +31,12 @@ bool parseDouble(const std::string& t, double& out) {
 } // namespace
 
 JPTableModel::Column JPFootprintTableModel::column(int c) const {
+    Column col = heading(c);
+    col.key = keyAt(c);
+    return col;
+}
+
+JPTableModel::Column JPFootprintTableModel::heading(int c) const {
     switch (c) {
         case kName:     return { "Name", "", Kind::Text };
         case kMark:     return { "Mark", "", Kind::Text };
@@ -91,7 +97,29 @@ bool JPFootprintTableModel::setText(int row, int c, const std::string& text, std
             break;
         default: return false;
     }
-    if (onChanged) onChanged();
+    m_said.changed(onChanged);
+    return true;
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+std::string JPFootprintTableModel::keyAt(int c) const {
+    static const char* const keys[] = { "name", "mark", "x", "y", "width", "length", "rotation", "round" };
+    return c >= 0 && c < 8 ? keys[c] : std::string();
+}
+
+const JPFieldValues* JPFootprintTableModel::custom(int row) const {
+    const JPFootprint::Pad* r = (m_footprint && row >= 0 && size_t(row) < m_footprint->pads.size() ? &m_footprint->pads[size_t(row)] : nullptr);
+    return r ? &r->custom : nullptr;
+}
+
+bool JPFootprintTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    JPFootprint::Pad* r = (m_footprint && row >= 0 && size_t(row) < m_footprint->pads.size() ? &m_footprint->pads[size_t(row)] : nullptr);
+    if (!r) return false;
+    r->custom.set(key, value);
+    m_said.changed(onChanged);
     return true;
 }
 

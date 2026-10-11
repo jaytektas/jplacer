@@ -32,6 +32,8 @@ public:
     JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration& config, double split);
 
     std::function<void()> onChanged;
+    // Opens a menu at window coordinates (the table's Columns…).
+    std::function<void(JMenu*, float x, float y)> openMenu;
     // The machine's default vision settings ids (bottom, fiducial), for Assigned To.
     std::function<std::pair<std::string, std::string>()> machineDefaults;
     // A setting's pipeline in the Pipeline Editor; a parameter's slider moved

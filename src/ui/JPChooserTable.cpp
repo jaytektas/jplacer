@@ -56,6 +56,10 @@ public:
     const uint8_t* cellTint(int row, int c) const override { const int s = source(row); return s >= 0 ? m_source.cellTint(s, c) : nullptr; }
     const uint8_t* cellInk(int row, int c) const override { const int s = source(row); return s >= 0 ? m_source.cellInk(s, c) : nullptr; }
     bool cellDimmed(int row, int c) const override { const int s = source(row); return s >= 0 && m_source.cellDimmed(s, c); }
+    // The source's fields (its table's columns, those added among them), read only.
+    std::optional<JPFieldSet::Of> fieldsOf() const override { return m_source.fieldsOf(); }
+    const JPFieldValues* custom(int row) const override { const int s = source(row); return s >= 0 ? m_source.custom(s) : nullptr; }
+    bool customEditable(int) const override { return false; }
 
 private:
     std::string key(int row) const {

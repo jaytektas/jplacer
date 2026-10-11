@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldValues.h"
 #include "JPLengthUnit.h"
 
 #include "openpnp/JPXmlElement.h"
@@ -23,6 +24,7 @@ public:
         double      rotation = 0;
         bool        mark = false;      // pin 1, as OpenPnP marks it
         double      roundness = 0;     // percent; negative: rounded on one side only
+        JPFieldValues custom;          // its values of the fields added to pads
     };
     enum class Generator { Dual, Quad, Bga, Kicad };
     struct Point {

@@ -30,6 +30,7 @@
 #include "JPlacerPanelArrayDialog.h"
 #include "JPlacerPhotonSlotsDialog.h"
 #include "JPlacerImportDialog.h"
+#include "JPlacerJobFieldsDialog.h"
 #include "JPlacerMenuOpener.h"
 #include "JPlacerSettings.h"
 
@@ -77,7 +78,8 @@ constexpr double kAtLocationMm = 0.001;
 
 JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, JPlacerJob& job, JPlacerMachine& machine)
     : m_window(window), m_job(job), m_machine(machine), m_layout(machine.layout()), m_pipelines(window, machine),
-      m_libraryHistory(job.configuration(), [this] { m_job.configurationChanged(); }) {
+      m_libraryHistory(job.configuration(), [this] { m_job.configurationChanged(); }),
+      m_fieldWindows(window, job, [this] { fieldsChanged(); }) {
     m_machine.setConfiguration(&job.configuration());
     // As OpenPnP's vision tape and blinds feeders: unhomed, their calibration is no longer true.
     m_machine.onUnhomed = [this] {
@@ -380,6 +382,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Vision: the vision settings; the machine's defaults from the cell.
     m_vision = std::make_unique<JPVisionSettingsPanel>(graph, job.configuration(),
                                                        JSettings::instance().get<double>(JPlacerSettings::kVisionSplit, kSplit));
+    m_vision->openMenu = JPlacerMenuOpener::from(m_window, m_vision.get());
     m_vision->onChanged = [this] {
         m_job.configurationChanged();
         m_machine.refreshSetupForm();   // Machine Setup's vision nodes show the defaults too
@@ -1166,6 +1169,11 @@ void JPlacerOpenPnpTabs::changed() {
     m_libraryHistory.note();   // a part chosen on the Boards tab may have taught the library a name, or added to it
 }
 
+void JPlacerOpenPnpTabs::fieldsChanged() {
+    m_libraryHistory.note();
+    m_boards->refresh();
+}
+
 void JPlacerOpenPnpTabs::libraryChanged() {
     m_libraryHistory.note();
     m_job.configurationChanged();
@@ -1195,6 +1203,10 @@ void JPlacerOpenPnpTabs::openPlan() {
 
 void JPlacerOpenPnpTabs::checkJob() {
     if (m_jobRun) m_jobRun->checkJob();
+}
+
+void JPlacerOpenPnpTabs::openJobFields() {
+    m_window.openModal<JPlacerJobFieldsDialog>(m_job.configuration(), m_job.job(), [this] { m_job.changed(); });
 }
 
 void JPlacerOpenPnpTabs::openRuns() {

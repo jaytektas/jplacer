@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldValues.h"
 #include "JPLength.h"
 
 #include "openpnp/JPXmlElement.h"
@@ -80,6 +81,7 @@ public:
     int                        pickRetryCount = 0;
     std::string                bottomVisionId;
     std::string                fiducialVisionId;
+    JPFieldValues              custom;   // its values of the fields added to parts
 
     // Height plus the depth through the board: what hangs below a nozzle.
     JPLength heightForSafeZ() const { return height.add(throughBoardDepth); }

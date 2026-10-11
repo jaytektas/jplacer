@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPBatchedChange.h"
 #include "JPTableModel.h"
 
 #include "model/JPConfiguration.h"
@@ -36,7 +37,19 @@ public:
     JPPlacementsHolder* holder(int row) const;
     int                 rowOf(const JPPlacementsHolder* h) const;
 
+    std::optional<JPFieldSet::Of> fieldsOf() const override {
+        return m_kind == JPPlacementsHolder::Kind::Board ? JPFieldSet::Of::Boards : JPFieldSet::Of::Panels;
+    }
+    const JPFieldValues* custom(int row) const override;
+    bool   setCustom(int row, const std::string& key, const JJson& value) override;
+    void   beginEdits() override { m_said.begin(); }
+    void   endEdits() override { m_said.end(onChanged); }
+
 private:
+    Column heading(int c) const;
+    // The field a column shows (JPFieldSet's built-in's key).
+    std::string keyAt(int c) const;
+    JPBatchedChange m_said;
     JPConfiguration&              m_config;
     JPPlacementsHolder::Kind      m_kind;
     std::function<const JPJob*()> m_job;

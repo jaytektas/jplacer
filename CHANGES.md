@@ -40,6 +40,14 @@ notes.
   whatever it was set to.
 - An OpenPnP machine saved by an older OpenPnP brings its feeders' retry count in as their feed retries, as
   OpenPnP does (they had come in as 3 feed and 3 pick retries).
+- Every table's things can have fields of your own: **Add Field…** in **Columns** or on a heading's right-click
+  menu adds one (text, a number, a length, yes/no or a choice) to parts, packages, pads, placements, boards,
+  panels, the job's boards, feeders or vision settings, and **Job ▸ Job Fields…** to jobs. A field is a column
+  in every table of its kind, and **Edit Fields…** renames it, changes its type or deletes it. jplacer's own
+  columns can be renamed, and those it can do without removed. The tables are described on a page of their own,
+  **Tables**.
+- The Feeders and Vision tabs' tables have **Columns** too.
+- A library made by 0.1.55 opens as it is, and keeps the fields you add.
 
 ## 0.1.54
 

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPBatchedChange.h"
 #include "JPTableModel.h"
 
 #include "model/JPCatalog.h"
@@ -51,7 +52,17 @@ public:
     JPPackage* package(int row) const;
     int        rowOf(const JPPackage* p) const;
 
+    std::optional<JPFieldSet::Of> fieldsOf() const override { return JPFieldSet::Of::Packages; }
+    const JPFieldValues* custom(int row) const override;
+    bool   setCustom(int row, const std::string& key, const JJson& value) override;
+    void   beginEdits() override { m_said.begin(); }
+    void   endEdits() override { m_said.end(onChanged); }
+
 private:
+    Column heading(int c) const;
+    // The field a column shows (JPFieldSet's built-in's key).
+    std::string keyAt(int c) const;
+    JPBatchedChange m_said;
     std::vector<const JPVisionSettings*> visionChoices(JPVisionSettings::Kind kind) const;
 
     // The open boards using each row (by its place in the library), as last read.

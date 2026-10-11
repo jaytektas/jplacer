@@ -14,11 +14,30 @@ namespace {
 
 using B = JDatabase::JBind;
 
+// A package's values of the fields added, and its pads' (in its footprint's order), as its row keeps them.
+JJson packageCustom(const JPPackage& k) {
+    JJson j = JJson::object();
+    j["own"] = k.custom.toJson();
+    JJson pads = JJson::array();
+    for (const JPFootprint::Pad& p : k.footprint.pads) pads.push(p.custom.toJson());
+    j["pads"] = pads;
+    return j;
+}
+
+void readPackageCustom(JPPackage& k, const std::string& text) {
+    const std::optional<JJson> j = JJson::tryParse(text);
+    if (!j) return;
+    k.custom = JPFieldValues::fromJson((*j)["own"]);
+    const JJson& pads = (*j)["pads"];
+    for (size_t i = 0; i < k.footprint.pads.size() && i < pads.size(); ++i) k.footprint.pads[i].custom = JPFieldValues::fromJson(pads[i]);
+}
+
 const char* kSchemaSql = R"(
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
-CREATE TABLE IF NOT EXISTS packages(uuid TEXT PRIMARY KEY, id TEXT NOT NULL UNIQUE COLLATE NOCASE, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS packages(uuid TEXT PRIMARY KEY, id TEXT NOT NULL UNIQUE COLLATE NOCASE, data TEXT NOT NULL,
+                                    custom TEXT);
 CREATE TABLE IF NOT EXISTS parts(id TEXT PRIMARY KEY, label TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT, value TEXT,
-                                 datasheet TEXT, package_id TEXT, last_packaging INTEGER, data TEXT NOT NULL);
+                                 datasheet TEXT, package_id TEXT, last_packaging INTEGER, data TEXT NOT NULL, custom TEXT);
 CREATE TABLE IF NOT EXISTS identifiers(part_id TEXT NOT NULL, kind TEXT NOT NULL, org TEXT, code TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS akas(part_id TEXT NOT NULL, field TEXT NOT NULL, text TEXT NOT NULL, learned_from TEXT,
                                 learned_when TEXT);
@@ -42,7 +61,16 @@ bool JPLibraryStore::open(const std::string& path, std::string& error) {
         error = "Cannot open the library " + path + ": " + m_db.lastError();
         return false;
     }
-    const std::string schema = meta("schema");
+    std::string schema = meta("schema");
+    // Schema 5's library given its parts' and packages' values of the fields added (the columns 6 has more).
+    if (schema == "5") {
+        if (!m_db.exec("ALTER TABLE parts ADD COLUMN custom TEXT") || !m_db.exec("ALTER TABLE packages ADD COLUMN custom TEXT")
+            || !setMeta("schema", std::to_string(kSchema))) {
+            error = "Cannot bring the library " + path + " up to date: " + m_db.lastError();
+            return false;
+        }
+        schema = std::to_string(kSchema);
+    }
     if (!schema.empty() && std::stoi(schema) != kSchema) {
         error = "The library " + path + " is of " + (std::stoi(schema) > kSchema ? "a newer" : "an older") + " jplacer (schema "
               + schema + "); this one reads " + std::to_string(kSchema) + ". Start a fresh library: remove " + path + ".";
@@ -71,11 +99,12 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
     std::map<std::string, JPPart*> partById;
     auto query = [this](const char* sql, std::function<void(const JDatabase::JRow&)> row) { return m_db.query(sql, {}, row) >= 0; };
     const bool ok =
-        query("SELECT uuid, data FROM packages ORDER BY rowid", [&](const JDatabase::JRow& r) {
+        query("SELECT uuid, data, custom FROM packages ORDER BY rowid", [&](const JDatabase::JRow& r) {
             const std::optional<JJson> j = JJson::tryParse(r.text(1));
             if (!j) return;
             auto k = std::make_shared<JPPackage>(JPPackage::fromXml(JPXmlJson::element("package", *j)));
             k->uuid = r.text(0);
+            readPackageCustom(*k, r.text(2));
             packages.push_back(k);
         })
         && query("SELECT uuid, name, package_id, data, zero_rotation, source FROM footprints ORDER BY rowid",
@@ -94,7 +123,7 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
         && query("SELECT footprint_uuid, name FROM footprint_names ORDER BY rowid", [&](const JDatabase::JRow& r) {
             if (auto it = footprintByUuid.find(r.text(0)); it != footprintByUuid.end()) it->second->cadNames.push_back(r.text(1));
         })
-        && query("SELECT id, label, value, datasheet, last_packaging, data FROM parts ORDER BY rowid", [&](const JDatabase::JRow& r) {
+        && query("SELECT id, label, value, datasheet, last_packaging, data, custom FROM parts ORDER BY rowid", [&](const JDatabase::JRow& r) {
             const std::optional<JJson> j = JJson::tryParse(r.text(5));
             if (!j) return;
             auto p = std::make_shared<JPPart>(JPPart::fromXml(JPXmlJson::element("part", *j)));
@@ -103,6 +132,7 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
             p->value = r.text(2);
             p->datasheet = r.text(3);
             p->lastPackaging = int(r.integer(4));
+            if (const std::optional<JJson> c = JJson::tryParse(r.text(6))) p->custom = JPFieldValues::fromJson(*c);
             partById[p->id] = p.get();
             parts.push_back(p);
         })
@@ -169,16 +199,17 @@ bool JPLibraryStore::save(const Contents& in, std::string& error) {
     }
     for (const auto& k : packages) {
         if (!ok) break;
-        ok = m_db.exec("INSERT INTO packages(uuid, id, data) VALUES(?, ?, ?)",
-                       { B::from(k->uuid), B::from(k->id), B::from(JPXmlJson::from(k->toXml()).dump()) });
+        ok = m_db.exec("INSERT INTO packages(uuid, id, data, custom) VALUES(?, ?, ?, ?)",
+                       { B::from(k->uuid), B::from(k->id), B::from(JPXmlJson::from(k->toXml()).dump()),
+                         B::from(packageCustom(*k).dump()) });
     }
     for (const auto& p : parts) {
         if (!ok) break;
-        ok = m_db.exec("INSERT INTO parts(id, label, name, value, datasheet, package_id, last_packaging, data) "
-                       "VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+        ok = m_db.exec("INSERT INTO parts(id, label, name, value, datasheet, package_id, last_packaging, data, custom) "
+                       "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
                        { B::from(p->id), B::from(p->label), B::from(p->name.value_or("")), B::from(p->value),
                          B::from(p->datasheet), B::from(p->packageId), B::from(p->lastPackaging),
-                         B::from(JPXmlJson::from(p->toXml()).dump()) });
+                         B::from(JPXmlJson::from(p->toXml()).dump()), B::from(p->custom.toJson().dump()) });
         for (const auto& i : p->identifiers)
             ok = ok && m_db.exec("INSERT INTO identifiers(part_id, kind, org, code) VALUES(?, ?, ?, ?)",
                                  { B::from(p->id), B::from(i.kind), B::from(i.org), B::from(i.code) });

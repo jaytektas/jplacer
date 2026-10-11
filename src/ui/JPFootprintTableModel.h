@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPBatchedChange.h"
 #include "JPTableModel.h"
 
 #include "model/JPFootprint.h"
@@ -30,7 +31,17 @@ public:
     bool   editable(int, int c) const override { return c != 1; }
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
 
+    std::optional<JPFieldSet::Of> fieldsOf() const override { return JPFieldSet::Of::Pads; }
+    const JPFieldValues* custom(int row) const override;
+    bool   setCustom(int row, const std::string& key, const JJson& value) override;
+    void   beginEdits() override { m_said.begin(); }
+    void   endEdits() override { m_said.end(onChanged); }
+
 private:
+    Column heading(int c) const;
+    // The field a column shows (JPFieldSet's built-in's key).
+    std::string keyAt(int c) const;
+    JPBatchedChange m_said;
     JPFootprint* m_footprint = nullptr;
 };
 

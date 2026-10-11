@@ -183,6 +183,7 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         fromDefaults = true;
         return fs::path(m_defaults) / file;
     };
+    if (!m_fields.load((dir / JPFields::kFile).string(), error)) return false;
     bool libraryDefaults = false, visionDefaults = false;
     JPXmlElement packages, parts, openPnpVision;
     JJson feeders, properties, vision;
@@ -201,8 +202,13 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     }
     resolveSlots();
     resolvePhoton();
-    for (const JJson& v : std::as_const(vision)["settings"].arr())
-        m_vision.push_back(JPVisionSettings::fromXml(JPXmlJson::element("vision-settings", v)));
+    for (const JJson& v : std::as_const(vision)["settings"].arr()) {
+        // Its values of the fields added beside what OpenPnP keeps.
+        JJson own = v;
+        own.erase("custom");
+        m_vision.push_back(JPVisionSettings::fromXml(JPXmlJson::element("vision-settings", own)));
+        m_vision.back().custom = JPFieldValues::read(v);
+    }
     for (const JPXmlElement& e : openPnpVision.children)
         if (e.name == "vision-settings") m_vision.push_back(JPVisionSettings::fromXml(e));
     m_tookDefaults = visionDefaults;
@@ -296,10 +302,18 @@ bool JPConfiguration::save(std::string& error) const {
     for (JPXmlNode& e : m_photon.toXml()) entries.push_back(std::move(e));
     entries.push_back(m_dropBoxes.toXml());
     JJson vs = JJson::array();
-    for (const JPVisionSettings& v : m_vision) vs.push(JPXmlJson::from(v.toXml()));
-    return writeJson(dir / kFeedersFile, kFeedersFormat, "feeders", feeders, error)
+    for (const JPVisionSettings& v : m_vision) {
+        JJson j = JPXmlJson::from(v.toXml());
+        JPFieldValues::write(j, v.custom);
+        vs.push(j);
+    }
+    return saveFields(error) && writeJson(dir / kFeedersFile, kFeedersFormat, "feeders", feeders, error)
            && writeJson(dir / kMachinePropertiesFile, kPropertiesFormat, "properties", propertiesJson(entries), error)
            && writeJson(dir / kVisionFile, kVisionFormat, "settings", vs, error);
+}
+
+bool JPConfiguration::saveFields(std::string& error) const {
+    return m_fields.save((fs::path(m_directory) / JPFields::kFile).string(), error);
 }
 
 int JPConfiguration::importFeeders(const std::string& machineXml, std::string& error) {

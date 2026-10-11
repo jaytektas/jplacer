@@ -55,6 +55,12 @@ int JPLocationsTableModel::rowOf(const JPPlacementsHolderLocation* l) const {
 }
 
 JPTableModel::Column JPLocationsTableModel::column(int c) const {
+    Column col = heading(c);
+    col.key = keyAt(c);
+    return col;
+}
+
+JPTableModel::Column JPLocationsTableModel::heading(int c) const {
     Column col;
     col.align = Align::Center;
     switch (m_shown[size_t(c)]) {
@@ -197,7 +203,7 @@ void JPLocationsTableModel::editEach(const std::vector<JPPlacementsHolderLocatio
         any = true;
         apply(l, set);
     }
-    if (any && onChanged) onChanged();
+    if (any) m_said.changed(onChanged);
 }
 
 void JPLocationsTableModel::apply(JPPlacementsHolderLocation* l, const std::function<void(JPPlacementsHolderLocation&)>& set) {
@@ -231,7 +237,7 @@ void JPLocationsTableModel::setSides(const std::vector<JPPlacementsHolderLocatio
         });
         any = true;
     }
-    if (any && onChanged) onChanged();   // once for all of them
+    if (any) m_said.changed(onChanged);   // once for all of them
 }
 
 bool JPLocationsTableModel::setText(int row, int c, const std::string& text, std::string&) {
@@ -261,7 +267,7 @@ bool JPLocationsTableModel::setText(int row, int c, const std::string& text, std
             JPPlacementsHolder* def = m_config.definitionOf(*l->holder);
             if (!def) return false;
             JPDefinitionChanges(m_config, m_job()).holder(*def, [&text](JPPlacementsHolder& h) { h.name = text; });
-            if (onChanged) onChanged();
+            m_said.changed(onChanged);
             return true;
         }
         case kWidth:
@@ -272,7 +278,7 @@ bool JPLocationsTableModel::setText(int row, int c, const std::string& text, std
             const JPLocation dims = def->dimensions.withField(
                 m_shown[size_t(c)] == kWidth ? JPLocation::Field::X : JPLocation::Field::Y, *length, false);
             JPDefinitionChanges(m_config, m_job()).holder(*def, [&dims](JPPlacementsHolder& h) { h.setDimensions(dims); });
-            if (onChanged) onChanged();
+            m_said.changed(onChanged);
             return true;
         }
         case kX:
@@ -314,6 +320,28 @@ void JPLocationsTableModel::setChecked(int row, int c, bool on) {
     } else if (m_shown[size_t(c)] == kCheckFids) {
         edit(l, [on](JPPlacementsHolderLocation& x) { x.checkFiducials = on; });
     }
+}
+
+} // inline namespace jf
+
+inline namespace jf {
+
+std::string JPLocationsTableModel::keyAt(int c) const {
+    static const char* const keys[kColumns] = { "id", "name", "width", "length", "side", "x", "y", "z", "rotation", "enabled",
+                                                "checkFids" };
+    return c >= 0 && size_t(c) < m_shown.size() ? keys[m_shown[size_t(c)]] : std::string();
+}
+
+const JPFieldValues* JPLocationsTableModel::custom(int row) const {
+    const JPPlacementsHolderLocation* r = location(row);
+    return r ? &r->custom : nullptr;
+}
+
+bool JPLocationsTableModel::setCustom(int row, const std::string& key, const JJson& value) {
+    JPPlacementsHolderLocation* l = location(row);
+    if (!l) return false;
+    edit(l, [&key, &value](JPPlacementsHolderLocation& x) { x.custom.set(key, value); });
+    return true;
 }
 
 } // inline namespace jf

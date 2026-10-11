@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPFieldValues.h"
 #include "JPFootprint.h"
 #include "JPVisionCompositing.h"
 
@@ -30,6 +31,7 @@ public:
     std::vector<std::string>   compatibleNozzleTipIds;
     std::string                bottomVisionId;
     std::string                fiducialVisionId;
+    JPFieldValues              custom;   // its values of the fields added to packages
     // Made when first wanted, as OpenPnP makes it (and written from then on).
     std::optional<JPVisionCompositing> visionCompositing;
 
