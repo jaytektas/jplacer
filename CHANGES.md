@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.44
+
 - A nozzle tip's loading and unloading steps are all on the tip's Tool Changer tab, no longer a page each in
   the tree. Each move has Safe Z? (up, across, then down; otherwise straight there) and Backlash? (compensated
   like every other move; otherwise without going past the place and back, which could push the tip into a
