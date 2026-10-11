@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-#include "JPHeapFeeder.h"
+#include "JPHeapFeeding.h"
 
 #include "JPFeederPipelines.h"
 
@@ -43,7 +43,7 @@ double mm(const JPLength& l) { return l.convertToUnits(kMm).value(); }
 // One heap feeder's work with one nozzle.
 class Heap {
 public:
-    Heap(JPConfiguration& config, std::string feederId, std::string nozzleId, JPJobMachine& machine, const JPHeapFeeder::OnMain& onMain)
+    Heap(JPConfiguration& config, std::string feederId, std::string nozzleId, JPJobMachine& machine, const JPHeapFeeding::OnMain& onMain)
         : m_config(config), m_feederId(std::move(feederId)), m_nozzleId(std::move(nozzleId)), m_machine(machine), m_onMain(onMain) {}
 
     void main(const std::function<void()>& fn) const {
@@ -63,21 +63,22 @@ public:
         std::optional<Feeder> f;
         main([&] {
             const JPFeeder* jf = m_config.feeder(id);
-            if (!jf) return;
+            const JPHeapFeeder* h = jf ? jf->as<JPHeapFeeder>() : nullptr;
+            if (!h) return;
             Feeder out;
             out.id = id;
             out.name = jf->name();
             out.partId = jf->partId();
             out.boxId = JPFeederPipelines::dropBoxOf(*jf, m_config.dropBoxes());
             out.location = jf->location().convertToUnits(kMm);
-            out.way1 = jf->locationOf("way-1").convertToUnits(kMm);
-            out.way2 = jf->locationOf("way-2").convertToUnits(kMm);
-            out.way3 = jf->locationOf("way-3").convertToUnits(kMm);
-            out.boxDepth = jf->real("box-depth", -25);
-            out.lastFeedDepth = jf->real("last-feed-depth", 0);
-            out.throwAway = jf->number("throw-away-drop-box-content-after-failed-feeds", 9);
-            out.vacuumDifference = jf->number("required-vacuum-difference", 150);
-            out.poke = jf->childText("poke-for-parts", "false") == "true";
+            out.way1 = h->way1.convertToUnits(kMm);
+            out.way2 = h->way2.convertToUnits(kMm);
+            out.way3 = h->way3.convertToUnits(kMm);
+            out.boxDepth = h->boxDepth;
+            out.lastFeedDepth = h->lastFeedDepth;
+            out.throwAway = h->throwAwayAfterFailedFeeds;
+            out.vacuumDifference = h->requiredVacuumDifference;
+            out.poke = h->pokeForParts;
             if (const JPPart* p = m_config.part(out.partId)) out.partHeight = mm(p->height);
             f = out;
         });
@@ -104,7 +105,8 @@ public:
     }
     void setLastFeedDepth(const std::string& feederId, double depth) {
         main([&] {
-            if (JPFeeder* f = m_config.feeder(feederId)) f->setReal("last-feed-depth", depth);
+            if (JPFeeder* f = m_config.feeder(feederId))
+                if (JPHeapFeeder* h = f->as<JPHeapFeeder>()) h->lastFeedDepth = depth;
         });
     }
     double partHeight(const std::string& partId) const {
@@ -470,27 +472,27 @@ private:
     JPConfiguration&             m_config;
     std::string                  m_feederId, m_nozzleId;
     JPJobMachine&                m_machine;
-    const JPHeapFeeder::OnMain& m_onMain;
+    const JPHeapFeeding::OnMain& m_onMain;
 };
 
 } // namespace
 
-bool JPHeapFeeder::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
+bool JPHeapFeeding::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
                         const OnMain& onMain, std::string& why) {
     return Heap(config, feederId, nozzleId, machine, onMain).feed(why);
 }
 
-bool JPHeapFeeder::getSamples(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
+bool JPHeapFeeding::getSamples(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
                               JPJobMachine& machine, const OnMain& onMain, std::string& why) {
     return Heap(config, feederId, nozzleId, machine, onMain).samples(why);
 }
 
-bool JPHeapFeeder::takeBack(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
+bool JPHeapFeeding::takeBack(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
                             const OnMain& onMain, std::string& why) {
     return Heap(config, feederId, nozzleId, machine, onMain).takeBack(why);
 }
 
-bool JPHeapFeeder::cleanDropBox(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
+bool JPHeapFeeding::cleanDropBox(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId,
                                 JPJobMachine& machine, const OnMain& onMain, std::string& why) {
     return Heap(config, feederId, nozzleId, machine, onMain).cleanBox(why);
 }

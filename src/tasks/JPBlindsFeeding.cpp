@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-#include "JPBlindsFeeder.h"
+#include "JPBlindsFeeding.h"
 
 #include "JPBlindsVision.h"
 #include "JPFeederPipelines.h"
@@ -42,7 +42,7 @@ struct Pusher {
 // One blinds feeder's work on the machine.
 class Blinds {
 public:
-    Blinds(JPConfiguration& config, std::string id, JPJobMachine& machine, const JPBlindsFeeder::OnMain& onMain)
+    Blinds(JPConfiguration& config, std::string id, JPJobMachine& machine, const JPBlindsFeeding::OnMain& onMain)
         : m_config(config), m_id(std::move(id)), m_machine(machine), m_onMain(onMain) {}
 
     void main(const std::function<void()>& fn) const {
@@ -539,47 +539,47 @@ private:
     JPConfiguration&              m_config;
     std::string                   m_id;
     JPJobMachine&                 m_machine;
-    const JPBlindsFeeder::OnMain& m_onMain;
+    const JPBlindsFeeding::OnMain& m_onMain;
 };
 
 } // namespace
 
-bool JPBlindsFeeder::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
+bool JPBlindsFeeding::feed(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, JPJobMachine& machine,
                           const OnMain& onMain, std::string& why) {
     return Blinds(config, feederId, machine, onMain).feed(nozzleId, why);
 }
 
-bool JPBlindsFeeder::calibrateFiducials(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+bool JPBlindsFeeding::calibrateFiducials(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                                         std::string& why) {
     return Blinds(config, feederId, machine, onMain).calibrateFiducials(why);
 }
 
-bool JPBlindsFeeder::showFeatures(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+bool JPBlindsFeeding::showFeatures(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                                   std::string& why) {
     return Blinds(config, feederId, machine, onMain).showFeatures(why);
 }
 
-bool JPBlindsFeeder::autoSetup(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+bool JPBlindsFeeding::autoSetup(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                                std::string& why) {
     return Blinds(config, feederId, machine, onMain).autoSetup(why);
 }
 
-bool JPBlindsFeeder::performOcr(JPConfiguration& config, const std::string& feederId, const std::string& action, JPJobMachine& machine,
+bool JPBlindsFeeding::performOcr(JPConfiguration& config, const std::string& feederId, const std::string& action, JPJobMachine& machine,
                                 const OnMain& onMain, std::string& why) {
     return Blinds(config, feederId, machine, onMain).performOcr(action, why);
 }
 
-bool JPBlindsFeeder::calibrateCoverEdges(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
+bool JPBlindsFeeding::calibrateCoverEdges(JPConfiguration& config, const std::string& feederId, JPJobMachine& machine, const OnMain& onMain,
                                          std::string& why) {
     return Blinds(config, feederId, machine, onMain).calibrateCoverEdges(why);
 }
 
-bool JPBlindsFeeder::actuateCover(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, bool open,
+bool JPBlindsFeeding::actuateCover(JPConfiguration& config, const std::string& feederId, const std::string& nozzleId, bool open,
                                   JPJobMachine& machine, const OnMain& onMain, std::string& why) {
     return Blinds(config, feederId, machine, onMain).actuateCover(nozzleId, open, true, false, why);
 }
 
-bool JPBlindsFeeder::actuateAllCovers(JPConfiguration& config, const std::string& nozzleId, bool open, JPJobMachine& machine,
+bool JPBlindsFeeding::actuateAllCovers(JPConfiguration& config, const std::string& nozzleId, bool open, JPJobMachine& machine,
                                       const OnMain& onMain, std::string& why) {
     std::vector<std::string> ids;
     std::vector<JPLocation> places;
@@ -607,7 +607,7 @@ bool JPBlindsFeeder::actuateAllCovers(JPConfiguration& config, const std::string
     return true;
 }
 
-bool JPBlindsFeeder::prepareForJob(JPConfiguration& config, const std::string& feederId, bool visit, JPJobMachine& machine,
+bool JPBlindsFeeding::prepareForJob(JPConfiguration& config, const std::string& feederId, bool visit, JPJobMachine& machine,
                                    const OnMain& onMain, std::string& why) {
     return Blinds(config, feederId, machine, onMain).prepareForJob(visit, why);
 }

@@ -78,7 +78,8 @@ bool JPFeederPipelines::reset(JPFeeder& feeder, const std::string& element, cons
 }
 
 std::string JPFeederPipelines::dropBoxOf(const JPFeeder& feeder, const JPDropBoxes& boxes) {
-    const std::string id = feeder.text("drop-box-id");
+    const JPHeapFeeder* h = feeder.as<JPHeapFeeder>();
+    const std::string id = h ? h->dropBoxId : std::string();
     if (boxes.box(id)) return id;
     const std::vector<JPDropBoxes::Box> all = boxes.boxes();
     return all.empty() ? std::string() : all.back().id;

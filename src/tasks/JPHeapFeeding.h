@@ -23,7 +23,7 @@ inline namespace jf {
 // three moves), or of unknown origin to the discard location, with the box's
 // dummy part's nozzle tip.
 // Runs on a thread of its own; the model is touched only through `onMain`.
-class JPHeapFeeder {
+class JPHeapFeeding {
 public:
     using OnMain = std::function<void(const std::function<void()>&)>;
 

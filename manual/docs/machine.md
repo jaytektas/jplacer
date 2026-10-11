@@ -449,7 +449,7 @@ skipped), a loose part feeder where its part was found, or a heap (dropped back 
 three moves). It is greyed out when no feeder can, and offered again as soon as one can (a feeder enabled, say, or its count changed); the Feeder.BeforeTakeBack and Feeder.AfterTakeBack
 scripting events run round it.
 
-<!-- src: src/ui/JPJogPanel.cpp (specialPage, refreshRecycle); src/model/JPFeeder.cpp (canTakeBackPart, partTakenBack); src/tasks/JPFeederTakeBack.cpp; src/tasks/JPHeapFeeder.cpp (takeBack); src/app/JPlacerOpenPnpTabs.cpp (recycle) -->
+<!-- src: src/ui/JPJogPanel.cpp (specialPage, refreshRecycle); src/model/JPFeeder.cpp (canTakeBackPart, partTakenBack); src/tasks/JPFeederTakeBack.cpp; src/tasks/JPHeapFeeding.cpp (takeBack); src/app/JPlacerOpenPnpTabs.cpp (recycle) -->
 
 **Safety** tab: **Backlash Off Below Safe Z** (see [Backlash](#backlash)), and **Board Protection**, as
 OpenPnP's, ticked each time jplacer starts. While it is, a jog is

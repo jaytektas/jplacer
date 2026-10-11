@@ -305,5 +305,19 @@ int main() {
         const JPFeeder fresh = JPFeeder::create(JPPhotonFeeder::kClass, "");
         assert(!fresh.as<JPPhotonFeeder>()->offset && fresh.name() == "Unconfigured PhotonFeeder");
     }
+    // A heap feeder: its drop box, depths, moves, flips, vacuum difference, pipelines and poking its own.
+    {
+        const JPFeeder h = parse(R"(<feeder class="org.openpnp.machine.reference.feeder.ReferenceHeapFeeder" id="H" name="H" enabled="true" part-id="R1" drop-box-id="BOX1" box-depth="-12.5" last-feed-depth="-3.0" throw-away-drop-box-content-after-failed-feeds="4" required-vacuum-difference="90">
+   <location units="Millimeters" x="0.0" y="0.0" z="0.0" rotation="0.0"/>
+   <way-2 units="Millimeters" x="2.0" y="3.0" z="0.0" rotation="0.0"/>
+   <feeder-pipeline><stages/></feeder-pipeline>
+   <poke-for-parts>true</poke-for-parts>
+</feeder>)");
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(h.toJson().dump()));
+        const JPHeapFeeder* own = back.as<JPHeapFeeder>();
+        assert(own && own->dropBoxId == "BOX1" && own->boxDepth == -12.5 && own->lastFeedDepth == -3 && own->way2.y() == 3);
+        assert(own->throwAwayAfterFailedFeeds == 4 && own->requiredVacuumDifference == 90 && own->pokeForParts);
+        assert(back.pipeline("feeder-pipeline") && !back.pipeline("training-pipeline"));
+    }
     return 0;
 }

@@ -9,7 +9,7 @@
 #include "JPAlignRequests.h"
 
 #include "JPFeederFeed.h"
-#include "JPBlindsFeeder.h"
+#include "JPBlindsFeeding.h"
 #include "JPTravel.h"
 #include "JPVisionTapeFeeder.h"
 #include "JPPhotonFeeders.h"
@@ -272,12 +272,12 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
         main([&] {
             if (const JPFeeder* f = m_config.feeder(visit[i])) blinds = f->typeName() == "BlindsFeeder";
         });
-        const bool ok = blinds ? JPBlindsFeeder::prepareForJob(m_config, visit[i], true, m_machine, onMain, why)
+        const bool ok = blinds ? JPBlindsFeeding::prepareForJob(m_config, visit[i], true, m_machine, onMain, why)
                                : JPVisionTapeFeeder::prepareForJob(m_config, visit[i], m_machine, onMain, why);
         if (!ok) fail(Source::Feeder, visit[i], why);
     }
     for (const std::string& id : used)
-        if (!JPBlindsFeeder::prepareForJob(m_config, id, false, m_machine, onMain, why)) fail(Source::Feeder, id, why);
+        if (!JPBlindsFeeding::prepareForJob(m_config, id, false, m_machine, onMain, why)) fail(Source::Feeder, id, why);
     m_restart = true;
     return Step::FiducialCheck;
 }

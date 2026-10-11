@@ -939,6 +939,8 @@ auto pipelineOf(F& f, const std::string& element) {
     Slot* slot = nullptr;
     if (auto* l = f.template as<JPLoosePartFeeder>()) slot = element == "pipeline" ? &l->pipeline : nullptr;
     else if (auto* s = f.template as<JPStripFeeder>()) slot = element == "pipeline" ? &s->pipeline : nullptr;
+    else if (auto* h = f.template as<JPHeapFeeder>())
+        slot = element == "feeder-pipeline" ? &h->feederPipeline : element == "training-pipeline" ? &h->trainingPipeline : nullptr;
     else if (auto* a = f.template as<JPAdvancedLoosePartFeeder>())
         slot = element == "pipeline" ? &a->pipeline : element == "training-pipeline" ? &a->trainingPipeline : nullptr;
     return slot;

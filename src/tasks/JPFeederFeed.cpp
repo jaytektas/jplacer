@@ -6,8 +6,8 @@
 #include "tasks/JPFeederPipelines.h"
 
 #include "JPVisionTapeFeeder.h"
-#include "JPBlindsFeeder.h"
-#include "JPHeapFeeder.h"
+#include "JPBlindsFeeding.h"
+#include "JPHeapFeeding.h"
 
 #include "JPFeederPipelines.h"
 
@@ -295,7 +295,7 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
     main([&] {
         if (const JPFeeder* f = config.feeder(feederId)) blinds = f->typeName() == "BlindsFeeder";
     });
-    if (blinds) return JPBlindsFeeder::feed(config, feederId, nozzleId, machine, onMain, why);
+    if (blinds) return JPBlindsFeeding::feed(config, feederId, nozzleId, machine, onMain, why);
     bool heap = false;
     main([&] {
         if (const JPFeeder* f = config.feeder(feederId)) heap = f->typeName() == "ReferenceHeapFeeder";
@@ -305,7 +305,7 @@ bool JPFeederFeed::feed(JPConfiguration& config, const std::string& feederId, co
         std::string with = nozzleId;
         if (with.empty())
             if (const auto n = machine.nozzles(); !n.empty()) with = n.front().id;
-        return JPHeapFeeder::feed(config, feederId, with, machine, onMain, why);
+        return JPHeapFeeding::feed(config, feederId, with, machine, onMain, why);
     }
     // A Schultz feeder: the nozzle over its pick place (at safe Z), its pre
     // pick actuator actuated with its feeder number.

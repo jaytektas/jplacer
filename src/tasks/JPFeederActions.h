@@ -36,8 +36,8 @@ inline namespace jf {
 // (its feed actuator's rotation axis called 0 where it is, in additive mode);
 // a blinds feeder's OCR Detect, Show Features, Auto Setup, Open and Close
 // Cover (and All Covers, with the Jog panel's chosen nozzle where it can push),
-// Calibrate Cover Edges and Calibrate Fiducials (JPBlindsFeeder);
-// a heap feeder's Clean DropBox and GetSamples (JPHeapFeeder, with the head's first nozzle). An action whose actuator (or fiducial part) is
+// Calibrate Cover Edges and Calibrate Fiducials (JPBlindsFeeding);
+// a heap feeder's Clean DropBox and GetSamples (JPHeapFeeding, with the head's first nozzle). An action whose actuator (or fiducial part) is
 // not set does nothing (the log says so).
 class JPFeederActions {
 public:

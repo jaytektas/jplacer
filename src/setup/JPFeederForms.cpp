@@ -11,6 +11,7 @@
 #include "model/JPBlindsFeeders.h"
 #include "model/JPAutoFeeder.h"
 #include "model/JPFeederPackaging.h"
+#include "model/JPHeapFeeder.h"
 #include "model/JPFeederTape.h"
 #include "model/JPPushPullTemplates.h"
 #include "model/JPRotatedTrayFeeder.h"
@@ -1413,7 +1414,8 @@ void blindsForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFee
 
 // The drop box a heap feeder uses.
 std::string heapBox(JPConfiguration& config, const JPFeeder& f) {
-    const std::string id = f.text("drop-box-id");
+    const JPHeapFeeder* h = f.as<JPHeapFeeder>();
+    const std::string id = h ? h->dropBoxId : std::string();
     if (config.dropBoxes().box(id)) return id;
     const std::vector<JPDropBoxes::Box> all = config.dropBoxes().boxes();
     return all.empty() ? std::string() : all.back().id;
@@ -1429,7 +1431,8 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     JPFormBuilder::Named boxes;
     for (const JPDropBoxes::Box& b : config.dropBoxes().boxes()) boxes.add(b.name, b.id);
     add.row("DropBox");
-    add.byName("drop-box-id", "DropBox", boxes, box, [f](const std::string& id) { f().setText("drop-box-id", id); });
+    auto h = [f]() -> JPHeapFeeder& { return *f().as<JPHeapFeeder>(); };
+    add.byName("drop-box-id", "DropBox", boxes, box, [h](const std::string& id) { h().dropBoxId = id; });
     add.text("drop-box.name", "Name", [&config, box] {
                  const auto b = config.dropBoxes().box(box());
                  return b ? b->name : std::string();
@@ -1445,10 +1448,12 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     coordinate(add, pick(f), Axis::Y, "Y");
     coordinate(add, pick(f), Axis::Z, "Z");
     add.end();
-    for (const auto& [label, element] : { std::pair { "Move 1", "way-1" }, std::pair { "Move 2", "way-2" }, std::pair { "Move 3", "way-3" } }) {
+    for (const auto& [label, key, way] : { std::tuple { "Move 1", "way-1", &JPHeapFeeder::way1 }, std::tuple { "Move 2", "way-2", &JPHeapFeeder::way2 },
+                                           std::tuple { "Move 3", "way-3", &JPHeapFeeder::way3 } }) {
+        const Spot spot { key, [h, way = way] { return h().*way; }, [h, way = way](const JPLocation& l) { h().*way = l; } };
         add.row(label, Place::Location);
-        coordinate(add, at(f, element), Axis::X, "X");
-        coordinate(add, at(f, element), Axis::Y, "Y");
+        coordinate(add, spot, Axis::X, "X");
+        coordinate(add, spot, Axis::Y, "Y");
         add.skip();
         add.end();
     }
@@ -1457,29 +1462,28 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
     add.integer("feed-retry-count", "Feed Retry Count", [f] { return f().feedRetryCount(); }, [f](int v) { f().setFeedRetryCount(v); }, 0,
                 kMostCount);
     add.words("Depth");
-    add.number("box-depth", "Depth", [f] { return f().real("box-depth", -25); }, [f](double v) { f().setReal("box-depth", v); });
+    add.number("box-depth", "Depth", [h] { return h().boxDepth; }, [h](double v) { h().boxDepth = v; });
     add.end();
     add.row("Pick Retry Count");
     add.integer("pick-retry-count", "Pick Retry Count", [f] { return f().pickRetryCount(); }, [f](int v) { f().setPickRetryCount(v); }, 0,
                 kMostCount);
     add.words("Last Feed Depth");
-    add.number("last-feed-depth", "Last Feed Depth", [f] { return f().real("last-feed-depth", 0); },
-               [f](double v) { f().setReal("last-feed-depth", v); });
+    add.number("last-feed-depth", "Last Feed Depth", [h] { return h().lastFeedDepth; }, [h](double v) { h().lastFeedDepth = v; });
     add.button("resetLastFeedDepth", "Reset");
     add.end();
     add.row("Max flip attempts");
-    count(add, f, "throw-away-drop-box-content-after-failed-feeds", "Max flip attempts", 9);
+    add.integer("throw-away-drop-box-content-after-failed-feeds", "Max flip attempts", [h] { return h().throwAwayAfterFailedFeeds; },
+                [h](int v) { h().throwAwayAfterFailedFeeds = v; }, 0, kMostCount);
     add.words("Vacuum Difference");
-    add.integer("required-vacuum-difference", "Vacuum Difference", [f] { return f().number("required-vacuum-difference", 150); },
-                [f](int v) { f().setNumber("required-vacuum-difference", v); }, 0, kMostCount);
+    add.integer("required-vacuum-difference", "Vacuum Difference", [h] { return h().requiredVacuumDifference; },
+                [h](int v) { h().requiredVacuumDifference = v; }, 0, kMostCount);
     add.end();
     add.labelTip("After this numer of feed, mark the parts as disposable. So the next feed is done with new parts.");
     add.tipOf("throw-away-drop-box-content-after-failed-feeds",
               "After this numer of feed, mark the parts as disposable. So the next feed is done with new parts.");
     add.endColumns();
     add.row("Poke for Parts");
-    add.flag("poke-for-parts", "Poke for Parts", [f] { return f().childText("poke-for-parts", "false") == "true"; },
-             [f](bool on) { f().setChildText("poke-for-parts", on ? "true" : "false"); });
+    add.flag("poke-for-parts", "Poke for Parts", [h] { return h().pokeForParts; }, [h](bool on) { h().pokeForParts = on; });
     add.bare();
     add.end();
     add.tip("If enabled the nozzle is lifted for each move inside the heap. Reduces the risk to damage (large) parts, but slower.");
@@ -1748,7 +1752,7 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
         // As OpenPnP's: a new box, chosen, named "New".
         const std::string id = config.dropBoxes().add();
         config.dropBoxes().setName(id, "New");
-        f->setText("drop-box-id", id);
+        if (JPHeapFeeder* h = f->as<JPHeapFeeder>()) h->dropBoxId = id;
         return true;
     }
     if (action == "deleteDropBox") {
@@ -1759,7 +1763,7 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
                 return false;
             }
         if (!config.dropBoxes().remove(box, why)) return false;
-        f->setText("drop-box-id", heapBox(config, *f));
+        if (JPHeapFeeder* h = f->as<JPHeapFeeder>()) h->dropBoxId = heapBox(config, *f);
         return true;
     }
     if (action == "blindsResetFeedCount") {

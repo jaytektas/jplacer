@@ -4,7 +4,7 @@
 #include "JPFeederTakeBack.h"
 
 #include "JPFeederFeed.h"
-#include "JPHeapFeeder.h"
+#include "JPHeapFeeding.h"
 
 #include "model/JPBlindsFeeders.h"
 
@@ -67,7 +67,7 @@ bool JPFeederTakeBack::takeBack(JPConfiguration& config, const std::string& nozz
     g["part"] = partId;
     if (scripting && !scripting->on("Feeder.BeforeTakeBack", g, why)) return false;
     if (type == "ReferenceHeapFeeder") {
-        if (!JPHeapFeeder::takeBack(config, feederId, nozzleId, machine, onMain, why)) return false;
+        if (!JPHeapFeeding::takeBack(config, feederId, nozzleId, machine, onMain, why)) return false;
     } else {
         // A blinds feeder whose cover is not open: its last feed again, so the pick place is the last free pocket.
         if (type == "BlindsFeeder" && !coverOpen) {

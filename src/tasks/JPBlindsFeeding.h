@@ -19,7 +19,7 @@ inline namespace jf {
 // cover's position seen, and the cover pushed open or closed by a free
 // nozzle whose tip allows pushing (another tip loaded when none on does).
 // Runs on a thread of its own; the model is touched only through `onMain`.
-class JPBlindsFeeder {
+class JPBlindsFeeding {
 public:
     using OnMain = std::function<void(const std::function<void()>&)>;
 

@@ -693,7 +693,7 @@ int main() {
         assert(stirred);
         // Out of the heap through its move, and the parts dropped into the box.
         assert(!m.placed.empty() && near(m.placed.back().x(), 200) && near(m.placed.back().z(), -15));
-        assert(config.feeder("HEAP")->real("last-feed-depth") < 0.6);
+        assert(config.feeder("HEAP")->as<JPHeapFeeder>()->lastFeedDepth < 0.6);
         // The box is the heap's now: its parts are not cleaned out on the next feed.
         assert(config.dropBoxes().lastHeap[box] == "HEAP");
         // Nothing found, and nothing grabbed within three part heights of the last depth: none there.
@@ -703,8 +703,8 @@ int main() {
         assert(!JPFeederFeed::feed(config, "HEAP", "N1", bare, nullptr, why, empty));
         assert(why == "HeapFeeder Heap: Can not grab parts. No parts found on three times part height.");
         // From the top (no last depth), down to the box's depth: the heap is empty.
-        config.feeder("HEAP")->setReal("last-feed-depth", 0);
-        config.feeder("HEAP")->setReal("box-depth", -2);
+        config.feeder("HEAP")->as<JPHeapFeeder>()->lastFeedDepth = 0;
+        config.feeder("HEAP")->as<JPHeapFeeder>()->boxDepth = -2;
         HoleMachine emptied;
         emptied.sights = bare.sights;
         assert(!JPFeederFeed::feed(config, "HEAP", "N1", emptied, nullptr, why, empty));

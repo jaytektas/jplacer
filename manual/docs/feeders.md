@@ -478,7 +478,7 @@ pocket ("empty" past the last), opening the cover as its actuation says. Before 
 are visited: calibrated, opened, their label read; a tip loaded to push is put back, and a part OCR changed stops the
 job ("OCR changed parts: … Please review.").
 
-<!-- src: src/setup/JPFeederForms.cpp (blindsForm); src/model/JPBlindsFeeders.cpp; src/tasks/JPBlindsFeeder.cpp; src/tasks/JPBlindsVision.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerBlindsFiles.cpp; src/ui/JPFeedersPanel.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (blindsForm); src/model/JPBlindsFeeders.cpp; src/tasks/JPBlindsFeeding.cpp; src/tasks/JPBlindsVision.cpp; src/tasks/JPJobProcessor.cpp (preFlight); src/app/JPlacerBlindsFiles.cpp; src/ui/JPFeedersPanel.cpp -->
 
 ### Heap feeder
 
@@ -506,7 +506,7 @@ flip attempts** tries, the box's parts are thrown away; after 12 the feed fails 
 heap's depth: "Heap Empty or VacuumDifference wrong."; three part heights below the last depth with nothing: "No
 parts found on three times part height." The nozzle takes a tip the part's package fits first.
 
-<!-- src: src/setup/JPFeederForms.cpp (heapForm, act); src/tasks/JPHeapFeeder.cpp; src/model/JPDropBoxes.cpp; src/tasks/JPFeederPipelines.cpp (dropBoxOf, ofDropBox); src/tasks/JPFeederActions.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (heapForm, act); src/tasks/JPHeapFeeding.cpp; src/model/JPDropBoxes.cpp; src/tasks/JPFeederPipelines.cpp (dropBoxOf, ofDropBox); src/tasks/JPFeederActions.cpp -->
 
 ### Bamboo feeder
 

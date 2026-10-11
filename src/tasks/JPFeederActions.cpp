@@ -3,9 +3,9 @@
 
 #include "JPFeederActions.h"
 
-#include "JPBlindsFeeder.h"
+#include "JPBlindsFeeding.h"
 #include "JPFiducialLocator.h"
-#include "JPHeapFeeder.h"
+#include "JPHeapFeeding.h"
 #include "JPPhotonFeeders.h"
 #include "JPRapidScan.h"
 #include "JPVisionTapeFeeder.h"
@@ -79,15 +79,15 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
         // With the Jog panel's chosen nozzle, where one is pushing.
         const std::string nozzle = machine.chosenNozzle();
         outcome.changed = true;
-        if (action == "blindsOcrDetect") return JPBlindsFeeder::performOcr(config, feederId, "ChangePart", machine, onMain, why);
-        if (action == "blindsShowFeatures") return JPBlindsFeeder::showFeatures(config, feederId, machine, onMain, why);
-        if (action == "blindsAutoSetup") return JPBlindsFeeder::autoSetup(config, feederId, machine, onMain, why);
+        if (action == "blindsOcrDetect") return JPBlindsFeeding::performOcr(config, feederId, "ChangePart", machine, onMain, why);
+        if (action == "blindsShowFeatures") return JPBlindsFeeding::showFeatures(config, feederId, machine, onMain, why);
+        if (action == "blindsAutoSetup") return JPBlindsFeeding::autoSetup(config, feederId, machine, onMain, why);
         if (action == "blindsOpenCover" || action == "blindsCloseCover")
-            return JPBlindsFeeder::actuateCover(config, feederId, nozzle, action == "blindsOpenCover", machine, onMain, why);
+            return JPBlindsFeeding::actuateCover(config, feederId, nozzle, action == "blindsOpenCover", machine, onMain, why);
         if (action == "blindsOpenAll" || action == "blindsCloseAll")
-            return JPBlindsFeeder::actuateAllCovers(config, nozzle, action == "blindsOpenAll", machine, onMain, why);
-        if (action == "blindsCalibrateEdges") return JPBlindsFeeder::calibrateCoverEdges(config, feederId, machine, onMain, why);
-        if (action == "blindsCalibrateFiducials") return JPBlindsFeeder::calibrateFiducials(config, feederId, machine, onMain, why);
+            return JPBlindsFeeding::actuateAllCovers(config, nozzle, action == "blindsOpenAll", machine, onMain, why);
+        if (action == "blindsCalibrateEdges") return JPBlindsFeeding::calibrateCoverEdges(config, feederId, machine, onMain, why);
+        if (action == "blindsCalibrateFiducials") return JPBlindsFeeding::calibrateFiducials(config, feederId, machine, onMain, why);
     }
     if (kind == "ReferenceHeapFeeder" && (action == "cleanDropBox" || action == "getSamples")) {
         // With the head's first nozzle, as OpenPnP's (its default).
@@ -97,8 +97,8 @@ bool JPFeederActions::run(JPConfiguration& config, const std::string& feederId, 
             return false;
         }
         outcome.changed = true;
-        return action == "cleanDropBox" ? JPHeapFeeder::cleanDropBox(config, feederId, nozzles.front().id, machine, onMain, why)
-                                        : JPHeapFeeder::getSamples(config, feederId, nozzles.front().id, machine, onMain, why);
+        return action == "cleanDropBox" ? JPHeapFeeding::cleanDropBox(config, feederId, nozzles.front().id, machine, onMain, why)
+                                        : JPHeapFeeding::getSamples(config, feederId, nozzles.front().id, machine, onMain, why);
     }
     if ((kind == "BambooFeederAutoVision" || kind == "ReferencePushPullFeeder") && action == "showVisionFeatures")
         return JPVisionTapeFeeder::showFeatures(config, feederId, machine, onMain, why);
