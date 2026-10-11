@@ -105,6 +105,29 @@ int main() {
     assert(rank("Package_QFP:LQFP-100_14x14mm", "lq") == 0 && rank("Package_QFP:LQFP-100_14x14mm", "14x14") == 1);
     assert(rank("C1206-22u", "res") == -1 && rank("C1206-22u", "206") == -1 && rank("C1206-22u", "1206") == 1);
     assert(rank("C1206-22u", "word") == 1 && rank("LQFP-48_STM32", "stm") == 1);
+
+    // Two parts that learned the same name (a 1 % and a 5 % 10k): both offered, neither taken unasked; a part
+    // renamed still found by it.
+    {
+        auto one = std::make_shared<JPPart>();
+        one->id = "guid-1";
+        one->label = "10k 0603 1%";
+        one->akas.push_back({ "valueFootprint", "10k|R_0603_1608Metric", "b", "now" });
+        auto five = std::make_shared<JPPart>();
+        five->id = "guid-5";
+        five->label = "10k 0603 5%";
+        five->akas.push_back({ "valueFootprint", "10k|R_0603_1608Metric", "b", "now" });
+        config.addPart(one);
+        config.addPart(five);
+        JPBoardPart r;
+        r.fields = { { "value", "10k" }, { "footprint", "R_0603_1608Metric" } };
+        const auto both = JPPartMatcher::candidates(config, r);
+        assert(both.size() >= 2 && both[0].score == both[1].score && JPPartMatcher::automatic(config, r) == nullptr);
+        config.removePart("guid-5");
+        assert(JPPartMatcher::automatic(config, r) == config.part("guid-1"));   // the one: taken
+        assert(config.partNamed("10K 0603 1%") == config.part("guid-1") && !config.partNamed("guid-5"));
+        config.removePart("guid-1");
+    }
     std::filesystem::remove_all(dir);
     return 0;
 }

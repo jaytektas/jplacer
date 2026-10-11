@@ -17,11 +17,12 @@
 
 inline namespace jf {
 
-// The Parts tab's table, as OpenPnP's PartsTableModel: ID, Description,
+// The Parts tab's table, as OpenPnP's PartsTableModel: ID, its Name (what it
+// is shown as, edited in place and unique), Description,
 // Height, Through-Board Depth, Package, Speed %, BottomVision,
 // FiducialVision, Placements, Feeders), the library's parts (the only ones),
 // after Source (JPSourceColumn: the library's icon, or a board's for a part
-// an open board uses). All but Source, the ID and the two counts are edited
+// an open board uses). All but Source, the ID, the MPN and the counts are edited
 // in place. Then more about each part, hidden until chosen (a table's
 // Columns…): its Packaging, Suppliers, Manufacturer, Stock and Datasheet,
 // each cell how many and the first of them (all of them when pointed at,

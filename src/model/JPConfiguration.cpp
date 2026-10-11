@@ -3,6 +3,9 @@
 
 #include "JPConfiguration.h"
 
+#include "JPLibraryLearning.h"
+#include "common/JPWhen.h"
+
 #include "JPLibraryJson.h"
 #include "JPRunLedger.h"
 #include "JPXmlValues.h"
@@ -427,6 +430,13 @@ JPPart* JPConfiguration::libraryPart(const std::string& id) const {
     return it == m_partsById.end() ? nullptr : it->second.get();
 }
 
+JPPart* JPConfiguration::partNamed(const std::string& name) const {
+    const std::string wanted = upper(name);
+    for (const auto& p : m_parts)
+        if (upper(p->shownName()) == wanted) return p.get();
+    return nullptr;
+}
+
 JPPackage* JPConfiguration::libraryPackage(const std::string& id) const {
     const auto it = m_packagesById.find(upper(id));
     return it == m_packagesById.end() ? nullptr : it->second.get();
@@ -493,9 +503,19 @@ int JPConfiguration::takeMade(const JPBoard& imported, int& packagesAdded) {
     int parts = 0;
     for (const auto& p : imported.madeParts)
         if (!libraryPart(p->id)) {
-            addPart(std::make_shared<JPPart>(*p));
+            auto part = std::make_shared<JPPart>(*p);
+            // Names stay unique: one the library has by now numbered.
+            if (!part->label.empty() && (partNamed(part->label) || libraryPart(part->label))) {
+                const std::string base = part->label;
+                for (int n = 2; partNamed(part->label) || libraryPart(part->label); ++n) part->label = base + " (" + std::to_string(n) + ")";
+            }
+            addPart(std::move(part));
             ++parts;
         }
+    // What the board calls each part it is linked to, known by the library's part from now on (its AKA).
+    for (const JPBoardPart& bp : imported.parts())
+        if (bp.state == JPBoardPart::State::Matched)
+            if (JPPart* part = libraryPartFor(bp)) JPLibraryLearning::learnName(*part, bp, imported.scopeName(), JPWhen::now());
     return parts;
 }
 

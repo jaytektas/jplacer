@@ -70,6 +70,8 @@ public:
     JPPart* part(const std::string& id) const;
     // The library's part of that id only, or null.
     JPPart* libraryPart(const std::string& id) const;
+    // The library's part whose Name (JPPart::shownName) is `name`, whatever its case; null when none.
+    JPPart* partNamed(const std::string& name) const;
     // The library's part a matched board part is: by its id, else (renamed since) by its uuid; null when the
     // library has neither.
     JPPart* libraryPartFor(const JPBoardPart& bp) const;
@@ -79,7 +81,9 @@ public:
     // changed. How many parts (and, in `packagesAdded`, packages) it added.
     int adoptFormer(JPBoard& board, int& packagesAdded);
     // An import taken: the parts and packages it made (JPBoard::madeParts, madePackages) the library's, each one
-    // it has not got by then. How many parts (and, in `packagesAdded`, packages).
+    // it has not got by then (a made part's Name the library has by then numbered); and what the board calls each
+    // part it is linked to learned by that part (JPLibraryLearning::learnName). How many parts (and, in
+    // `packagesAdded`, packages).
     int takeMade(const JPBoard& imported, int& packagesAdded);
     // The library footprint a board part's part is placed with: the one its CAD footprint names, of the part's
     // package, else that package's first; null when the package has none.

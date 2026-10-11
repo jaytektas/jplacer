@@ -50,14 +50,23 @@ A click on a placement's **Part** opens the part picker for its board part, titl
 - a filter, into which typing goes from the start: every word must be in a part's name, its package or
   the package's description, the suggestions kept first; **[x]** clears it.
 
-**Use This Part** (Return, or a double-click on one) makes it that library part; with **Remember** ticked
-(as it starts, where the files gave any), the library part keeps the names the files gave (its value and
-footprint, MPN and supplier's part number; its package's footprint the footprint's name), so the next board calling it so is
-matched without asking. **Add to Library** makes a library part from all the files said (named by its MPN,
-else *footprint*-*value*, else its value, numbered when the name is taken; its package the library's of
+**Use This Part** (Return, or a double-click on one) makes it that library part. The library part always
+learns the board's name for it (its value and footprint, as an **Also Known As**), so a part you have
+renamed is still found by it; with **Remember** ticked (as it starts, where the files gave any) it keeps the
+rest the files gave too (MPN and supplier's part number; its package's footprint the footprint's name), so
+the next board calling it so is matched without asking. **Add to Library** makes a library part from all the
+files said: known by a new GUID, its **Name** its MPN, else *footprint*-*value*, else its value (numbered
+when the name is taken), and known by that name too; its package the library's of
 that footprint, by its name or a footprint's CAD name, else a new one) and uses it; **Leave to Be Chosen** clears it. Each is for every
 placement of the part, or, with **Only *designator*** ticked, for that placement alone (it gets a part of
 its own, what the files said kept, and the others keep theirs). **Cancel** and Escape change nothing.
+
+Several library parts may answer to the same name (a 1 % and a 5 % 10k that both learned
+"R_0603-10k"): all are offered, best first, and a board coming in takes one unasked only when no other is as
+strong. A part made by an import is known by a GUID, named as the files name it and known by that name; when
+the import is taken, every library part a board part is linked to learns what the board calls it.
+
+<!-- src: src/model/JPPartMatcher.cpp (candidates, automatic); src/model/JPLibraryLearning.cpp (learnName, addFrom); src/model/JPBoardImporter.cpp (boardPart); src/import/JPCplBomImport.cpp; src/model/JPConfiguration.cpp (takeMade, partNamed) -->
 
 **Board's Parts** on the placements' toolbar lists the board's parts one a row: their **Placements**,
 **Value**, **Footprint**, **MPN**, what each **Is** now, and the library's **Best match** with **Why**.

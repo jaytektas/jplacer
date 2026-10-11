@@ -11,6 +11,7 @@
 #include "setup/JPLibrarySearch.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 
@@ -18,7 +19,7 @@ inline namespace jf {
 
 namespace {
 
-enum Col { kSource, kId, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
+enum Col { kSource, kId, kName, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
            kFeeders, kPackagings, kSuppliers, kMakers, kStock, kDatasheet, kColumns };
 
 // OpenPnP's PercentConverter.
@@ -93,7 +94,10 @@ int JPPartsTableModel::columnCount() const { return kColumns; }
 JPTableModel::Column JPPartsTableModel::column(int c) const {
     switch (c) {
         case kSource:         return JPSourceColumn::column();
-        case kId:             return { "ID", "", Kind::Text };
+        case kId:             return { "ID", "What placements, feeders and jobs know it by (a new part's a GUID)", Kind::Text };
+        case kName:
+            return { "Name", "What it is called where it is shown, unique in the library; a new part's from where it came "
+                             "(a board's name for it, or the name it was given), and yours to change", Kind::Text };
         case kDescription:    return { "Description", "", Kind::Text };
         case kValue:          return { "Value", "Its electrical value as written (100n, 4k7); the Library page has the rest", Kind::Text };
         case kMpn:
@@ -234,6 +238,7 @@ std::string JPPartsTableModel::text(int row, int c) const {
             return boards.empty() ? std::string("Library") : boards;
         }
         case kId:          return p->id;
+        case kName:        return p->shownName();
         case kDescription: return p->name.value_or("");
         case kValue:       return p->value;
         case kMpn:
@@ -277,7 +282,7 @@ double JPPartsTableModel::number(int row, int c) const {
 }
 
 bool JPPartsTableModel::editable(int, int c) const {
-    return c >= kDescription && c <= kFiducialVision && c != kMpn;
+    return c == kName || (c >= kDescription && c <= kFiducialVision && c != kMpn);
 }
 
 std::vector<const JPPackage*> JPPartsTableModel::packageChoices() const {
@@ -321,6 +326,24 @@ bool JPPartsTableModel::setText(int row, int c, const std::string& text, std::st
     JPPart* p = part(row);
     if (!p) return false;
     switch (c) {
+        case kName: {
+            // Unique, and never none: what the part is told apart by where it is shown.
+            std::string name = text;
+            while (!name.empty() && std::isspace(uint8_t(name.front()))) name.erase(name.begin());
+            while (!name.empty() && std::isspace(uint8_t(name.back()))) name.pop_back();
+            if (name.empty()) {
+                error = "A part needs a name.";
+                return false;
+            }
+            const JPPart* named = m_config.partNamed(name);
+            const JPPart* byId = m_config.part(name);
+            if ((named && named != p) || (byId && byId != p)) {
+                error = "A part named " + name + " already exists.";
+                return false;
+            }
+            p->label = name == p->id ? std::string() : name;   // its id again: no name of its own
+            break;
+        }
         case kDescription:
             p->name = text;
             break;

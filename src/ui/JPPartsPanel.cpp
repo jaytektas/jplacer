@@ -3,6 +3,8 @@
 
 #include "JPPartsPanel.h"
 
+#include "common/JPUuid.h"
+
 #include "common/JPWhen.h"
 
 #include "JPVisionPipelineActions.h"
@@ -643,16 +645,18 @@ void JPPartsPanel::newPart() {
                                   "package before creating a part.");
         return;
     }
-    JDialog::input("New Part", "Please enter an ID for the new part.", [this](std::string text) {
-        const std::string id = trimmed(text);
-        if (id.empty()) return;
-        if (m_config.part(id)) {
-            JDialog::message("Error", "Part ID " + id + " already exists.");
+    JDialog::input("New Part", "Please enter a name for the new part.", [this](std::string text) {
+        const std::string name = trimmed(text);
+        if (name.empty()) return;
+        if (m_config.partNamed(name) || m_config.part(name)) {
+            JDialog::message("Error", "A part named " + name + " already exists.");
             newPart();   // and asked again, as OpenPnP asks
             return;
         }
+        // Known for good by a GUID; the name, what it is shown as, can be changed.
         auto part = std::make_shared<JPPart>();
-        part->id = id;
+        part->id = JPUuid::make();
+        part->label = name;
         part->packageId = m_config.packages().front()->id;
         m_config.addPart(part);
         m_table->refresh();
@@ -690,11 +694,11 @@ void JPPartsPanel::copyPart() {
 }
 
 void JPPartsPanel::pastePart() {
-    JDialog::input("Create Part from Clipboard", "Please enter an ID for the pasted part.", [this](std::string text) {
-        const std::string id = trimmed(text);
-        if (id.empty()) return;
-        if (m_config.part(id)) {
-            JDialog::message("Error", "Part ID " + id + " already exists.");
+    JDialog::input("Create Part from Clipboard", "Please enter a name for the pasted part.", [this](std::string text) {
+        const std::string name = trimmed(text);
+        if (name.empty()) return;
+        if (m_config.partNamed(name) || m_config.part(name)) {
+            JDialog::message("Error", "A part named " + name + " already exists.");
             pastePart();
             return;
         }
@@ -705,7 +709,9 @@ void JPPartsPanel::pastePart() {
             return;
         }
         auto part = std::make_shared<JPPart>(JPPart::fromXml(root));
-        part->id = id;
+        part->id = JPUuid::make();
+        part->label = name;
+        part->uuid.clear();   // a part of its own, not the one copied
         m_config.addPart(part);
         m_table->refresh();
         selectPart(part.get());

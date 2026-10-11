@@ -26,6 +26,7 @@ uint64_t fnv(const std::string& s, uint64_t h = 1469598103934665603ull) {
 JJson JPLibraryJson::part(const JPPart& p) {
     JJson o = JJson::object();
     o["id"] = p.id;
+    if (!p.label.empty()) o["label"] = p.label;
     o["uuid"] = p.uuid;
     if (!p.value.empty()) o["value"] = p.value;
     if (!p.datasheet.empty()) o["datasheet"] = p.datasheet;
@@ -86,6 +87,7 @@ JPPart JPLibraryJson::part(const JJson& j) {
     JPPart p = JPPart::fromXml(JPXmlJson::element(j["openpnp"]));
     auto str = [&j](const char* k) { return j[k].isString() ? j[k].str() : std::string(); };
     if (!str("id").empty()) p.id = str("id");
+    p.label = str("label");
     p.uuid = str("uuid");
     p.value = str("value");
     p.datasheet = str("datasheet");

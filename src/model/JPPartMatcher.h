@@ -24,7 +24,7 @@ public:
     // A candidate this good is taken as a board comes in, unasked: an identifier, a learned name, OpenPnP's
     // footprint-value name, a learned value in its package.
     static constexpr int kAutomatic = 75;
-    // The candidate taken as a board comes in (kAutomatic or better), or null.
+    // The candidate taken as a board comes in (kAutomatic or better, and no other as strong), or null.
     static JPPart* automatic(const JPConfiguration& config, const JPBoardPart& bp);
 
     struct Candidate {
@@ -34,12 +34,12 @@ public:
     };
 
     static std::vector<Candidate> candidates(const JPConfiguration& config, const JPBoardPart& bp);
-    // A typed filter's words; a part matches when every word is in its id, name, package or package's
-    // description (any case).
+    // A typed filter's words; a part matches when every word is in its id, Name, description, package or
+    // package's description (any case).
     static std::vector<std::string> words(const std::string& filter);
     static bool matches(const JPConfiguration& config, const JPPart& part, const std::vector<std::string>& words);
     // How well a part answers what is typed where one is chosen (a feeder's part): every word (any case)
-    // beginning a word of its id, name, value, package, package's description, identifiers or learned names
+    // beginning a word of its Name, id, description, value, package, package's description, identifiers or learned names
     // (where letters turn to digits begins one: C0603 holds 0603); a value the same
     // value written another way ("100n" finds 0.1u); "cap", "res", "ind", "led" or "fid" a part whose id or
     // package is named so (C_0603, R0402, LED_0805, Fiducial). 0 when its id (or its name after a library's

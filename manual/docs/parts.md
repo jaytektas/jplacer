@@ -25,11 +25,11 @@ machine's default settings); one it has is never replaced. A library made before
 
 | Button | |
 |---|---|
-| **New Part...** (plus) | Asks for the new part's ID and makes it, in the first package. There must be a package first. An ID already used is refused, and asked for again. |
+| **New Part...** (plus) | Asks for the new part's name and makes it, in the first package, with a GUID for its ID. There must be a package first. A name already used is refused, and asked for again. |
 | **Delete Part** (cross) | Deletes the chosen parts, after asking. |
 | **Pick Part** | Feeds and picks the chosen part, as the Feeders tab's **Pick...** does, from the feeder OpenPnP would take it from: of the enabled feeders holding it, those of the highest priority, and of those the one closest to the camera. With none, it says no valid feeder was found. |
 | **Copy Part to Clipboard** | Puts the chosen part on the clipboard as text, as OpenPnP's `parts.xml` writes a part. |
-| **Create Part from Clipboard** | Asks for an ID and makes a part from what the clipboard holds. |
+| **Create Part from Clipboard** | Asks for a name and makes a part from what the clipboard holds, with a GUID for its ID. |
 
 Delete Part works on one part or several; Pick Part and Copy Part on one.
 
@@ -44,7 +44,8 @@ end, there while it holds text, empties it and shows every part again.
 | Column | |
 |---|---|
 | **Source** (an icon) | Whether an open board uses it, and which (its tooltip). |
-| **ID** | The part's ID. |
+| **ID** | What placements, feeders and jobs know the part by. A new part's is a GUID, made for it; a part from before keeps the ID it had. |
+| **Name** | What the part is called: changed in place, and unique in the library (any case; one taken, or none, is refused). A new part's is where it came from: the name a board gives it, or the name it was made with. A part from before is named by its ID until you change it. |
 | **Description** | Its name. |
 | **Value** | Its electrical value as written (100n, 4k7); matched to a board's however that is written. |
 | **MPN** | Its manufacturer's part number: the first of its identifiers (the **Library** tab has them all). |

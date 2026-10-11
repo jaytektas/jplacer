@@ -121,6 +121,9 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
         Candidate c;
         c.part = p.get();
         const std::string name = p->name.value_or("");
+        // What it is called: its Name (a new part's id is a GUID, and says nothing), else its id.
+        const std::string& called = p->shownName();
+        auto calledSo = [&](const std::string& text) { return same(p->id, text) || same(called, text); };
         // What the library knows the part by: its identifiers, and the names it learned.
         const JPPart::Identifier* byId = nullptr;
         for (const auto& i : p->identifiers) {
@@ -150,32 +153,32 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
             c.score = kLearnedBoth;
             c.why = "learned: value " + value + " and footprint " + footprint
                   + (learned->learnedFrom.empty() ? std::string() : ", from " + learned->learnedFrom);
-        } else if (same(p->id, mpn) || same(name, mpn)) {
+        } else if (calledSo(mpn) || same(name, mpn)) {
             c.score = kMpn;
             c.why = "its MPN " + mpn;
-        } else if (same(p->id, supplierPn) || same(name, supplierPn)) {
+        } else if (calledSo(supplierPn) || same(name, supplierPn)) {
             c.score = kSupplierPn;
             c.why = "its supplier's part number " + supplierPn;
-        } else if (!footprint.empty() && !value.empty() && same(p->id, footprint + "-" + value)) {
+        } else if (!footprint.empty() && !value.empty() && calledSo(footprint + "-" + value)) {
             c.score = kFootprintValue;
             c.why = "named by its footprint and value";
         } else if (learnedValue && samePackage) {
             c.score = kLearnedValue;
             c.why = "learned: value " + value + ", its package " + p->packageId;
-        } else if (same(p->id, value)) {
+        } else if (calledSo(value)) {
             c.score = kValueName;
             c.why = "named by its value";
-        } else if (double pv = 0; hasValue && valueOf(!p->value.empty() ? p->value : valuePart(p->id), pv) && sameValue(v, pv)) {
-            const std::string theirSize = !chipSize(p->packageId).empty() ? chipSize(p->packageId) : chipSize(p->id);
+        } else if (double pv = 0; hasValue && valueOf(!p->value.empty() ? p->value : valuePart(called), pv) && sameValue(v, pv)) {
+            const std::string theirSize = !chipSize(p->packageId).empty() ? chipSize(p->packageId) : chipSize(called);
             if (samePackage) {
                 c.score = kValueAndPackage;
-                c.why = "value " + (!p->value.empty() ? p->value : valuePart(p->id)) + " = " + value + ", its package " + p->packageId;
+                c.why = "value " + (!p->value.empty() ? p->value : valuePart(called)) + " = " + value + ", its package " + p->packageId;
             } else if (!size.empty() && theirSize == size) {
                 c.score = kValueAndSize;
-                c.why = "value " + (!p->value.empty() ? p->value : valuePart(p->id)) + " = " + value + ", size " + size;
+                c.why = "value " + (!p->value.empty() ? p->value : valuePart(called)) + " = " + value + ", size " + size;
             } else if (size.empty() || theirSize.empty()) {
                 c.score = kValueOnly;
-                c.why = "value " + (!p->value.empty() ? p->value : valuePart(p->id)) + " = " + value;
+                c.why = "value " + (!p->value.empty() ? p->value : valuePart(called)) + " = " + value;
             }
         }
         if (c.score > 0) out.push_back(c);
@@ -188,7 +191,11 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
 
 JPPart* JPPartMatcher::automatic(const JPConfiguration& config, const JPBoardPart& bp) {
     const auto c = candidates(config, bp);
-    return !c.empty() && c.front().score >= kAutomatic ? c.front().part : nullptr;
+    if (c.empty() || c.front().score < kAutomatic) return nullptr;
+    // Only when it is the one: another as strong (two parts that learned the same name, a 1 % and a 5 %
+    // resistor) is for the user to choose between, not taken by its place in the list.
+    if (c.size() > 1 && c[1].score >= c.front().score) return nullptr;
+    return c.front().part;
 }
 
 std::vector<std::string> JPPartMatcher::words(const std::string& filter) {
@@ -207,7 +214,7 @@ std::vector<std::string> JPPartMatcher::words(const std::string& filter) {
 }
 
 bool JPPartMatcher::matches(const JPConfiguration& config, const JPPart& part, const std::vector<std::string>& words) {
-    std::string text = upper(part.id + " " + part.name.value_or("") + " " + part.packageId);
+    std::string text = upper(part.id + " " + part.label + " " + part.name.value_or("") + " " + part.packageId);
     if (const JPPackage* k = config.package(part.packageId)) text += " " + upper(k->description.value_or(""));
     return std::all_of(words.begin(), words.end(), [&text](const std::string& w) { return text.find(w) != std::string::npos; });
 }
@@ -252,13 +259,13 @@ int rankOf(const std::string& id, const std::string& text, double value, const s
 } // namespace
 
 int JPPartMatcher::searchRank(const JPConfiguration& config, const JPPart& part, const std::string& typed) {
-    const std::string id = upper(part.id), package = upper(part.packageId);
-    std::string text = id + " " + upper(part.name.value_or("")) + " " + upper(part.value) + " " + package;
+    const std::string id = upper(part.shownName()), package = upper(part.packageId);
+    std::string text = id + " " + upper(part.id) + " " + upper(part.name.value_or("")) + " " + upper(part.value) + " " + package;
     if (const JPPackage* k = config.package(part.packageId)) text += " " + upper(k->description.value_or(""));
     for (const JPPart::Identifier& i : part.identifiers) text += " " + upper(i.code);
     for (const JPPart::Aka& a : part.akas) text += " " + upper(a.text);
     double value = 0;
-    if (!valueOf(!part.value.empty() ? part.value : valuePart(part.id), value)) value = std::nan("");
+    if (!valueOf(!part.value.empty() ? part.value : valuePart(part.shownName()), value)) value = std::nan("");
     return rankOf(id, text, value, { id, package }, typed);
 }
 

@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- A part has a **Name**, shown beside its ID on the Parts tab and changed in place (unique in the library).
+  A new part's ID is a GUID, made for it, so its name can be changed freely; a part from a board starts
+  with the name the board gives it. Existing parts keep their IDs, named by them until you rename them.
+- A library part always learns what a board calls it when they are linked (its **Also Known As**), so a part
+  you renamed is still found by the next board.
+- Two library parts that answer to the same name (a 1 % and a 5 % resistor) are both offered when a board
+  comes in, and neither is taken without asking.
+
 ## 0.1.54
 
 - The Parts table has more columns to show with **Columns** (hidden until chosen): **Packaging**,

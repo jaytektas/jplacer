@@ -3,6 +3,10 @@
 
 #include "JPBoardImporter.h"
 
+#include "JPLibraryLearning.h"
+#include "common/JPUuid.h"
+#include "common/JPWhen.h"
+
 #include "JPPartMatcher.h"
 
 #include "JPAltiumCsvImporter.h"
@@ -238,14 +242,17 @@ std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, co
     if (!value.empty()) bp.fields["value"] = value;
     // The library's part of that name, else one it knows by these names (JPPartMatcher, strong evidence only).
     JPPart* found = config.libraryPart(partId);
+    if (!found) found = config.partNamed(partId);
     if (!found) found = JPPartMatcher::automatic(config, bp);
     if (found) {
         bp.state = JPBoardPart::State::Matched;
         bp.libraryPartId = found->id;
         bp.libraryUuid = found->uuid;
     } else if (create) {
+        // Known for good by a GUID, named as the file names it (and known by that name: JPLibraryLearning).
         auto p = std::make_shared<JPPart>();
-        p->id = partId;
+        p->id = JPUuid::make();
+        p->label = partId;
         p->value = value;   // its value as the file wrote it
         if (const JPPackage* k = config.libraryPackage(packageId)) {
             p->packageId = k->id;
@@ -261,7 +268,8 @@ std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, co
             }
         }
         bp.state = JPBoardPart::State::Matched;
-        bp.libraryPartId = partId;
+        bp.libraryPartId = p->id;
+        JPLibraryLearning::learnName(*p, bp, out.scopeName(), JPWhen::now());
         found = p.get();
         out.madeParts.push_back(std::move(p));
         if (made) *made = true;

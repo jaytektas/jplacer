@@ -3,6 +3,8 @@
 
 #include "JPLibraryLearning.h"
 
+#include "common/JPUuid.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -29,16 +31,22 @@ void addIdentifier(JPPart& p, const std::string& kind, const std::string& org, c
 
 } // namespace
 
+bool JPLibraryLearning::learnName(JPPart& part, const JPBoardPart& bp, const std::string& from, const std::string& when) {
+    const std::string value = bp.field("value"), footprint = footprintOf(bp);
+    if (value.empty() && footprint.empty()) return false;
+    const std::string field = !value.empty() && !footprint.empty() ? "valueFootprint" : !value.empty() ? "value" : "footprint";
+    const std::string text = field == "valueFootprint" ? value + "|" + footprint : !value.empty() ? value : footprint;
+    const bool known = std::any_of(part.akas.begin(), part.akas.end(),
+                                   [&](const JPPart::Aka& a) { return a.field == field && same(a.text, text); });
+    if (known) return false;
+    part.akas.push_back({ field, text, from, when });
+    return true;
+}
+
 void JPLibraryLearning::learn(JPConfiguration& config, JPPart& part, const JPBoardPart& bp, const std::string& from,
                               const std::string& when) {
-    const std::string value = bp.field("value"), footprint = footprintOf(bp);
-    if (!value.empty() || !footprint.empty()) {
-        const std::string field = !value.empty() && !footprint.empty() ? "valueFootprint" : !value.empty() ? "value" : "footprint";
-        const std::string text = field == "valueFootprint" ? value + "|" + footprint : !value.empty() ? value : footprint;
-        const bool known = std::any_of(part.akas.begin(), part.akas.end(),
-                                       [&](const JPPart::Aka& a) { return a.field == field && same(a.text, text); });
-        if (!known) part.akas.push_back({ field, text, from, when });
-    }
+    const std::string footprint = footprintOf(bp);
+    learnName(part, bp, from, when);
     addIdentifier(part, "mpn", bp.field("manufacturer"), bp.field("mpn"));
     addIdentifier(part, "supplierPn", bp.field("supplier"), bp.field("supplierPn"));
     // Its package's footprint known by this name too (unless a footprint, of any package, has it already).
@@ -53,10 +61,13 @@ JPPart* JPLibraryLearning::addFrom(JPConfiguration& config, const JPBoardPart& b
     std::string base = !mpn.empty() ? mpn : !footprint.empty() && !value.empty() ? footprint + "-" + value
                      : !value.empty() ? value : !footprint.empty() ? footprint : bp.field("part");
     if (base.empty()) base = "Part";
-    std::string id = base;
-    for (int n = 2; config.libraryPart(id); ++n) id = base + " (" + std::to_string(n) + ")";
+    // Named so (numbered when the name is taken); known for good by a GUID, so the name can be changed.
+    std::string name = base;
+    for (int n = 2; config.partNamed(name) || config.libraryPart(name); ++n) name = base + " (" + std::to_string(n) + ")";
+    const std::string id = JPUuid::make();
     auto p = std::make_shared<JPPart>();
     p->id = id;
+    p->label = name;
     p->value = value;
     if (!bp.field("description").empty()) p->name = bp.field("description");   // OpenPnP's part name is its description
     p->datasheet = bp.field("datasheet");

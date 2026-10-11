@@ -73,14 +73,23 @@ int main() {
     other.fields = { { "value", "10n" }, { "footprint", "C_0603_1608Metric" }, { "mpn", "CL10B103KB8NNNC" }, { "height", "0.8" },
                      { "description", "10n X7R" } };
     JPPart* made = JPLibraryLearning::addFrom(config, other, "Ctrl", "now");
-    assert(made && made->id == "CL10B103KB8NNNC" && made->packageId == "C0603" && made->value == "10n");
+    // Named by it, known for good by a GUID (so the name can be changed).
+    assert(made && made->label == "CL10B103KB8NNNC" && made->id.size() == 36 && made->packageId == "C0603" && made->value == "10n");
     assert(made->name == "10n X7R" && std::abs(made->height.value() - 0.8) < 1e-9 && made->uuid.size() == 36);
     assert(made->identifiers.size() == 1 && made->akas.size() == 1);
     // Its name taken: numbered. A footprint the library has no package for: one made.
     JPBoardPart again = other;
     again.fields["footprint"] = "SOT-23";
     JPPart* second = JPLibraryLearning::addFrom(config, again, "Ctrl", "now");
-    assert(second->id == "CL10B103KB8NNNC (2)" && second->packageId == "SOT-23" && config.libraryPackage("SOT-23"));
+    assert(second->label == "CL10B103KB8NNNC (2)" && second->id != made->id && second->packageId == "SOT-23"
+           && config.libraryPackage("SOT-23"));
+    // The name a board gives a part learned once, whoever links it.
+    JPBoardPart named;
+    named.fields = { { "value", "4k7" }, { "footprint", "R_0603" } };
+    JPPart plain;
+    assert(JPLibraryLearning::learnName(plain, named, "b", "now") && plain.akas.size() == 1
+           && plain.akas[0].field == "valueFootprint" && plain.akas[0].text == "4k7|R_0603");
+    assert(!JPLibraryLearning::learnName(plain, named, "c", "later") && plain.akas.size() == 1);
     std::filesystem::remove_all(dir);
     return 0;
 }

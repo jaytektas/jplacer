@@ -27,6 +27,14 @@ namespace fs = std::filesystem;
 
 namespace {
 
+// What a placement's part is called: the Name of the part the import made for it (known by a GUID), else (not
+// made) the name the file gives it.
+std::string partName(const JPBoard& b, const JPPlacement& p) {
+    for (const auto& m : b.madeParts)
+        if (m->id == p.partId) return m->shownName();
+    return p.partId;
+}
+
 bool near(double a, double b) { return std::fabs(a - b) < 1e-9; }
 
 fs::path g_dir;
@@ -85,7 +93,7 @@ int main() {
         JPKicadPosImporter k;
         // Not made: each placement's board part unmatched, named as the file names it.
         JPBoard b = importWith(k, { top, bottom }, initial(k), config);
-        assert(b.placements.size() == 4 && b.placements[0].partId == "C_0603-100n" && config.parts().empty());
+        assert(b.placements.size() == 4 && partName(b, b.placements[0]) == "C_0603-100n" && config.parts().empty());
         assert(b.parts().size() == 3 && b.part(b.placements[0].boardPart)->state == JPBoardPart::State::Unmatched);
         assert(b.part(b.placements[0].boardPart)->field("value") == "100n"
                && b.part(b.placements[0].boardPart)->field("footprint") == "C_0603");
@@ -94,12 +102,13 @@ int main() {
         assert(b.placements[3].location.rotation() == 0.0 && !std::signbit(b.placements[3].location.rotation()));
         // Made: SOIC-8-LM358 for the library, once, with a package made too; the library not added to yet.
         b = importWith(k, { top, bottom }, { true, true, false }, config);
-        assert(b.placements[2].partId == "SOIC-8-LM358" && b.placements[3].boardPart == b.placements[2].boardPart);
+        // Named SOIC-8-LM358 (and known so: its AKA), known for good by a GUID, which the placements are linked by.
+        const auto madeSoic = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "SOIC-8-LM358"; });
+        assert(madeSoic != b.madeParts.end() && (*madeSoic)->packageId == "SOIC-8" && (*madeSoic)->id.size() == 36);
+        assert(b.placements[2].partId == (*madeSoic)->id && b.placements[3].boardPart == b.placements[2].boardPart);
         const JPBoardPart* soic = b.part(b.placements[2].boardPart);
-        assert(soic->state == JPBoardPart::State::Matched && soic->libraryPartId == "SOIC-8-LM358");
+        assert(soic->state == JPBoardPart::State::Matched && soic->libraryPartId == (*madeSoic)->id);
         assert(b.madeParts.size() == 3 && b.madePackages.size() == 3);
-        const auto madeSoic = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->id == "SOIC-8-LM358"; });
-        assert(madeSoic != b.madeParts.end() && (*madeSoic)->packageId == "SOIC-8");
         assert(config.parts().empty() && config.packages().empty());
         // One the library has: matched to it, the library as it was.
         {
@@ -113,7 +122,7 @@ int main() {
         }
         // The value alone.
         b = importWith(k, { top, "" }, { true, true, true }, config);
-        assert(b.placements.size() == 2 && b.placements[1].partId == "10k");
+        assert(b.placements.size() == 2 && partName(b, b.placements[1]) == "10k");
         // A file in inches (KiCad 9 writes "## Unit = inches"): its positions in millimetres, 25.4 to the inch.
         const std::string inches = write("in.pos", "### Footprint positions - created on 2026-10-08T15:11:44+1100 ###\n"
                                                    "### Printed by KiCad version 9.0.8\n## Unit = inches, Angle = deg.\n"
@@ -144,7 +153,7 @@ int main() {
         assert(b.placements.size() == 3);
         assert(near(b.placements[0].location.x(), 25.4) && near(b.placements[0].location.y(), 50.8));
         assert(near(b.placements[0].location.rotation(), -90) && b.placements[0].side == JPSide::Top);
-        assert(b.placements[1].type == JPPlacement::Type::Fiducial && b.placements[1].partId == "FID1MM-");
+        assert(b.placements[1].type == JPPlacement::Type::Fiducial && partName(b, b.placements[1]) == "FID1MM-");
         assert(b.placements[2].id == "R1, R2" && b.placements[2].side == JPSide::Bottom);
         assert(near(b.placements[2].location.rotation(), 170));
         // The height given to the part made for it; the library not added to yet.
@@ -172,7 +181,7 @@ int main() {
         }
         JPAltiumCsvImporter a;
         JPBoard b = importWith(a, { write("a.csv", utf16) }, initial(a), config);
-        assert(b.placements.size() == 1 && b.placements[0].partId == "LQFP48-STM32" && *b.placements[0].comments == "MCU");
+        assert(b.placements.size() == 1 && partName(b, b.placements[0]) == "LQFP48-STM32" && *b.placements[0].comments == "MCU");
         assert(b.placements[0].side == JPSide::Bottom && near(b.placements[0].location.x(), 12.5));
     }
 
@@ -183,7 +192,7 @@ int main() {
         JPBoard b = importWith(d, { write("d.csv", "RefDes,Name,X (mm),Y (mm),Side,Rotate,Value\n"
                                                    "C1,C0603,8.6,7.2,Top,0,1nF\nC2,C0402,10.81,22.99,Bottom,180,0.1uF/16V\n") },
                                initial(d), config);
-        assert(b.placements.size() == 2 && b.placements[1].side == JPSide::Bottom && b.placements[1].partId == "C0402-0.1uF/16V");
+        assert(b.placements.size() == 2 && b.placements[1].side == JPSide::Bottom && partName(b, b.placements[1]) == "C0402-0.1uF/16V");
         JPBoard bad;
         std::string error;
         assert(!d.read({ write("d2.csv", "h\nC1,C0603,8.6\n") }, initial(d), config, bad, error));
@@ -198,7 +207,7 @@ int main() {
                                                    "\"R1\",\"10k\",\"0402\",\"RS123\",TOP,270,1000,500\n"
                                                    "\"R2\",\"10k\",\"0402\",\"RS123\",BOTTOM,-180,100,50\n") },
                                { true, true }, config);
-        assert(b.placements.size() == 2 && b.placements[0].id == "R1" && b.placements[0].partId == "0402-10k");
+        assert(b.placements.size() == 2 && b.placements[0].id == "R1" && partName(b, b.placements[0]) == "0402-10k");
         assert(near(b.placements[0].location.x(), 25.4) && near(b.placements[0].location.y(), 12.7));
         assert(near(b.placements[0].location.rotation(), 270) && b.placements[1].side == JPSide::Bottom);
     }
@@ -211,8 +220,8 @@ int main() {
         JPBoard b = importWith(m, { write("m.mnt", "C1 41.91 34.93 180 0.1uF C0805\nRULER 87.00 49.00 0 RULER\n"),
                                     write("m.mnb", "T10 21.59 14.22 90 SOT23-BEC\n") },
                                initial(m), config);
-        assert(b.placements.size() == 3 && b.placements[0].partId == "C0805-0.1uF" && b.placements[1].partId == "RULER");
-        assert(b.placements[2].side == JPSide::Bottom && b.placements[2].partId == "SOT23-BEC");
+        assert(b.placements.size() == 3 && partName(b, b.placements[0]) == "C0805-0.1uF" && partName(b, b.placements[1]) == "RULER");
+        assert(b.placements[2].side == JPSide::Bottom && partName(b, b.placements[2]) == "SOT23-BEC");
     }
 
     // EAGLE board: elements, packages with the SMD pads as footprints,
@@ -257,7 +266,7 @@ int main() {
 )");
         JPEagleBoardImporter e;
         JPBoard b = importWith(e, { brd }, initial(e), config);
-        assert(b.placements.size() == 2 && b.placements[0].partId == "R0603-10k" && b.placements[1].side == JPSide::Bottom);
+        assert(b.placements.size() == 2 && partName(b, b.placements[0]) == "R0603-10k" && b.placements[1].side == JPSide::Bottom);
         assert(near(b.placements[1].location.rotation(), 90));
         // The footprint the board's library draws, on the package made for the library (not added to yet).
         const JPPackage* k = b.madePackages.empty() ? nullptr : b.madePackages.front().get();
@@ -269,7 +278,7 @@ int main() {
         assert(b.solderPastePads[2].side == JPSide::Bottom);
         // Only the top.
         b = importWith(e, { brd }, { true, false, true, true, false }, config);
-        assert(b.placements.size() == 1 && b.placements[0].partId == "rcl-R0603-10k");
+        assert(b.placements.size() == 1 && partName(b, b.placements[0]) == "rcl-R0603-10k");
     }
 
     fs::remove_all(g_dir);

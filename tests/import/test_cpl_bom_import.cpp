@@ -185,10 +185,14 @@ int main() {
         JPCplBomImport::Report r3;
         assert(make.build(config, "t", b3, r3, error));
         const JPBoardPart* made = b3.part(b3.find("C1")->boardPart);
-        assert(made->state == JPBoardPart::State::Matched && made->libraryPartId == "CL10B104KB8NNNC" && r3.made > 0);
+        // Named as the files name it, known by a GUID, the board part linked by it, the name its AKA.
+        const auto part = std::find_if(b3.madeParts.begin(), b3.madeParts.end(),
+                                       [](const auto& p) { return p->label == "CL10B104KB8NNNC"; });
+        assert(part != b3.madeParts.end() && (*part)->id.size() == 36 && !(*part)->akas.empty());
+        assert(made->state == JPBoardPart::State::Matched && made->libraryPartId == (*part)->id && r3.made > 0);
         assert(config.parts().size() == 1 && !b3.madeParts.empty());   // the library untouched by building it
         int packages = 0;
-        assert(config.takeMade(b3, packages) == int(b3.madeParts.size()) && config.libraryPart("CL10B104KB8NNNC"));
+        assert(config.takeMade(b3, packages) == int(b3.madeParts.size()) && config.partNamed("CL10B104KB8NNNC"));
         assert(config.takeMade(b3, packages) == 0);   // taken once
         for (const auto& p : b3.madeParts) config.removePart(p->id);
         for (const auto& k : b3.madePackages) config.removePackage(k->id);

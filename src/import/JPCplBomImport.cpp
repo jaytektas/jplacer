@@ -3,6 +3,10 @@
 
 #include "JPCplBomImport.h"
 
+#include "model/JPLibraryLearning.h"
+#include "common/JPUuid.h"
+#include "common/JPWhen.h"
+
 #include "JPDesignators.h"
 
 #include "model/JPAngles.h"
@@ -283,13 +287,17 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                 ++report.matched;
             } else if (createMissing && !bp.fields["part"].empty()) {
                 // A part made for the library (put there as the import is taken), from what the files said.
-                const std::string id = bp.fields["part"];
-                bool already = false;
-                for (const auto& m : out.madeParts) already = already || m->id == id;
-                if (!already) {
+                // Named as the files name it, known for good by a GUID; one made already for that name, that one.
+                const std::string name = bp.fields["part"];
+                std::string id;
+                for (const auto& m : out.madeParts)
+                    if (m->label == name) id = m->id;
+                if (id.empty()) {
                     auto made = std::make_shared<JPPart>();
-                    made->id = id;
+                    made->id = id = JPUuid::make();
+                    made->label = name;
                     made->value = val;   // its value as the files wrote it
+                    JPLibraryLearning::learnName(*made, bp, out.scopeName(), JPWhen::now());
                     if (const auto h = fields.find("height"); h != fields.end()) {
                         double mm = 0;
                         if (JPImportSource::length(h->second, cpl.units, mm)) made->height = JPLength(mm, JPLengthUnit::Millimeters);

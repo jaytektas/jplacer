@@ -426,9 +426,11 @@ void JPPlacementsTableModel::applyPart(JPBoard* board, const std::string& placem
     if (!bp) return;
     switch (choice.kind) {
         case JPPartChoice::Kind::Library:
-            if (choice.learn)
-                if (JPPart* part = m_config.libraryPart(choice.libraryId))
-                    JPLibraryLearning::learn(m_config, *part, *bp, board->scopeName(), JPWhen::now());
+            // What the board calls it learned always (a part renamed is still found by it); Remember, the rest.
+            if (JPPart* part = m_config.libraryPart(choice.libraryId)) {
+                if (choice.learn) JPLibraryLearning::learn(m_config, *part, *bp, board->scopeName(), JPWhen::now());
+                else JPLibraryLearning::learnName(*part, *bp, board->scopeName(), JPWhen::now());
+            }
             bp->state = JPBoardPart::State::Matched;
             bp->libraryPartId = choice.libraryId;
             if (const JPPart* part = m_config.libraryPart(choice.libraryId)) bp->libraryUuid = part->uuid;
