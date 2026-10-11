@@ -6,6 +6,7 @@
 #include "JPLength.h"
 #include "JPLocation.h"
 #include "JPAutoFeeder.h"
+#include "JPRotatedTrayFeeder.h"
 #include "JPSchultzFeeder.h"
 #include "JPSlotAutoFeeder.h"
 #include "JPSlotSchultzFeeder.h"
@@ -300,7 +301,7 @@ private:
     JPLocation       m_location { JPLengthUnit::Millimeters };
     // Its kind's own settings: OpenPnP's as they are (a kind not typed), else a typed kind's.
     using Own = std::variant<JPXmlNode, JPTrayFeeder, JPTubeFeeder, JPAutoFeeder, JPSlotAutoFeeder, JPSchultzFeeder,
-                             JPSlotSchultzFeeder>;
+                             JPSlotSchultzFeeder, JPRotatedTrayFeeder>;
     Own m_own { JPXmlNode("feeder") };
     std::vector<int> m_visionChecks;
     bool             m_actuate = false;

@@ -126,6 +126,23 @@ int main() {
     // Column 0, row 1: (0, -4) turned 90 degrees is (4, 0).
     assert(at && near(at->x(), 14) && near(at->y(), 20) && near(at->z(), -3) && near(at->rotation(), 180));
     assert(rot.feed(why) && rot.feed(why) && !rot.feed(why));
+    // Through jplacer's file; its offsets and turn from points A, B and C (a 3 x 2 tray at 30 degrees).
+    {
+        const JPFeeder back = JPFeeder::fromJson(JJson::parse(rot.toJson().dump()));
+        const JPRotatedTrayFeeder* t = back.as<JPRotatedTrayFeeder>();
+        assert(t && t->cols == 3 && t->rows == 2 && t->componentRotation == 90 && t->feedCount == 6 && t->offsets.y() == 4);
+        JPRotatedTrayFeeder corners = *t;
+        const double a = 30 * M_PI / 180;
+        const JPLocation A(JPLengthUnit::Millimeters, 10, 20, 0, 0);
+        corners.firstRowLast = JPLocation(JPLengthUnit::Millimeters, 10 + 10 * std::cos(a), 20 + 10 * std::sin(a), 0, 0);
+        corners.last = corners.firstRowLast.add(JPLocation(JPLengthUnit::Millimeters, 6 * std::sin(a), -6 * std::cos(a), 0, 0));
+        double rotation = 0;
+        std::string why2;
+        assert(corners.calculateOffsets(A, rotation, why2) && near(rotation, 30) && near(corners.offsets.x(), 5));
+        assert(near(std::abs(corners.offsets.y()), 6));
+        corners.cols = 1;
+        assert(!corners.calculateOffsets(A, rotation, why2) && why2.find("single tray column") != std::string::npos);
+    }
 
     // A new feeder, as OpenPnP makes one.
     const JPFeeder made = JPFeeder::create("org.openpnp.machine.reference.feeder.ReferenceTrayFeeder", "C1");

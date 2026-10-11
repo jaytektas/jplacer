@@ -13,6 +13,7 @@
 #include "model/JPFeederPackaging.h"
 #include "model/JPFeederTape.h"
 #include "model/JPPushPullTemplates.h"
+#include "model/JPRotatedTrayFeeder.h"
 #include "model/JPTrayFeeder.h"
 
 #include <j/core/Log.h>
@@ -1535,11 +1536,16 @@ void heapForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeede
 // parts (A, B, C), the tray's counts, steps and turn.
 void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f) {
     general(add, config, f, false);
+    auto t = [f]() -> JPRotatedTrayFeeder& { return *f().as<JPRotatedTrayFeeder>(); };
+    auto corner = [t](const std::string& key, JPLocation JPRotatedTrayFeeder::* at) {
+        return Spot { key, [t, at] { return t().*at; }, [t, at](const JPLocation& l) { t().*at = l; } };
+    };
     add.group("Tray Component Locations");
     add.header({ "X", "Y" });
-    for (const auto& [label, spot] : { std::pair { "Point A: First Row - First Column", pick(f) },
-                                       std::pair { "Point B: First Row - Last Column", at(f, "first-row-last-component-location") },
-                                       std::pair { "Point C: Last Row - Last Column", at(f, "last-component-location") } }) {
+    for (const auto& [label, spot] :
+         { std::pair { "Point A: First Row - First Column", pick(f) },
+           std::pair { "Point B: First Row - Last Column", corner("first-row-last-component-location", &JPRotatedTrayFeeder::firstRowLast) },
+           std::pair { "Point C: Last Row - Last Column", corner("last-component-location", &JPRotatedTrayFeeder::last) } }) {
         add.row(label, Place::Location);
         coordinate(add, spot, Axis::X, "X");
         coordinate(add, spot, Axis::Y, "Y");
@@ -1549,22 +1555,20 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
     // OpenPnP's columns: a setting at the left, another (or a count) at the right.
     add.header({ "", "", "" });
     add.row("Number of Tray Rows");
-    count(add, f, "tray-count-rows", "Number of Tray Rows", 1);
+    add.integer("tray-count-rows", "Number of Tray Rows", [t] { return t().rows; }, [t](int v) { t().rows = v; }, 0, kMostCount);
     add.words("Number of Tray Columns");
-    count(add, f, "tray-count-cols", "Number of Tray Columns", 1);
+    add.integer("tray-count-cols", "Number of Tray Columns", [t] { return t().cols; }, [t](int v) { t().cols = v; }, 0, kMostCount);
     add.end();
     add.row("Feed Count");
     feedCountField(add, f);
-    add.text("remaining", "Components remaining:", [f] {
-        const int total = std::max(f().number("tray-count-rows", 1), 1) * std::max(f().number("tray-count-cols", 1), 1);
-        return "Components remaining: " + std::to_string(std::max(0, total - f().feedCount()));
+    add.text("remaining", "Components remaining:", [t] {
+        return "Components remaining: " + std::to_string(std::max(0, t().capacity() - t().feedCount));
     }, nullptr);
     add.button("resetFeedCount", "Reset");
     add.end();
     add.row("Component Rotation in Tray [\u00B0]");
-    add.number("component-rotation-in-tray", "Component Rotation in Tray [\u00B0]",
-               [f] { return f().real("component-rotation-in-tray", 0); },
-               [f](double v) { f().setReal("component-rotation-in-tray", v); });
+    add.number("component-rotation-in-tray", "Component Rotation in Tray [\u00B0]", [t] { return t().componentRotation; },
+               [t](double v) { t().componentRotation = v; });
     add.words("Z Height");
     coordinate(add, pick(f), Axis::Z, "Z Height");
     add.end();
@@ -1576,14 +1580,14 @@ void rotatedTrayForm(JPFormBuilder& add, JPConfiguration& config, std::function<
     for (const bool x : { true, false }) {
         if (!x) add.words("Row Offset");
         add.length(x ? "offsets.X" : "offsets.Y", x ? "Column Offset" : "Row Offset",
-                   [f, x] {
-                       const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
+                   [t, x] {
+                       const JPLocation l = t().offsets.convertToUnits(kMm);
                        return x ? l.x() : l.y();
                    },
-                   [f, x](double v) {
-                       const JPLocation l = f().locationOf("offsets").convertToUnits(kMm);
-                       f().setLocationOf("offsets", l.derive(x ? std::optional(v) : std::nullopt, x ? std::nullopt : std::optional(v),
-                                                             std::nullopt, std::nullopt));
+                   [t, x](double v) {
+                       const JPLocation l = t().offsets.convertToUnits(kMm);
+                       t().offsets = l.derive(x ? std::optional(v) : std::nullopt, x ? std::nullopt : std::optional(v), std::nullopt,
+                                              std::nullopt);
                    });
     }
     add.end();
@@ -1720,62 +1724,15 @@ bool JPFeederForms::act(JPConfiguration& config, const std::string& feederId, co
         return true;
     }
     if (action == "calculateOffsets") {
-        // OpenPnP's calculateOffsetsAndRotation from points A, B and C.
-        const int cols = f->number("tray-count-cols", 1), rows = f->number("tray-count-rows", 1);
-        if (cols < 1 || rows < 1) {
-            why = "The tray must have at least one row and one column.";
-            return false;
-        }
-        const JPLocation a = f->location().convertToUnits(kMm), b = f->locationOf("first-row-last-component-location").convertToUnits(kMm),
-                         c = f->locationOf("last-component-location").convertToUnits(kMm);
-        const double ab = std::hypot(b.x() - a.x(), b.y() - a.y()), bc = std::hypot(c.x() - b.x(), c.y() - b.y());
-        char buf[300];
-        if (ab > 0 && cols == 1) {
-            why = "Points A and B are different which is inconsistent with a single tray column. Either set points A and B "
-                  "to be the same or increase the number of columns.";
-            return false;
-        }
-        if (ab == 0 && cols > 1) {
-            std::snprintf(buf, sizeof buf, "Points A and B are the same which is inconsistent with %d columns. Either set "
-                                           "points A and B to be different or set the number of columns to 1.", cols);
-            why = buf;
-            return false;
-        }
-        if (bc > 0 && rows == 1) {
-            why = "Points B and C are different which is inconsistent with a single tray row. Either set points B and C to "
-                  "be the same or increase the number of rows.";
-            return false;
-        }
-        if (bc == 0 && rows > 1) {
-            std::snprintf(buf, sizeof buf, "Points B and C are the same which is inconsistent with %d rows. Either set "
-                                           "points B and C to be different or set the number of rows to 1.", rows);
-            why = buf;
-            return false;
-        }
-        double colStep = cols > 1 ? ab / (cols - 1) : 0, rowStep = rows > 1 ? bc / (rows - 1) : 0;
-        const double rowAngle = a.angleTo(b);
-        const double colAngle = b.angleTo(c);
-        if (rows > 1 && cols > 1) {
-            double check = std::remainder(rowAngle - colAngle, 360.0);
-            if (std::abs(check) < 90 - 2.5 || std::abs(check) > 90 + 2.5) {
-                std::snprintf(buf, sizeof buf, "Tray angle ABC should be 90 degrees but is %.3f degrees, double check "
-                                               "coordinates of points A, B and C.", std::abs(check));
-                why = buf;
-                return false;
-            }
-            // Defined the other way round: the rows step the other way.
-            if (check < 0) rowStep = -rowStep;
-        }
-        double rotation = f->location().rotation();
-        if (cols > 1) rotation = rowAngle;
-        else if (rows > 1) rotation = colAngle + 90;
-        f->setLocationOf("offsets", JPLocation(kMm, colStep, rowStep, 0, 0));
+        JPRotatedTrayFeeder* t = f->as<JPRotatedTrayFeeder>();
+        double rotation = 0;
+        if (!t || !t->calculateOffsets(f->location(), rotation, why)) return false;
         f->setLocation(f->location().derive(std::nullopt, std::nullopt, std::nullopt, rotation));
         return true;
     }
     if (action == "resetFeedCount") {
         f->setFeedCount(0);
-        if (f->typeName() == "ReferenceRotatedTrayFeeder") f->setFlag("legacy-picking-in-progress", false);
+        if (JPRotatedTrayFeeder* t = f->as<JPRotatedTrayFeeder>()) t->legacyPickingInProgress = false;
         f->visionLocation.reset();   // and what vision found, as OpenPnP's Reset says
         f->visionLocationReference.reset();
         f->cameraTune.reset();       // reloaded: its first look tunes again
