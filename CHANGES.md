@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.59
+
 - **Board photos**: a board can be photographed with the head camera, the pictures stitched into one photo
   square to the board, kept beside the board's file (every one until you delete it) and shown under the Board
   Viewer's drawing. Take one any time with the Job tab's new **Photograph Board** button (Stop stops it), or
