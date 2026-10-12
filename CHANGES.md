@@ -10,10 +10,11 @@ notes.
 
 ## Unreleased
 
+## 0.1.66
+
 - A package has a **Height**: its parts' height wherever a part has none of its own. The Parts table shows
   the package's greyed for those; typing a part's height gives it its own, emptying it takes the package's
   again. Parts keep the heights they have.
-
 - A placement whose library part was deleted shows what the files called its part (and *not in the library*),
   not a long id; pointing at it shows everything the files said of it.
 
