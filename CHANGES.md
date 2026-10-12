@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- **No more Boards and Panels tabs**: boards and panels are the job's. Choose one on the Job tab and the
+  new **Board** (or **Panel**) tab beside its Placements is the board or panel itself: its placements,
+  imports, revisions, parts and viewer, or a panel's children and fiducials. Make or add them with the Job
+  tab's Add Board/Panel, which also offers **Copy of the Chosen Board/Panel…**. A board's or panel's Name,
+  Width and Length are changed in the Job tab's table. Nothing made can drop out of sight any more, and your
+  boards, panels and jobs open as before.
+
 - A feeder whose part was deleted from the library shows **(a deleted part)** on the Feeders tab and its page,
   not a long ID; deleting parts names them, and says how many feeders hold them.
 

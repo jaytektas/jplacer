@@ -25,7 +25,7 @@ inline namespace jf {
 
 class JPSearchField;
 
-// The Boards tab's Placements group, as OpenPnP's BoardPlacementsPanel: a
+// The Job tab's Board tab (a board itself, every use of it), as OpenPnP's BoardPlacementsPanel: a
 // toolbar (New Placement, Remove Placement(s), Import Placements, View
 // Board: the board viewer), a search box, and the chosen board's placements (all but Placed
 // and Status), with OpenPnP's right-click menu (Set Type, Set Side, Set

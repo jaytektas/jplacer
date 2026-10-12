@@ -171,16 +171,12 @@ bool JPLocationsTableModel::editable(int row, int c) const {
     if (!l) return false;
     const Col col = m_shown[size_t(c)];
     if (m_mode == Mode::PanelDefinition) return col <= kName || col >= kSide;
-    // The job's: as OpenPnP's Job tab.
+    // The job's: as OpenPnP's Job tab; and the board's or panel's own Name and size, wherever it is (every use of
+    // it shares them: there is no Boards or Panels tab to change them on).
     const bool topLevel = l->parent == m_root;
     if (col == kId) return topLevel;
-    if (col == kName) return false;
-    if (topLevel || col == kEnabled || col == kCheckFids) {
-        const JPJob* job = m_job();
-        if ((col == kWidth || col == kLength) && job && job->instanceCount(*l->holder) > 1) return false;
-        return true;
-    }
-    return false;
+    if (col == kName || col == kWidth || col == kLength) return true;
+    return topLevel || col == kEnabled || col == kCheckFids;
 }
 
 std::vector<std::string> JPLocationsTableModel::choices(int, int c) const {

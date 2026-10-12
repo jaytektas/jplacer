@@ -112,10 +112,6 @@ public:
     // An import taken gives the packages it uses that have no pads their footprints from LCSC (the CPL and BOM
     // import's Fetch Footprints from LCSC).
     static constexpr const char* kImportFetchLcsc  = "import.fetchLcsc";
-    // The Boards tab's boards over its placements (BoardsPanel.dividerPosition).
-    static constexpr const char* kBoardsSplit      = "boards.split";
-    // The Panels tab's panels over its definition (PanelsPanel.dividerPosition).
-    static constexpr const char* kPanelsSplit      = "panels.split";
     // The Job tab's boards over its placements (JobPanel.dividerPosition).
     static constexpr const char* kJobSplit         = "job.split";
 

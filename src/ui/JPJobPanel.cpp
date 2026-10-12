@@ -178,9 +178,39 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_table->onEditRefused = [](const std::string&) {};
     m_boardsPane->add(std::move(boards));
 
+    // Below: the chosen one's placements in the job, and the board (or panel) itself.
     m_placementsPane = std::make_unique<JContainer>(graph, 0.f, 0.f);
     m_placementsPane->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
-    m_placements = m_placementsPane->add(std::make_unique<JPJobPlacementsPanel>(graph, config, job));
+    m_lower = m_placementsPane->add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
+    m_lower->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_inJobPage = std::make_unique<JContainer>(graph, 0.f, 0.f);
+    m_inJobPage->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+    m_placements = m_inJobPage->add(std::make_unique<JPJobPlacementsPanel>(graph, config, job));
+    m_placements->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    for (auto* page : { &m_boardPage, &m_panelPage }) {
+        *page = std::make_unique<JContainer>(graph, 0.f, 0.f);
+        (*page)->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+    }
+    auto constJob = [job]() -> const JPJob* { return job(); };
+    m_board = m_boardPage->add(std::make_unique<JPBoardPlacementsPanel>(graph, config, constJob));
+    m_board->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_board->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
+    m_board->onChanged = [this] {
+        m_placements->refresh();
+        m_table->refresh();
+        if (onDefinitionChanged) onDefinitionChanged();
+    };
+    m_panel = m_panelPage->add(std::make_unique<JPPanelDefinitionPanel>(graph, config, constJob));
+    m_panel->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_panel->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
+    m_panel->onChanged = [this] {
+        if (JPJob* j = m_job()) j->root().setParentsOfAllDescendants();
+        refresh();
+        if (onDefinitionChanged) onDefinitionChanged();
+    };
+    m_lower->addTab("Placements", m_inJobPage.get());
+    m_lower->addTab("Board", m_boardPage.get());
+    m_lower->setActiveTab(0);
     m_placements->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_placements->toolLocation = [this](Tool t) { return toolLocation ? toolLocation(t) : std::nullopt; };
     m_placements->moveTool = [this](Tool t, const JPLocation& at) {
@@ -266,6 +296,9 @@ void JPJobPanel::refresh() {
     m_model.setRows(j ? &j->root() : nullptr, rows);
     m_table->refresh();
     selectionChanged();
+    // The board or panel itself shown again (changed elsewhere, or another job's).
+    m_board->refresh();
+    m_panel->refresh();
     updateJobActions();
 }
 
@@ -277,6 +310,7 @@ std::vector<JPPlacementsHolderLocation*> JPJobPanel::selections() const {
 }
 
 void JPJobPanel::selectionChanged() {
+    showDefinition();
     const auto s = selections();
     JPJob* j = m_job();
     // As OpenPnP's action groups: what one board or panel allows, what several
@@ -388,6 +422,84 @@ void JPJobPanel::addRunButtons(JToolBar& bar) {
     updateJobActions();
 }
 
+void JPJobPanel::showDefinition() {
+    const auto s = selections();
+    const JPPlacementsHolderLocation* l = s.size() == 1 ? s.front() : nullptr;
+    const JPPlacementsHolder* def = l && l->holder ? l->holder->definition() : nullptr;
+    const bool panel = l && l->kind() == JPPlacementsHolderLocation::Kind::Panel;
+    JPBoard* board = nullptr;
+    std::shared_ptr<JPPanel> shownPanel;
+    if (def && !panel)
+        for (const auto& b : m_config.boards())
+            if (b.get() == def) board = b.get();
+    if (def && panel)
+        for (const auto& p : m_config.panels())
+            if (p.get() == def) shownPanel = p;
+    // The second tab the board's, or the panel's when a panel is chosen (the one in front kept in front).
+    if (panel != m_panelShown) {
+        const int front = m_lower->activeTab();
+        m_lower->removeTab(1);
+        m_lower->addTab(panel ? "Panel" : "Board", panel ? m_panelPage.get() : m_boardPage.get());
+        m_lower->setActiveTab(front);
+        m_panelShown = panel;
+    }
+    if (m_board->board() != board) {
+        m_board->setBoard(board);
+        if (onBoardShown) onBoardShown(board);
+    }
+    if (m_panel->panel() != shownPanel.get()) {
+        m_panel->setPanel(shownPanel);
+        if (onPanelShown) onPanelShown(shownPanel.get());
+    }
+}
+
+void JPJobPanel::copyChosen() {
+    const auto s = selections();
+    if (s.size() != 1 || !s.front()->holder) return;
+    JPPlacementsHolder* from = const_cast<JPPlacementsHolder*>(s.front()->holder->definition());
+    const bool panel = s.front()->kind() == JPPlacementsHolderLocation::Kind::Panel;
+    auto copy = [this, from, panel] {
+        const std::string suffix = panel ? JPPanel::kExtension : JPBoard::kExtension;
+        JDialog::saveFile(panel ? "Save Copy of Panel As..." : "Save Copy of Board As...", { suffix.substr(1) },
+                          [this, from, panel, suffix](std::string chosen) {
+            const std::string path = JPConfiguration::canonical(withSuffix(chosen, suffix.c_str()));
+            std::string error;
+            bool saved = false;
+            if (!panel) {
+                auto b = std::make_shared<JPBoard>(*static_cast<const JPBoard*>(from));
+                b->makeDefinition();
+                b->ownParts();   // its parts its own, not the board's it was copied from
+                b->file = path;
+                b->convertedFrom.clear();   // OpenPnP's file is the original's
+                b->name = std::filesystem::path(path).filename().string();
+                b->dirty = false;
+                saved = m_config.saveBoard(*b, error);
+                if (saved) {
+                    m_config.addBoard(b);
+                    addBoard(path, "Unable to copy the board");
+                }
+            } else {
+                auto p = std::make_shared<JPPanel>(*static_cast<const JPPanel*>(from));
+                p->makeDefinition();
+                for (auto& c : p->children) c->makeDefinition();   // its children its own
+                p->file = path;
+                p->convertedFrom.clear();
+                p->name = std::filesystem::path(path).filename().string();
+                p->dirty = false;
+                saved = m_config.savePanel(*p, error);
+                if (saved) {
+                    m_config.addPanel(p);
+                    addPanel(path, "Unable to copy the panel");
+                }
+            }
+            if (!saved) JDialog::message(panel ? "Unable to copy the panel" : "Unable to copy the board", error);
+        });
+    };
+    // A copy of what is saved: one with changes asked about first.
+    if (from->dirty && confirmSave) confirmSave(*from, copy);
+    else copy();
+}
+
 void JPJobPanel::setPhotographing(bool on) {
     m_photographing = on;
     updateJobActions();
@@ -443,16 +555,24 @@ void JPJobPanel::showAddMenu() {
     if (!openMenu) return;
     JSceneGraph& g = m_graph;
     m_addMenu = std::make_unique<JMenu>("Add Board/Panel");
-    auto entry = [&](const char* label, const char* tip, std::function<void()> act) {
+    auto entry = [&](const std::string& label, const char* tip, std::function<void()> act) {
         JMenuItem* item = m_addMenu->add(g, label);
         item->setTooltip(tip);
         item->onTriggered.connect(std::move(act));
+        return item;
     };
     entry("New Board...", "Create a new board and add it to the job.", [this] { addNew(false); });
     entry("Existing Board...", "Add an existing board to the job.", [this] { addExisting(false); });
     m_addMenu->addSeparator(g);
     entry("New Panel...", "Create a new panel and add it to the job.", [this] { addNew(true); });
     entry("Existing Panel...", "Add an existing panel to the job.", [this] { addExisting(true); });
+    // A copy of the one chosen, as a file of its own.
+    const auto s = selections();
+    const bool panel = s.size() == 1 && s.front()->kind() == JPPlacementsHolderLocation::Kind::Panel;
+    m_addMenu->addSeparator(g);
+    entry(panel ? "Copy of the Chosen Panel..." : "Copy of the Chosen Board...",
+          "Save a copy of the chosen board or panel as a new file, and add the copy to the job.", [this] { copyChosen(); })
+        ->setEnabled(s.size() == 1);
     const JRect b = m_graph.getLayoutConst(m_add->getNodeId()).boundingBox;
     openMenu(m_addMenu.get(), b.x + b.width, b.y + b.height);
 }

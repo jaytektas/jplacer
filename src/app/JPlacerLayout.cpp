@@ -90,7 +90,7 @@ JDockHost& JPlacerLayout::hostOf(Home home) {
 
 int JPlacerLayout::tabRank(const std::string& title) {
     // The work area's tabs in OpenPnP's order; jplacer's own after them.
-    static const char* const kOrder[] = { "Job", "Panels", "Boards", "Parts", "Packages", "Vision", "Feeders",
+    static const char* const kOrder[] = { "Job", "Parts", "Packages", "Vision", "Feeders",
                                           "Machine Setup", "Issues & Solutions", "Log" };
     for (size_t i = 0; i < std::size(kOrder); ++i)
         if (title == kOrder[i]) return int(i);

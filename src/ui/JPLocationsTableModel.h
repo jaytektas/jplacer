@@ -18,7 +18,7 @@ inline namespace jf {
 // Boards and panels where they lie, as OpenPnP's
 // PlacementsHolderLocationsTableModel: Board/Panel Id, Name, Width,
 // Length, Side, X, Y, Z, Rot., Enabled?, Check Fids?. A panel's children
-// (the Panels tab, Z left out) or a job's boards and panels (the Job tab).
+// (the Job tab's Panel tab, Z left out) or a job's boards and panels (the Job tab).
 // Changes are made to the panel's definition and carried to its uses.
 class JPLocationsTableModel : public JPTableModel {
 public:

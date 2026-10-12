@@ -18,7 +18,7 @@ key taken off, in [Preferences, Keys](preferences.md#keys); the menu then shows 
 | **Save Job** (Ctrl+S) | Saves the open job. |
 | **Save Job As…** | Saves the open job to a file you choose. |
 | **Save Configuration** | Saves the library, feeders and vision settings, and asks about each board and panel with changes (see [Boards](boards.md#saving-boards)). |
-| **Import Placements** | **CPL and BOM…** (a board from its placement file and BOM), then OpenPnP's importers, reading placements into the board chosen on the Boards tab (see [Boards](boards.md#importing-placements)). |
+| **Import Placements** | **CPL and BOM…** (a board from its placement file and BOM), then OpenPnP's importers, reading placements into the board chosen on the Job tab (its Board tab shown; see [Boards](boards.md#importing-placements)). |
 | **Quit** | Closes jplacer, after asking about a job with changes and about each board with changes. If an update has been downloaded (and checked against its published checksum), it is installed now: the machine is disconnected first and the settings kept, so the new version starts free to connect to it. |
 
 <!-- src: src/app/JPlacerMenuBuilder.cpp (the File menu); src/app/JPlacerJob.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerApp.cpp (run, installStaged) -->
@@ -80,11 +80,9 @@ other tabs:
 
 | Chosen | Also chosen |
 |---|---|
-| A board or panel on the [Job tab](jobs.md#the-job-tab) | A board: the board on the Boards tab, and in a panel, that panel and the board in it on the Panels tab. A panel: that panel on the Panels tab. |
-| A placement on the Job tab | The same placement on the Boards tab (or the fiducial on the Panels tab), and its part. |
-| A placement on the [Boards](boards.md) tab | The same placement on the Job tab when it shows that board, and its part. |
-| A board or panel in a panel on the [Panels](panels.md) tab | It on the Job tab, and a board on the Boards tab. |
-| A fiducial on the Panels tab | The same fiducial on the Job tab when it shows that panel. |
+| A placement on the [Job tab](jobs.md#the-job-tab)'s Placements | The same placement on its Board tab (or the fiducial on its Panel tab), and its part. |
+| A placement on the Job tab's [Board](boards.md) tab | The same placement on its Placements, and its part. |
+| A fiducial on the Job tab's [Panel](panels.md) tab | The same fiducial on its Placements. |
 | A part on the [Parts](parts.md) tab | Its package on the Packages tab, a feeder that holds it on the Feeders tab (an enabled one first), and the vision settings it uses on the Vision tab (of the type that tab shows). |
 | A feeder on the Feeders tab | Its part, and so what goes with the part; again when the chosen feeder's part is changed. |
 

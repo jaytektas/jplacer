@@ -84,7 +84,7 @@ though no fields are added or edited from it, as it is only chosen from). A tabl
 in a window of their own) is a plain table: its **Columns** and its headings' menu show and hide its columns,
 and offer no views and no fields to add or edit.
 
-<!-- src: src/ui/JPUiParts.cpp (tableTools); src/ui/JPTableTools.cpp; src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPIssuesPanel.cpp; src/ui/JPTable.h (setHasTools, setOffersFields); src/ui/JPTableTools.cpp (attach); src/ui/JPChooserTable.cpp (barControl); src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
+<!-- src: src/ui/JPUiParts.cpp (tableTools); src/ui/JPTableTools.cpp; src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPIssuesPanel.cpp; src/ui/JPTable.h (setHasTools, setOffersFields); src/ui/JPTableTools.cpp (attach); src/ui/JPChooserTable.cpp (barControl); src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
 
 Right-click a heading for that column's menu: **Hide "*name*"**, **Show in Every View** (shown in each of
 the table's views, not only the one shown), **Add Field After "*name*"…**, **Edit Field "*name*"…** and
@@ -124,7 +124,7 @@ made first, the last 200 of them.
 Each column of a table of things (parts, placements, feeders…) is one of their **fields**. jplacer has its
 own, the columns each table has always had, and you can add as many of your own as you want: an LCSC part
 number, a supplier, a reel's size, a customer's order number. A field belongs to the kind of thing, not to
-one table: a field added to placements is a column of the Boards tab's placements, the Job tab's, a panel's
+one table: a field added to placements is a column of a board's placements (its Board tab), the Job tab's, a panel's
 fiducials, and every other table of placements. And the import offers each one to fill (see
 [Importing a board](boards.md)).
 

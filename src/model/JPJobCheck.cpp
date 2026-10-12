@@ -69,7 +69,7 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
         for (const JPPlacement& p : l->holder->placements)
             if (!ids.insert(p.id).second)
                 g.add(L::Stop, "A placement ID used twice on a board", l->uniqueId() + JPPlacementsHolderLocation::kIdDelimiter + p.id,
-                      "Boards tab: give each placement its own ID");
+                      "The Job tab's Board tab: give each placement its own ID");
         for (const JPPlacement& p : l->holder->placements) {
             if (p.type != JPPlacement::Type::Placement || !job.retrieveEnabledState(*l, &p)) continue;
             if (job.retrievePlacedStatus(*l, p.id) || p.side != l->globalSide()) continue;
@@ -78,10 +78,10 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
             const JPPart* part = config.part(p.partId);
             if (!part) {
                 if (bp && bp->state == JPBoardPart::State::Unmatched)
-                    g.add(L::Stop, "No part chosen", where, "Boards tab: Board's Parts, or the placement's Part");
+                    g.add(L::Stop, "No part chosen", where, "The Job tab's Board tab: Board's Parts, or the placement's Part");
                 else
                     g.add(L::Stop, "A part the library does not have", where + " (" + p.partId + ")",
-                          "Boards tab: Board's Parts (choose one the library has, or Add to Library)");
+                          "The Job tab's Board tab: Board's Parts (choose one the library has, or Add to Library)");
                 continue;
             }
             if (p.verified.by.empty())

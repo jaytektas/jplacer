@@ -69,20 +69,24 @@ then marked as changed, so saving it writes it as jplacer's `.jpjob` (the old fi
 ## The Job tab
 
 The **Job** tab (the first in the work area, as in OpenPnP) shows the job's boards and panels and,
-under them, the chosen one's placements.
+under them, two tabs: **Placements**, the chosen one's placements in the job; and **Board** (or **Panel**,
+a panel chosen), the chosen board itself (see [Boards](boards.md)) or the panel itself (see
+[Panels](panels.md)), what every use of it shares. There is no other place a board or panel is kept: each
+is the job's.
 
 **Boards**: every board and panel in the job, those on a panel under it and indented, with a board or
 panel mark: **Board/Panel Id**, **Name** (pointing at it shows the file), **Width**, **Length**, **Side**,
 **X**, **Y**, **Z**, **Rot.**, **Enabled?** and **Check Fids?**. Where one lies is shown on green once a
 fiducial check has set it on the machine, on blue when set on its panel. Those straight in the job are
-changed in the table; one on a panel can only be turned on or off and have its fiducial check changed.
+changed in the table; one on a panel can only be turned on or off and have its fiducial check changed. A
+board's or panel's **Name**, **Width** and **Length** are its own, changed wherever it is.
 Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 
 | Button | |
 |---|---|
 | **Start** (**Pause**, **Resume**), **Step**, **Stop** | Run the job (see [Running the job](#running-the-job)). |
 | **Alert Errors** / **Defer Errors** | Whether a placement's error (one whose error handling is Default) stops the job at once, or is reported at its end. Click to change. |
-| **Add Board/Panel** (plus, with a menu) | **New Board...**, **Existing Board...**, **New Panel...**, **Existing Panel...**: put one in the job, at the machine's **Default Board Location** ([Machine Setup](machine-setup.md#settings)). |
+| **Add Board/Panel** (plus, with a menu) | **New Board...**, **Existing Board...**, **New Panel...**, **Existing Panel...**, and **Copy of the Chosen Board...** (or **Panel...**: a copy saved as a new file): put one in the job, at the machine's **Default Board Location** ([Machine Setup](machine-setup.md#settings)). |
 | **Remove Board(s)/Panel(s)** (cross) | Takes the chosen ones (straight in the job) out of it. |
 | **Move Camera To Board Location**, **Move Camera to the Next Board**, **Move Tool To Board Location** | Take the camera (or the Jog panel's nozzle) to where the board lies, at safe Z; Next chooses the next row first. |
 | **Capture Camera Location** | Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept). |
@@ -96,7 +100,7 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or
-**Disabled**). A board used once, straight in the job, is changed here as on the Boards tab (and New and
+**Disabled**). A board used once, straight in the job, is changed here as on its Board tab (and New and
 Remove Placement(s) work); otherwise only Enabled, Placed and Error Handling are changed, for this use of
 it alone. **Move Camera To Placement Location** (and **To Next**), **Move Tool To Placement Location**,
 **Capture Camera Placement Location** and **Capture Tool Placement Location** work as the board ones,
@@ -121,7 +125,7 @@ footprint should lie on the board's pads, turned as the part will be placed.
 - **Verified, Next** marks the chosen placement verified and takes the camera to the next one shown, facing
   up, not verified yet.
 
-The **Verified** column (here and on the Boards tab) says whether each was, and when (*Yes*, *Position
+The **Verified** column (here and on the Board tab) says whether each was, and when (*Yes*, *Position
 only*). Changing a placement's position, rotation or part takes its mark off: what was checked is no longer
 what is placed.
 

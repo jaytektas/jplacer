@@ -1,23 +1,17 @@
 # Panels
 
-The **Panels** tab (in the work area, before Boards, as in OpenPnP) lists the panels open and, under
-them, the chosen panel's definition, as OpenPnP's Panels tab does. A panel holds boards (and other
-panels), each where it lies on the panel, and the fiducials or placements the panel is aligned by. Each
-panel is its own `.jppanel` file. OpenPnP's `.panel.xml` is read, and saved beside it as a `.jppanel` as a
-board is (see [Saving boards](boards.md#saving-boards)): the job and the panels that use it follow the new
-file, and OpenPnP's is left as it was. The panels open are the open job's and any you open here while it is
-open; leaving the job closes them, as it closes boards (see [Boards](boards.md)).
+A panel is the job's, as a board is. On the [Job tab](jobs.md#the-job-tab), choosing one of its panels
+shows, beside its **Placements** in the job, the **Panel** tab: the panel's definition, what every use of it
+shares. A panel holds boards (and other panels), each where it lies on the panel, and the fiducials or
+placements the panel is aligned by. It comes into the job by the Job tab's **Add Board/Panel**: **New
+Panel...**, **Existing Panel...** (a `.jppanel`, or OpenPnP's `.panel.xml`), or **Copy of the Chosen
+Panel...** (a copy saved as a new file, and added). Each panel is its own `.jppanel` file. OpenPnP's
+`.panel.xml` is read, and saved beside it as a `.jppanel` as a board is (see [Saving
+boards](boards.md#saving-boards)): the job and the panels that use it follow the new file, and OpenPnP's is
+left as it was. The panels open are the open job's; leaving the job closes them, as it closes boards (see
+[Boards](boards.md)).
 
-<!-- src: src/ui/JPPanelsPanel.cpp; src/app/JPlacerOpenPnpTabs.cpp (confirmSave, holderMoved); src/app/JPlacerJob.cpp (leave); src/model/JPConfiguration.cpp (closeAll, panel, savePanel); src/model/JPPanel.h (kExtension) -->
-
-## Panels
-
-The buttons and the table work as the [Boards](boards.md#boards) tab's: **Add Panel...** (**Create New
-Panel...**, **Existing Panel**), **Remove Panel**, **Copy Panel...** and **Clean Up**. A panel used by the
-job, or inside another known panel, is not taken off. Clean Up goes round again while it takes any off,
-since a panel may only have been used inside one that has just gone.
-
-<!-- src: src/ui/JPPlacementsHoldersGroup.cpp -->
+<!-- src: src/ui/JPJobPanel.cpp (showDefinition, showAddMenu, copyChosen); src/app/JPlacerOpenPnpTabs.cpp (confirmSave, holderMoved); src/app/JPlacerJob.cpp (leave); src/model/JPConfiguration.cpp (closeAll, panel, savePanel); src/model/JPPanel.h (kExtension) -->
 
 ## Children
 
@@ -68,7 +62,7 @@ copies short); **OK** keeps them, **Cancel** puts the panel back as it was.
 
 ## The viewer
 
-**View Panel** (and the Boards tab's **View Board**) opens the viewer, as OpenPnP's Panel Viewer and Board
+**View Panel** (and a board's **View Board**) opens the viewer, as OpenPnP's Panel Viewer and Board
 Viewer: a tab in the work area (after the others), where it can be dragged out on its own, showing the chosen panel or board and
 following the choice. It draws each board's and panel's outline (top side up in one colour, bottom side
 up in another, struck through when it is not enabled), and as ticked its **Board/Panel Locations**,

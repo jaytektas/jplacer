@@ -1,16 +1,18 @@
 # Boards
 
-The **Boards** tab (in the work area, before Parts, as in OpenPnP) lists the boards open and, under them,
-the chosen board's placements, as OpenPnP's Boards tab does. The boards open are the open job's (and its
-panels'), and any you open or make here while it is open. Leaving the job (**New Job**, **Open Job…**,
-**Open Recent Job...**) closes them all, each with changes asked about first ("Save *name*?": **Yes**
-saves it, **No** lets the changes go, **Cancel** stays in the job), and the next job opens its own. A
-board both jobs use is read again from its file. jplacer starts with no boards open, then opens the last
-job's when it opens that job. Each board is its own `.jpboard` file: its placements, and its parts list,
-each part pointing at the library's (see [The board's parts](#the-boards-parts)). OpenPnP's `.board.xml`
-files are read as they are; saved, one becomes a `.jpboard` beside it (see [Saving boards](#saving-boards)).
+A board is the job's. On the [Job tab](jobs.md#the-job-tab), choosing one of its boards (straight in the
+job or on a panel) shows, beside its **Placements** in the job, the **Board** tab: the board itself, its
+placements, imports, revisions and parts, what every use of it shares. A board comes into the job by the
+Job tab's **Add Board/Panel** (see [Making and copying boards](#making-and-copying-boards)) and goes with it:
+the boards open are the open job's (and its panels'). Leaving the job (**New Job**, **Open Job…**, **Open
+Recent Job...**) closes them all, each with changes asked about first ("Save *name*?": **Yes** saves it,
+**No** lets the changes go, **Cancel** stays in the job), and the next job opens its own. A board both jobs
+use is read again from its file. Each board is its own `.jpboard` file: its placements, and its parts
+list, each part pointing at the library's (see [The board's parts](#the-boards-parts)). OpenPnP's
+`.board.xml` files are read as they are; saved, one becomes a `.jpboard` beside it (see [Saving
+boards](#saving-boards)).
 
-<!-- src: src/ui/JPBoardsPanel.cpp; src/app/JPlacerJob.cpp (leave, leaveFor, openPath); src/app/JPlacerOpenPnpTabs.cpp (settleBoards, confirmSave, confirmSaveAll); src/model/JPConfiguration.cpp (load, closeAll); src/model/JPBoard.h (kExtension) -->
+<!-- src: src/ui/JPJobPanel.cpp (showDefinition); src/app/JPlacerJob.cpp (leave, leaveFor, openPath); src/app/JPlacerOpenPnpTabs.cpp (settleBoards, confirmSave, confirmSaveAll); src/model/JPConfiguration.cpp (load, closeAll); src/model/JPBoard.h (kExtension) -->
 
 ## The board's parts
 
@@ -81,24 +83,16 @@ an identifier, a name it learned, OpenPnP's *footprint*-*value* name, a value it
 
 <!-- src: src/app/JPlacerPartPickerDialog.cpp; src/app/JPlacerBoardPartsDialog.cpp; src/model/JPPartMatcher.cpp (candidates, valueOf, chipSize, matches, kStrong, kAutomatic, automatic); src/model/JPLibraryLearning.cpp (learn, addFrom); src/model/JPConfiguration.cpp (packageNamed, libraryPartFor, part); src/model/JPBoard.cpp (splitPlacement, placementsOf); src/ui/JPPlacementsTableModel.cpp (pick, applyPart); src/ui/JPBoardPlacementsPanel.cpp (importCplBom, merge); src/app/JPlacerOpenPnpTabs.cpp (openBoardParts) -->
 
-## Boards
+## Making and copying boards
 
-| Button | |
-|---|---|
-| **Add Board...** (plus, with a menu) | **Create New Board...** asks where to save it (`.jpboard` is added to a name without it) and makes it, empty. **Existing Board** adds a `.jpboard` file, or OpenPnP's `.board.xml`. |
-| **Remove Board** (cross) | Takes the chosen boards off the list; their files stay. A board used by the job or by a known panel is not taken off: it says so. |
-| **Copy Board...** | Asks where to save a copy of the chosen board, saves it there and adds it. |
-| **Clean Up** | Takes off the list every board neither the job nor a known panel uses. Their files stay. |
+The Job tab's **Add Board/Panel** makes or opens a board into the job: **New Board...** asks where to save
+it (`.jpboard` is added to a name without it) and makes it, empty; **Existing Board...** adds a `.jpboard`
+file, or OpenPnP's `.board.xml`, from those open or by **Browse**; **Copy of the Chosen Board...** saves a
+copy of the chosen board as a new file (asking about its changes first) and adds the copy. A board's
+**Name**, **Width** and **Length** are changed in the Job tab's table, wherever it is used (a length may be
+typed with units, `1.5in`; without, millimetres are taken); pointing at a name shows its file.
 
-Remove Board works on one board or several; Copy Board on one. A board with changes not yet saved asks
-whether to save them first (Yes, No, Cancel) before it is taken off.
-
-The table shows each board's **Board Name**, **Width** and **Length**; all three are changed in the
-table. A length may be typed with units (`1.5in`); without, millimetres are taken. Pointing at a name
-shows its file. Sorting, choosing rows and widening columns work as on the [Parts](parts.md#the-table)
-tab.
-
-<!-- src: src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPPlacementsHolderTableModel.cpp -->
+<!-- src: src/ui/JPJobPanel.cpp (showAddMenu, addNew, addExisting, copyChosen); src/ui/JPLocationsTableModel.cpp (editable, setText) -->
 
 ## Placements
 
