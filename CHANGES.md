@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.63
+
 - The Job tab's **Placements** is the one place for a board: its toolbar has the board's **Import
   Placements**, **Board's Parts**, **View Board** and **Revision**, and a board's placements (their IDs,
   parts, sides, positions, types) are changed there for every board, wherever it is used. The Board and Panel
