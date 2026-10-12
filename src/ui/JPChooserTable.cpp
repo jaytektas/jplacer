@@ -3,6 +3,8 @@
 
 #include "JPChooserTable.h"
 
+#include "JPTableTools.h"
+
 #include "JPIconButton.h"
 #include "JPPackagesTableModel.h"
 #include "JPPartsTableModel.h"
@@ -152,19 +154,16 @@ bool JPChooserTable::key(const JKeyEvent& ke) {
 }
 
 std::unique_ptr<JWidget> JPChooserTable::barControl(JSceneGraph& graph) {
-    // Its Columns…: the menu opened on the screen under it, where the dropdown is.
-    auto b = std::make_unique<JPIconButton>(graph, "Columns", "table-columns",
-                                            "Choose which columns this list shows (kept for every list like it)");
-    b->setLeads(JPIconButton::Leads::Menu);
-    JPIconButton* button = b.get();
-    b->onClicked.connect([this, button, &graph] {
+    // Its tools (Columns…, its views' buttons): menus opened on the screen where the dropdown is.
+    auto tools = std::make_unique<JPTableTools>(graph, [&graph](JMenu* menu, float x, float y) {
         if (!JMenuManager::instance().onOpenMenu) return;
-        const JRect r = button->bounds();
         const auto& host = graph.hostWindow();
-        JMenuManager::instance().onOpenMenu(m_table->columnsMenu(), host.screenX + int(r.x), host.screenY + int(r.y + r.height),
-                                            false, false);
+        JMenuManager::instance().onOpenMenu(menu, host.screenX + int(x), host.screenY + int(y), false, false);
     });
-    return b;
+    tools->attach(*m_table);
+    // A read-only list: its views, but no fields to add or edit from here.
+    m_table->setOffersFields(false);
+    return tools;
 }
 
 } // inline namespace jf

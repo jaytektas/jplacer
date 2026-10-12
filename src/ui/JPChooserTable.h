@@ -21,8 +21,10 @@ inline namespace jf {
 // Part, the Parts tab's Package: JComboBox::Search::table): the Parts or
 // Packages tab's own table, every column of it, sorted, moved and widened as
 // there, read only, showing the entries the dropdown's filter and Show let
-// through, in its order. It keeps its layout as its own table (its state
-// key), and puts its Columns… at the end of the filter's row. A click on a
+// through, in its order. It keeps its layout and its views as its own table
+// (its state key), and puts its tools (Columns…, a button for each view:
+// JPTableTools) at the end of the filter's row; its fields are not added or
+// edited from it. A click on a
 // row takes it; the keys walk it.
 class JPChooserTable : public JComboBox::Search::Table {
 public:

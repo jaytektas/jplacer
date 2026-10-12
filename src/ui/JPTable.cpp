@@ -523,7 +523,7 @@ JMenu* JPTable::columnsMenu() {
         item->onTriggered.connect([this, item, key = c.key] { setColumnShown(key, item->isChecked()); });
     }
     m_columnsMenu->addSeparator(m_graph);
-    if (const std::optional<JPFieldSet::Of> of = m_fieldsModel && m_hasTools ? m_fieldsModel->fieldsOf() : std::nullopt) {
+    if (const std::optional<JPFieldSet::Of> of = m_fieldsModel && m_hasTools && m_offersFields ? m_fieldsModel->fieldsOf() : std::nullopt) {
         const std::string kind = JPFieldSet::plural(*of);
         JMenuItem* add = m_columnsMenu->add(m_graph, "Add Field…");
         add->setTooltip("A field of your own for " + kind + ": shown here, offered by every table of " + kind
@@ -1543,7 +1543,7 @@ void JPTable::buildHeaderMenu(int column) {
     // Kept until the next is made: the one open is this one.
     m_headerMenu = std::make_unique<JMenu>("Columns");
     const JPField* field = m_fieldsModel && column >= 0 ? m_fieldsModel->fieldAt(column) : nullptr;
-    const std::optional<JPFieldSet::Of> of = m_fieldsModel && m_hasTools ? m_fieldsModel->fieldsOf() : std::nullopt;
+    const std::optional<JPFieldSet::Of> of = m_fieldsModel && m_hasTools && m_offersFields ? m_fieldsModel->fieldsOf() : std::nullopt;
     if (m_model && column >= 0) {
         const JPTableModel::Column col = m_model->column(column);
         const std::string key = JPTableModel::keyOf(col);

@@ -19,8 +19,9 @@ notes.
   setting's **Assigned To** lists parts by their names (they had shown GUIDs). Template images for vision are
   found by the part's and the package's names, as OpenPnP names them.
 
-- A table with no view buttons (the one a Part or Package cell drops, those in a window of their own) is a plain
-  table again: it offers no views and no fields to add or edit, only its columns to show and hide.
+- The table a feeder's **Part** or a part's **Package** drops has views too (**Standard**, **All Fields**, and
+  more made with **New View…**), its buttons beside its filter. A table in a window of its own is a plain table:
+  it offers no views and no fields to add or edit, only its columns to show and hide.
 
 ## 0.1.56
 

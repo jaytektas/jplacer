@@ -78,6 +78,12 @@ JPTableTools::JPTableTools(JSceneGraph& graph, const std::function<void(JMenu*, 
     rebuild();
 }
 
+JPTableTools::JPTableTools(JSceneGraph& graph, std::function<void(JMenu*, float, float)> open)
+    : JPTableTools(graph, static_cast<const std::function<void(JMenu*, float, float)>*>(nullptr)) {
+    m_ownOpen = std::move(open);
+    m_open = &m_ownOpen;
+}
+
 JPTableTools::~JPTableTools() { *m_alive = false; }
 
 void JPTableTools::attach(JPTable& table) {

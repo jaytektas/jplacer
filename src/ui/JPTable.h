@@ -162,6 +162,8 @@ public:
     // without (a chooser's, a dialog's) is a plain one: its columns shown and hidden, nothing more.
     void setHasTools(bool on) { m_hasTools = on; }
     bool hasTools() const { return m_hasTools; }
+    // Whether its menus offer its fields to add and edit (one with tools, but a read-only list's: a dropdown).
+    void setOffersFields(bool on) { m_offersFields = on; }
     // The table last focused (Ctrl+1 to 9 switch its view).
     static JPTable* focused() { return s_focusedTable; }
     // Which columns are shown: each of the model's, by name, in its place among them (a hidden one keeps its
@@ -339,6 +341,7 @@ private:
     mutable bool                   m_viewChanged = false;   // the one shown changed, locked: not kept
     std::unique_ptr<JMenu>         m_viewMenu;
     bool                           m_hasTools = false;
+    bool                           m_offersFields = true;
     std::unique_ptr<JMenu>         m_iconMenu;
     mutable std::vector<int>       m_order;           // view position -> model column (the columns shown)
     mutable std::vector<int>       m_allOrder;        // every column in its place, the hidden ones too, as last made

@@ -24,6 +24,8 @@ class JPTableTools : public JContainer {
 public:
     // `open`: the panel's way of opening a menu at window coordinates (read when clicked).
     JPTableTools(JSceneGraph& graph, const std::function<void(JMenu*, float x, float y)>* open);
+    // With a way of its own (a dropdown's, on the screen where it is).
+    JPTableTools(JSceneGraph& graph, std::function<void(JMenu*, float x, float y)> open);
     ~JPTableTools() override;
 
     // The table it is the tools of, once it is made.
@@ -39,6 +41,7 @@ private:
     // first whose middle is right of it, or the count.
     int  dropIndex(float x) const;
 
+    std::function<void(JMenu*, float, float)>        m_ownOpen;
     const std::function<void(JMenu*, float, float)>* m_open = nullptr;
     JPTable*                                         m_table = nullptr;
     JPIconButton*                                    m_columns = nullptr;
