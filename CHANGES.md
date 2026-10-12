@@ -10,10 +10,11 @@ notes.
 
 ## Unreleased
 
+## 0.1.67
+
 - A fiducial that is not found names its part (not its id), and says how near the roundest spot came to being
   taken (its score against **Min. Symmetry**). A failed fiducial check is written to the log too, not only
   shown.
-
 - Packages no longer have a **Tape Specification**: the tape a part comes on is its own **Packaging**. A
   push-pull feeder's Smart Clone now matches a template by the same package, or by a tape the parts share
   (the same width, pitch and type), not by that typed label.
