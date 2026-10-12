@@ -29,7 +29,7 @@ jplacer says so, and starts only once it is removed (delete `library.db`, and `p
 | Button | |
 |---|---|
 | **New Part...** (plus) | Asks for the new part's name and makes it, in the first package, with a GUID for its ID. There must be a package first. A name already used is refused, and asked for again. |
-| **Delete Part** (cross) | Deletes the chosen parts, after asking (naming them, and saying how many feeders hold them: those then show *(a deleted part)* until another is chosen). |
+| **Delete Part** (cross) | Deletes the chosen parts, after asking (naming them, and saying how many feeders hold them: those then show no part until another is chosen). |
 | **Pick Part** | Feeds and picks the chosen part, as the Feeders tab's **Pick...** does, from the feeder OpenPnP would take it from: of the enabled feeders holding it, those of the highest priority, and of those the one closest to the camera. With none, it says no valid feeder was found. |
 | **Copy Part to Clipboard** | Puts the chosen part on the clipboard as text, as OpenPnP's `parts.xml` writes a part. |
 | **Create Part from Clipboard** | Asks for a name and makes a part from what the clipboard holds, with a GUID for its ID. |

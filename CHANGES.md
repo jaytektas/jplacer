@@ -12,7 +12,7 @@ notes.
 
 - The head's **Homing Fiducial Part** lists only the library's parts (**(none)** until one is chosen), its list
   keeps up with parts added, renamed or deleted without leaving the head and coming back, and a deleted one
-  shows as *(a deleted part)*. A machine set up before the choice still uses (and shows) its part named
+  shows as (none). A machine set up before the choice still uses (and shows) its part named
   FIDUCIAL-HOME.
 
 - **No more Boards and Panels tabs**: boards and panels are the job's. Choose one on the Job tab and the
@@ -22,8 +22,8 @@ notes.
   Width and Length are changed in the Job tab's table. Nothing made can drop out of sight any more, and your
   boards, panels and jobs open as before.
 
-- A feeder whose part was deleted from the library shows **(a deleted part)** on the Feeders tab and its page,
-  not a long ID; deleting parts names them, and says how many feeders hold them.
+- A feeder whose part was deleted from the library shows no part on the Feeders tab and its page, not a long
+  ID; deleting parts names them, and says how many feeders hold them.
 
 ## 0.1.61
 

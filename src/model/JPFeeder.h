@@ -52,8 +52,6 @@ public:
     // OpenPnP's Feeder.Priority and ReferenceFeeder.FeedOptions, in their order.
     enum class Priority { High, Normal, Low };
     enum class FeedOptions { Normal, SkipNext, Disable };
-    // What a feeder's part is shown as when the library no longer has it (deleted since it was chosen).
-    static constexpr const char* kDeletedPart = "(a deleted part)";
 
     // A new feeder of an OpenPnP class (OpenPnP's AbstractFeeder): a new id
     // (a GUID), named after its class, turned off, holding `partId`.

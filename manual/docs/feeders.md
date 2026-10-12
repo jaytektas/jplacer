@@ -43,7 +43,7 @@ does (see [Search](tables.md#search)).
 |---|---|
 | **ID** | What the machine, the stock and the runs know it by, for good: a GUID, made for it (OpenPnP's ID for it, such as `FDR1`, is not kept). |
 | **Name** | The feeder's name, changed in place. A new slot feeder is named `SLOT-…`, as OpenPnP names one. |
-| **Part** | The part it holds, by its Name; *(a deleted part)* once the library no longer has it (choose another on its page). |
+| **Part** | The part it holds, by its Name; empty once the library no longer has it (choose another on its page). |
 | **Type** | Its kind. |
 | **Priority** | **High**, **Normal** or **Low**: of the feeders holding a part, those of the highest priority are used. Chosen from a list. |
 | **Faults** | A job's last feeds and picks from it, newest first: `X` a fault, `-` none; empty when there were none. jplacer does not run jobs yet, so it stays empty. |

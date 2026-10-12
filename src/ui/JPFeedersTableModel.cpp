@@ -65,9 +65,9 @@ std::string JPFeedersTableModel::text(int row, int c) const {
         case kId:       return f->id();
         case kName:     return f->name();
         case kPart: {
-            // Its part by its Name; one the library has not (deleted since), said so.
+            // Its part by its Name; one the library has not (deleted since), none.
             const JPPart* part = m_config.part(f->partId());
-            return part ? part->shownName() : f->partId().empty() ? std::string() : std::string(JPFeeder::kDeletedPart);
+            return part ? part->shownName() : std::string();
         }
         case kType:     return f->typeName();
         case kPriority: return JPFeeder::priorityName(f->priority());

@@ -1026,16 +1026,14 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         // The part the mark is looked for as: the library's, by its id; none chosen, the part named FIDUCIAL-HOME.
         if (config) {
             // The library's parts; the one homing looks for shown (one chosen, else a machine's from before the choice:
-            // its part named FIDUCIAL-HOME); one chosen and deleted since, said so.
+            // its part named FIDUCIAL-HOME); one chosen and deleted since, none.
             JPFormBuilder::Named parts;
             parts.add("(none)", "");
             for (const auto& p : config->parts()) parts.add(p->shownName(), p->id);
-            if (const std::string& id = h().homingFiducialPart; !id.empty() && !config->part(id)) parts.add(JPFeeder::kDeletedPart, id);
             add.byName("homingFiducialPart", "Homing Fiducial Part", parts,
                        [h, config] {
-                           if (!h().homingFiducialPart.empty()) return h().homingFiducialPart;
                            const JPPart* p = config->homingPart(h().homingFiducialPart);
-                           return p ? p->id : std::string();
+                           return p ? p->id : std::string();   // one deleted since: none
                        },
                        [h](const std::string& id) { h().homingFiducialPart = id; });
             add.searchable(JPLibrarySearch::parts(*config, parts.ids), JPLibrarySearch::kPartsTable);

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // A feeder's part on the Feeders tab (JPFeedersTableModel): by its Name, never its id; once the part is deleted
-// from the library, said so; no part, nothing.
+// from the library, none shown; no part, nothing.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -31,7 +31,7 @@ int main() {
     assert(partColumn >= 0 && model.rowCount() == 2);
     assert(model.text(0, partColumn) == "C0603-100n" && model.text(1, partColumn).empty());
     config.removePart(part->id);
-    assert(model.text(0, partColumn) == JPFeeder::kDeletedPart);
+    assert(model.text(0, partColumn).empty());
     std::filesystem::remove_all(dir);
     return 0;
 }

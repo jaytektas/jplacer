@@ -676,7 +676,7 @@ void JPPartsPanel::deleteParts() {
     int held = 0;
     for (const JPFeeder& f : m_config.feeders())
         if (std::find(doomed.begin(), doomed.end(), f.partId()) != doomed.end()) ++held;
-    if (held) ids += "?\n" + std::to_string(held) + " feeder(s) hold them: their part will show as deleted until another is chosen";
+    if (held) ids += "?\n" + std::to_string(held) + " feeder(s) hold them: they will show no part until another is chosen";
     JDialogOptions opts;
     opts.okLabel = "Yes";
     opts.cancelLabel = "No";
