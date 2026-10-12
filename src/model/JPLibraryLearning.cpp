@@ -66,8 +66,11 @@ void JPLibraryLearning::learn(JPConfiguration& config, JPPart& part, const JPBoa
 JPPart* JPLibraryLearning::addFrom(JPConfiguration& config, const JPBoardPart& bp, const std::string& from,
                                    const std::string& when) {
     const std::string value = bp.field("value"), footprint = footprintOf(bp), mpn = bp.field("mpn");
-    std::string base = !mpn.empty() ? mpn : !footprint.empty() && !value.empty() ? footprint + "-" + value
-                     : !value.empty() ? value : !footprint.empty() ? footprint : bp.field("part");
+    std::string base = !bp.field("name").empty()                 ? bp.field("name")
+                     : !footprint.empty() && !value.empty() ? footprint + "-" + value
+                     : !value.empty()                       ? value
+                     : !mpn.empty()                         ? mpn
+                     : !footprint.empty()                   ? footprint : bp.field("part");
     if (base.empty()) base = "Part";
     // Named so (numbered when the name is taken); known for good by a GUID, so the name can be changed.
     std::string name = base;

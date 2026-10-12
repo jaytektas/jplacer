@@ -21,7 +21,7 @@ public:
     enum class Id {
         Ignore,
         Designator, X, Y, Rotation, Side, DoNotPlace,
-        Value, Footprint, Package, Description, Manufacturer, Mpn, Supplier, SupplierPn, Height, Datasheet, Quantity,
+        Name, Value, Footprint, Package, Description, Manufacturer, Mpn, Supplier, SupplierPn, Height, Datasheet, Quantity,
     };
     // A field a column fills: its kind and its key; no key: nothing.
     struct Target {

@@ -15,7 +15,7 @@ inline namespace jf {
 
 namespace {
 
-constexpr int kMpn = 100, kSupplierPn = 90, kMpnOtherMaker = 70, kLearnedBoth = 85, kFootprintValue = 80, kLearnedValue = 75, kValueName = 60,
+constexpr int kMpn = 100, kNamed = 95, kSupplierPn = 90, kMpnOtherMaker = 70, kLearnedBoth = 85, kFootprintValue = 80, kLearnedValue = 75, kValueName = 60,
               kValueAndPackage = 55, kValueAndSize = 50, kValueOnly = 30;
 constexpr double kSameValue = 1e-6;   // relative: two values the same
 
@@ -111,6 +111,7 @@ std::string JPPartMatcher::chipSize(const std::string& name) {
 
 std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfiguration& config, const JPBoardPart& bp) {
     const std::string value = bp.field("value"), mpn = bp.field("mpn"), supplierPn = bp.field("supplierPn");
+    const std::string named = bp.field("name");   // the Name a file gives it
     const std::string footprint = !bp.field("footprint").empty() ? bp.field("footprint") : bp.field("package");
     const std::string size = chipSize(footprint);
     const JPPackage* package = config.packageNamed(footprint);   // the library's package the footprint names
@@ -149,6 +150,9 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
             c.score = byId->kind == "mpn" ? kMpn : kSupplierPn;
             c.why = (byId->kind == "mpn" ? "its MPN " : "its supplier's part number ") + byId->code
                   + (byId->org.empty() ? std::string() : " (" + config.manufacturerName(byId->org) + ")");
+        } else if (!named.empty() && calledSo(named)) {
+            c.score = kNamed;
+            c.why = "named " + named + " (as the file names it)";
         } else if (learned) {
             c.score = kLearnedBoth;
             c.why = "learned: value " + value + " and footprint " + footprint

@@ -12,7 +12,7 @@
 inline namespace jf {
 
 // The library's parts that may be a board part (DESIGN.md, Matching), best
-// evidence first, each saying why: its MPN, its supplier's part number,
+// evidence first, each saying why: its MPN, the Name a file gives it, its supplier's part number,
 // OpenPnP's footprint-value name, its value; then the same value written
 // another way (100n = 100nF = 0.1µF, 4k7 = 4.7k) of the same size (0603).
 // A part whose value is another value is never offered by its footprint.

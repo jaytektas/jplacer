@@ -25,7 +25,7 @@ namespace {
 using I = JPImportField::Id;
 
 // The part's fields, in the order a board part keeps them.
-const std::vector<I> kPartFields { I::Value, I::Footprint, I::Package, I::Description, I::Manufacturer, I::Mpn,
+const std::vector<I> kPartFields { I::Name, I::Value, I::Footprint, I::Package, I::Description, I::Manufacturer, I::Mpn,
                                    I::Supplier, I::SupplierPn, I::Height, I::Datasheet, I::Quantity };
 
 std::string upper(std::string s) {
@@ -323,14 +323,16 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
         const std::string footprint = fields.count("footprint") ? fields["footprint"]
                                     : fields.count("package")   ? fields["package"] : "";
         const std::string mpn = fields.count("mpn") ? fields["mpn"] : "";
-        if (val.empty() && footprint.empty() && mpn.empty()) {
+        const std::string named = fields.count("name") ? fields["name"] : "";   // the part's Name, as a file gives it
+        if (val.empty() && footprint.empty() && mpn.empty() && named.empty()) {
             if (p.type == JPPlacement::Type::Fiducial) ++report.fiducials;
             else ++report.noPart;
             out.placements.push_back(p);
             ++report.placements;
             continue;
         }
-        const std::string group = !mpn.empty() ? "mpn:" + upper(fields.count("manufacturer") ? fields["manufacturer"] : "") + "|" + upper(mpn)
+        const std::string group = !named.empty() ? "name:" + upper(named)
+                                : !mpn.empty() ? "mpn:" + upper(fields.count("manufacturer") ? fields["manufacturer"] : "") + "|" + upper(mpn)
                                                : "vf:" + val + "|" + footprint;
         std::string& key = keyOfGroup[group];
         // Another placement of a part already made: what its rows say of the part's fields added, against the first's.
@@ -353,7 +355,8 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             bp.fields = fields;
             const std::string name = !footprint.empty() && !val.empty() ? footprint + "-" + val
                                    : !val.empty() ? val : !mpn.empty() ? mpn : footprint;
-            bp.fields["part"] = !mpn.empty() ? mpn : name;
+            // Its Name: the file's, else made up of its footprint and value (else its value, MPN or footprint).
+            bp.fields["part"] = !named.empty() ? named : name;
             // The library's part, where the evidence is strong (its MPN, a supplier's part number, a name it learned,
             // OpenPnP's footprint-value): JPPartMatcher. The rest are left to be chosen, with their candidates.
             const JPPart* found = JPPartMatcher::automatic(config, bp);

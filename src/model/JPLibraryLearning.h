@@ -18,8 +18,9 @@ inline namespace jf {
 //    and footprint as an AKA, the MPN and the supplier's part number as
 //    identifiers, the footprint as its package's AKA (each once).
 //  * addFrom: a library part made from all a board part says: known by a
-//    new GUID, named (its Name, which the user may change) by its MPN, else
-//    footprint-value, else value (a name taken already: numbered);
+//    new GUID, named (its Name, which the user may change) as the file names
+//    it, else footprint-value, else its value, MPN or footprint (a name
+//    taken already: numbered);
 //    its package the library's of that footprint (by name or AKA), else one
 //    made; its value, description, datasheet, height, identifiers, AKA.
 //  * describe: what a board part says of the part itself (its description,

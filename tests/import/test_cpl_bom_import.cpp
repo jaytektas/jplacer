@@ -152,7 +152,8 @@ int main() {
     const JPBoardPart* cap = board.part(c1->boardPart);
     assert(cap->field("mpn") == "CL10B104KB8NNNC" && cap->field("manufacturer") == "Samsung" && cap->field("value") == "100n");
     assert(cap->field("supplierPn") == "C14663" && cap->field("supplier") == "LCSC");
-    assert(cap->state == JPBoardPart::State::Unmatched && cap->partId() == "CL10B104KB8NNNC");
+    // Named (no Name column) by its footprint and value.
+    assert(cap->state == JPBoardPart::State::Unmatched && cap->partId() == "C0603-100n");
     assert(board.part(board.find("R1")->boardPart)->field("value") == "10k");
     const JPBoardPart* op = board.part(board.find("U1")->boardPart);
     assert(op->state == JPBoardPart::State::Matched && op->libraryPartId == "LM358DR" && board.find("U1")->partId == "LM358DR");
@@ -232,7 +233,7 @@ int main() {
         const JPBoardPart* made = b3.part(b3.find("C1")->boardPart);
         // Named as the files name it, known by a GUID, the board part linked by it, the name its AKA.
         const auto part = std::find_if(b3.madeParts.begin(), b3.madeParts.end(),
-                                       [](const auto& p) { return p->label == "CL10B104KB8NNNC"; });
+                                       [](const auto& p) { return p->label == "C0603-100n"; });
         assert(part != b3.madeParts.end() && (*part)->id.size() == 36 && !(*part)->akas.empty());
         // What the files say of it: its description (shown as the Parts table's Description), its MPN and LCSC number.
         assert((*part)->name == std::optional<std::string>("100nF 50V X7R"));
@@ -243,7 +244,7 @@ int main() {
         assert(made->state == JPBoardPart::State::Matched && made->libraryPartId == (*part)->id && r3.made > 0);
         assert(config.parts().size() == 1 && !b3.madeParts.empty());   // the library untouched by building it
         int packages = 0;
-        assert(config.takeMade(b3, packages) == int(b3.madeParts.size()) && config.partNamed("CL10B104KB8NNNC"));
+        assert(config.takeMade(b3, packages) == int(b3.madeParts.size()) && config.partNamed("C0603-100n"));
         assert(config.takeMade(b3, packages) == 0);   // taken once
         for (const auto& p : b3.madeParts) config.removePart(p->id);
         for (const auto& k : b3.madePackages) config.removePackage(k->id);
@@ -341,7 +342,7 @@ int main() {
         // The placement's own; one its type cannot read noted, not taken.
         assert(b.find("R1")->custom.get(lane).number() == 3 && !b.find("R2")->custom.has(lane) && noted("not a number"));
         // The part made: the first placement's value, the other's noted; its package made with its pitch.
-        const auto made = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "MPN1"; });
+        const auto made = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "R0603X-10k"; });
         assert(made != b.madeParts.end() && (*made)->custom.get(volts).str() == "50V" && noted("25V"));
         const auto pkg = std::find_if(b.madePackages.begin(), b.madePackages.end(), [](const auto& k) { return k->label == "R0603X"; });
         assert(pkg != b.madePackages.end() && (*pkg)->custom.get(pitch).number() == 0.5);
@@ -360,6 +361,29 @@ int main() {
         assert(im.build(config, "t", typed, rt, error) && typed.custom.get(rev).str() == "D" && !rt.job.has(order));
         // The files kept with the board say which field each column filled.
         assert(typed.provenance[0]["columns"][5]["field"].str() == "placements:" + lane);
+    }
+    // A Name column (guessed by its heading): each part named so, rows of one name one part, a library part of that
+    // name taken unasked.
+    {
+        auto mine = std::make_shared<JPPart>();
+        mine->id = "11111111-2222-3333-4444-555555555555";
+        mine->label = "Bulk Cap 10u";
+        config.addPart(mine);
+        JPCplBomImport im;
+        im.sources.push_back(source("Designator,Mid X,Mid Y,Layer,Rotation\nC1,1,1,Top,0\nC2,2,1,Top,0\nC3,3,1,Top,0\n",
+                                    JPImportSource::Role::Cpl, "named.csv"));
+        im.sources.push_back(source("Designator,Comment,Footprint,Part Name\nC1,10u,C0805,Bulk Cap 10u\nC2,10u,C0805,Bulk Cap 10u\n"
+                                    "C3,10u,C0603,Small Cap\n",
+                                    JPImportSource::Role::Bom, "named-bom.csv"));
+        assert(im.sources[1].mapping[3] == JPImportField::target(I::Name));
+        im.createMissing = true;
+        JPBoard b;
+        JPCplBomImport::Report r;
+        assert(im.build(config, "t", b, r, error));
+        const JPBoardPart* bulk = b.part(b.find("C1")->boardPart);
+        assert(b.find("C2")->boardPart == b.find("C1")->boardPart && bulk->libraryPartId == mine->id);
+        assert(b.part(b.find("C3")->boardPart)->field("part") == "Small Cap" && r.made == 1);
+        assert(std::any_of(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "Small Cap"; }));
     }
     std::filesystem::remove_all(dir);
     return 0;

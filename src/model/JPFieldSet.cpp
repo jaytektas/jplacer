@@ -47,7 +47,8 @@ std::vector<JPField> builtIns(JPFieldSet::Of of) {
             return {
                 builtIn("source", "Source", false, "", {}, "Where it lives: the library, or the open board named (its icon)"),
                 builtIn("id", "ID", true, "", {}, "What placements, feeders and jobs know it by"),
-                builtIn("name", "Name", false, "", {}, "What it is called where it is shown"),
+                builtIn("name", "Name", false, "name", { "PARTNAME", "LIBREF", "LIBRARYREF", "LIBRARYREFERENCE", "LIBRARYPART" },
+                        "What it is called where it is shown"),
                 builtIn("description", "Description", false, "description", { "DESCRIPTION", "DESC", "DESCR", "PARTDESCRIPTION" }),
                 builtIn("value", "Value", false, "value", { "VALUE", "VAL", "COMMENT", "COMPVALUE", "PARTVALUE" }),
                 builtIn("mpn", "MPN", false, "mpn",

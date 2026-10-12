@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- The CSV/BOM import can read a part's **Name** (a column such as "Part Name" or "LibRef" is taken as
+  **Part ▸ Name**): the part is called that, rows with one name are one part, and a library part of that
+  name is found by it. With no name given, a part is named by its footprint and value (`C0603-100n`), not
+  by its MPN; the MPN is still kept with it.
+
 ## 0.1.60
 
 - **Footprints from LCSC**: a package's footprint can be fetched by its LCSC part number (C14663), with no

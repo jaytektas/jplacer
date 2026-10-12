@@ -161,11 +161,11 @@ the library has is left as it is.
   row is found among the first lines, after any comments.
 - **Columns of** the file chosen: each column's header, what it holds and its first values. What it holds
   is a field: the placement's (**Placement ▸ Designator**, **X**, **Y**, **Rotation**, **Side**, **Do Not
-  Place**), the part's (**Part ▸ Value**, **Footprint**, **Package**, **Description**, **Manufacturer**,
+  Place**), the part's (**Part ▸ Name**, **Value**, **Footprint**, **Package**, **Description**, **Manufacturer**,
   **MPN**, **Supplier**, **Supplier PN**, **Height**, **Datasheet**, **Quantity**), or any field you added to
   placements, parts, packages, boards or jobs (see [Fields](tables.md#fields)); or **Ignore**. It is guessed
   from the header by the headings each field is matched by ("Mid X", "Ref-X(mm)" and "PosX" are X; "LCSC
-  Part #" is the supplier's part number; a field of yours by its name and its **Import matches**), a column
+  Part #" is the supplier's part number; "Part Name" and "LibRef" are the part's Name; a field of yours by its name and its **Import matches**), a column
   no field matches is ignored, and any can be changed. A file's own name for a field is fine: a column
   called "Provider" can be the **Manufacturer**. **New Placement Field…**, **New Part Field…**, **New
   Package Field…**, **New Board Field…** and **New Job Field…** at the end of the list make a field of that
@@ -195,7 +195,9 @@ the library has is left as it is.
   [Footprints from LCSC](packages.md#footprints-from-lcsc)).
 
 A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
-grouped by manufacturer and MPN where the files give them, else by value and footprint, and each keeps
+grouped by the Name the files give them, else by manufacturer and MPN, else by value and footprint. A part
+is named as the files name it (a column read as **Part ▸ Name**); else its name is made up of its footprint
+and value (`C0603-100n`; one of them alone where the files give only one, else its MPN). Each keeps
 every field the files gave it (a supplier part number column that names its supplier, "LCSC Part #", gives
 the supplier). A placement's fields of yours are its own row's; a part's and its package's are its first
 placement's row's, and a part made for the library (and a package made with it) has them. A library part,
@@ -204,7 +206,7 @@ has none, when the import is taken; so does its **Description**, its datasheet, 
 part number (where it has none of that kind): importing again never changes what you have set. **What it makes** says each value its field's type cannot read (not
 taken), each part whose placements' rows disagree (the first taken), each library part whose value the files
 differ from (the library's kept), and a board's or job's column whose rows disagree (the first taken). On a
-**Merge**, a placement keeps the values of yours it has, and takes the files' where it has none. A part is the library's when one is named by its MPN, by OpenPnP's *footprint*-*value*,
+**Merge**, a placement keeps the values of yours it has, and takes the files' where it has none. A part is the library's when one is named by its MPN, by the Name the files give it, by OpenPnP's *footprint*-*value*,
 or by its value; else, with **Create Missing Parts** ticked, one made for the library on **Import** (its value, height,
 description, datasheet, MPN and supplier's part number as the files give them); else it is to be chosen
 (its placements show the files' name, "(to be chosen)"). A placement is not to be placed (not enabled)
@@ -213,7 +215,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/ui/JPBoardPlacementsPanel.cpp (takeMade); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/model/JPPartMatcher.cpp (candidates); src/model/JPFieldSet.cpp (builtIns); src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/ui/JPBoardPlacementsPanel.cpp (takeMade); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 

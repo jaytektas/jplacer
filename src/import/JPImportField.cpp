@@ -29,6 +29,7 @@ const std::vector<Info>& infos() {
         { I::Rotation,     "Rotation",     "rotation",     O::Placements, "rotation" },
         { I::Side,         "Side",         "side",         O::Placements, "side" },
         { I::DoNotPlace,   "Do Not Place", "doNotPlace",   O::Placements, "doNotPlace" },
+        { I::Name,         "Name",         "name",         O::Parts,      "name" },
         { I::Value,        "Value",        "value",        O::Parts,      "value" },
         { I::Footprint,    "Footprint",    "footprint",    O::Parts,      "footprint" },
         { I::Package,      "Package",      "package",      O::Parts,      "package" },
