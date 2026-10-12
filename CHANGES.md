@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A submenu of a menu long enough to wrap into two columns (a table's **Columns**, its **This View**) opens
+  to the side away from the other column, so it can be reached: it opened over the second column, and moving
+  to it closed it.
+
 - The Job tab's boards toolbar has a **Measure Board Z** toggle beside **Fiducial Check**: Machine Setup's
   **Measure Board Z?** (a fiducial check measures each board's height at its fiducials), turned on and off
   from there, lit while on.
