@@ -169,9 +169,11 @@ doing ("Feed …", "Pick … using nozzle N1.", "Placing …"), and at the end h
 how fast. While a job runs, another job or another cell is not opened. While the machine is busy with a
 task of its own (a Test Alignment, a feeder's or a fiducial check's moves, a Recycle), Start, Step, Stop and
 another such task are refused: the status line says "The machine is busy with a task: wait for it to
-finish", and the click does nothing (OpenPnP queues it instead).
+finish", and the click does nothing (OpenPnP queues it instead). **Start**, **Step** and **Stop** are also
+in the toolbar at the top of the window, after the machine's power and home buttons, so a job can be run
+from any tab: they are the Job tab's, greyed and turned to **Pause** or **Resume** as those are.
 
-<!-- src: src/app/JPlacerJobRun.cpp (startPauseResume, step, stop, start, run, machineTask, fiducialCheck, taskUnderWay); src/ui/JPJobPanel.cpp (updateJobActions); src/app/JPlacerJob.cpp (settle); src/app/JPlacerMachine.cpp (openCell) -->
+<!-- src: src/app/JPlacerJobRun.cpp (startPauseResume, step, stop, start, run, machineTask, fiducialCheck, taskUnderWay); src/ui/JPJobPanel.cpp (updateJobActions, addRunButtons); src/app/JPlacerJob.cpp (settle); src/app/JPlacerMachine.cpp (openCell) -->
 
 **Checking the job.** Before a run starts (and with **Job ▸ Check Job…** at any time), the job's data is
 checked as one list, each thing once with every placement or part it is about (a placement named by its

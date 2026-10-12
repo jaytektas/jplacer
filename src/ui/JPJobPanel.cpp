@@ -17,6 +17,7 @@
 #include <j/core/JSeparator.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 
 inline namespace jf {
@@ -371,6 +372,22 @@ void JPJobPanel::resetAllPlaced() {
     changed();
 }
 
+void JPJobPanel::addRunButtons(JToolBar& bar) {
+    auto copy = [&](const char* name, JPIconButton* of, const std::function<void()>* action) {
+        auto b = std::make_unique<JPIconButton>(m_graph, name, of->icon(), of->tooltip());
+        b->onClicked.connect([action] {
+            if (*action) (*action)();
+        });
+        bar.addWidget(b.get());
+        return b;
+    };
+    bar.addSeparator();
+    m_barStart = copy("Start", m_start, &onStartPauseResume);
+    m_barStep = copy("Step", m_step, &onStep);
+    m_barStop = copy("Stop", m_stop, &onStop);
+    updateJobActions();
+}
+
 void JPJobPanel::setPhotographing(bool on) {
     m_photographing = on;
     updateJobActions();
@@ -400,6 +417,15 @@ void JPJobPanel::updateJobActions() {
     }
     if (m_stepItem) m_stepItem->setEnabled(m_step->isEnabled());
     if (m_stopItem) m_stopItem->setEnabled(m_stop->isEnabled());
+    const std::array<std::pair<JPIconButton*, JPIconButton*>, 3> copies { { { m_barStart.get(), m_start },
+                                                                            { m_barStep.get(), m_step },
+                                                                            { m_barStop.get(), m_stop } } };
+    for (const auto& [bar, of] : copies)
+        if (bar) {
+            bar->setIcon(of->icon());
+            bar->setTooltip(of->tooltip());
+            bar->setEnabled(of->isEnabled());
+        }
     const JPJob* j = m_job();
     const bool defer = j && j->errorHandling == JPJob::ErrorHandling::Defer;
     m_errors->setIcon(defer ? "error-defer" : "error-alert");

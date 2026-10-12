@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- **Start**, **Step** and **Stop** are also in the toolbar at the top of the window, beside the machine's power
+  and home buttons, so a job can be run from any tab.
+
 ## 0.1.59
 
 - **Board photos**: a board can be photographed with the head camera, the pictures stitched into one photo

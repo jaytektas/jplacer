@@ -52,6 +52,8 @@ public:
     }
     enum class Leads { Nowhere, Menu, Elsewhere };
     void setLeads(Leads leads) { m_leads = leads; }
+    // The OpenPnP icon it shows (empty: a glyph).
+    const std::string& icon() const { return m_icon; }
     void setChecked(bool on);
     bool isChecked() const { return m_checked; }
     jf::JSignal<bool> onToggled;   // a checkable one clicked: on or off now

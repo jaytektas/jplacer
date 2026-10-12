@@ -18,6 +18,8 @@
 #include <j/core/MenuSystem.h>
 #include <j/core/Splitter.h>
 
+#include <j/core/ToolBar.h>
+
 #include <functional>
 #include <memory>
 #include <optional>
@@ -66,6 +68,9 @@ public:
     // How the job runs now, and whether the machine is connected: the run
     // buttons follow, as OpenPnP's updateJobActions has them.
     void setRunState(RunState s);
+    // A second Start (Pause, Resume), Step and Stop in `bar` (the window's toolbar, by the machine's power and home),
+    // as the Job tab's are: their icons, tooltips and whether they can be pressed kept the same.
+    void addRunButtons(JToolBar& bar);
     // A photo being taken (asked for): Stop stops it.
     void setPhotographing(bool on);
     void setMachineEnabled(bool on);
@@ -140,6 +145,7 @@ private:
     JPIconButton*                       m_twoPoint = nullptr;
     JPIconButton*                       m_fiducialCheck = nullptr;
     JPIconButton*                       m_photograph = nullptr;
+    std::unique_ptr<JPIconButton>       m_barStart, m_barStep, m_barStop;   // the toolbar's (addRunButtons)
     bool                                m_photographing = false;
     std::unique_ptr<JMenu>              m_addMenu, m_menu;
     JContainer*                         m_instructionsHolder = nullptr;

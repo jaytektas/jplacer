@@ -172,6 +172,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobPanel = std::make_unique<JPJobPanel>(graph, job.configuration(), [this] { return &m_job.job(); },
                                               JSettings::instance().get<double>(JPlacerSettings::kJobSplit, kSplit));
     m_jobPanel->openMenu = JPlacerMenuOpener::from(m_window, m_jobPanel.get());
+    // Start, Step and Stop by the machine's power and home too, always in view.
+    m_jobPanel->addRunButtons(m_window.toolBar());
     // The chosen placement's footprint on the head camera, as it is placed (the Job tab's).
     // With tables linked the placement's package is chosen first, the same footprint.
     m_jobPanel->placements().showFootprint = [this](const JPFootprint* f) {
