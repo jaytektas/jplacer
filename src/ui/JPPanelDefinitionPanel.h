@@ -23,7 +23,7 @@
 
 inline namespace jf {
 
-// The Job tab's Panel tab (a panel itself, every use of it), as OpenPnP's PanelDefinitionPanel:
+// A panel chosen on the Job tab (the panel itself, every use of it), as OpenPnP's PanelDefinitionPanel:
 // the chosen panel's Children (Add Child… (a new or existing board or
 // panel), Remove Child(ren), Create array of children…, the panel viewer;
 // where each lies, its side, enabled and fiducial check; right-click:
