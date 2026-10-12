@@ -456,6 +456,17 @@ std::string JPMachineSetupPanel::shownVisionSettings() const {
 
 void JPMachineSetupPanel::refreshForm() { m_form->refresh(); }
 
+void JPMachineSetupPanel::libraryChanged() {
+    std::string seen;
+    if (m_config) {
+        for (const auto& p : m_config->parts()) seen += p->id + '\x1f' + p->shownName() + '\x1e';
+        for (const auto& k : m_config->packages()) seen += k->id + '\x1f' + k->shownName() + '\x1e';
+    }
+    if (seen == m_librarySeen) return;
+    m_librarySeen = std::move(seen);
+    remakeForm();
+}
+
 void JPMachineSetupPanel::setConfiguration(JPConfiguration* config) {
     m_config = config;
     feedersChanged();

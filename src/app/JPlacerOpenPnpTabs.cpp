@@ -1096,6 +1096,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             m_packages->refresh();
             m_feeders->refresh();
             m_vision->refresh();
+            m_machine.libraryChanged();
             ensurePhotonActuator();
         });
     });

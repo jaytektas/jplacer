@@ -78,7 +78,7 @@ turned by the camera's rotation; on one without (looking up at the nozzles), by 
 package's, or a placement's on the Job tab (choosing a placement chooses its package too when **View ▸
 Selections in Tables** is **Linked**, as OpenPnP's). It stays when another tab is shown. While a camera
 task runs on a camera (calibrating it or a nozzle tip, measuring), that camera does not show it; visual
-homing shows its homing part's footprint (the head's **Homing Fiducial Part**, else **FIDUCIAL-HOME**) while it
+homing shows its homing part's footprint (the head's **Homing Fiducial Part**) while it
 looks for the homing mark.
 
 **Footprints** lists the package's footprints in the library: land patterns of it, several to a package

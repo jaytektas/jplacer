@@ -70,6 +70,9 @@ public:
     std::function<void(const std::string& settingsId, const std::string& action)> visionAction;
     // The page shown again (the vision settings changed elsewhere).
     void refreshForm();
+    // The library may have changed (parts or packages added, taken out, renamed): the page shown made again when
+    // it has, so the choices of parts it offers (a head's Homing Fiducial Part) are the library's as it is now.
+    void libraryChanged();
 
     // OpenPnP's Feeders in the tree (the configuration's): a feeder's page is the Feeders tab's, made and
     // worked by it (JPFeedersPanel::pageFor, edited, act, captureFor, goToFor). Not the cell's: no undo here.
@@ -200,6 +203,7 @@ private:
     std::map<std::string, std::string> m_words;    // wordsOf, by node path
     std::vector<JPFirmwareProfile> m_profiles;
     JPConfiguration*               m_config = nullptr;
+    std::string                    m_librarySeen;   // the library's parts and packages, by id and name, as last seen
     JPVisionTests                  m_visionTests;
     std::optional<JPMotionTestResult> m_motionTest;
     // The properties the shown node's page has of the configuration (its vision settings' tab).

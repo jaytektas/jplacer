@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- The head's **Homing Fiducial Part** lists only the library's parts (**(none)** until one is chosen), its list
+  keeps up with parts added, renamed or deleted without leaving the head and coming back, and a deleted one
+  shows as *(a deleted part)*. A machine set up before the choice still uses (and shows) its part named
+  FIDUCIAL-HOME.
+
 - **No more Boards and Panels tabs**: boards and panels are the job's. Choose one on the Job tab and the
   new **Board** (or **Panel**) tab beside its Placements is the board or panel itself: its placements,
   imports, revisions, parts and viewer, or a panel's children and fiducials. Make or add them with the Job

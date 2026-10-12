@@ -20,7 +20,7 @@ inline namespace jf {
 // Finishing a home with the camera: the switches put the head within a
 // fraction of a millimetre; the homing mark, seen by a calibrated camera on
 // the head, says exactly where. As OpenPnP's (its Fiducial Locator, as the
-// FIDUCIAL-HOME part's fiducial vision settings say): the mark found, the
+// homing part's fiducial vision settings say): the mark found, the
 // coordinates corrected so it measures where the head's settings say it is,
 // and looked at again, up to Max Vision Passes, until a find corrects them by
 // less than Max Linear Offset; the last find's correction stands.
@@ -33,10 +33,9 @@ public:
         std::string why;
     };
 
-    // `look`: how the homing fiducial is looked for (JPVisualTest::Look, the FIDUCIAL-HOME part's).
+    // `look`: how the homing fiducial is looked for (JPVisualTest::Look, the homing part's).
     static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const JPVisualTest::Look* look);
-    // The part the head's homing fiducial is looked for as: its Homing Fiducial Part (by its id), else the part
-    // named FIDUCIAL-HOME (OpenPnP's); null when there is none.
+    // The part the head's homing fiducial is looked for as (JPConfiguration::homingPart); null when there is none.
     static const JPPart* homePart(const JPConfiguration& configuration, const JPHeadConfig& head);
     // How that part says the homing fiducial is looked for (its package's fiducial, its vision settings), by the
     // machine's `vision`; none when there is no such part or it cannot be looked for.

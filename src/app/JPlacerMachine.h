@@ -274,6 +274,8 @@ public:
     void setupFeedersChanged() { if (m_setup) m_setup->feedersChanged(); }
     void setupFeederPageChanged(bool remade) { if (m_setup) m_setup->feederPageChanged(remade); }
     void refreshSetupForm();
+    // The library may have changed: Machine Setup's page made again when its parts or packages did.
+    void libraryChanged();
     // The view of a camera's feed, shown; null when it has none. The view a job's vision shows a result on: brought
     // to the front only when the camera has Auto Camera View? (OpenPnP's CameraView.setCameraViewFilter).
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);

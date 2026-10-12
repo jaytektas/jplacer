@@ -1025,14 +1025,22 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
         add.length("homingFiducialDiameter", "Fiducial Diameter", [h]() -> double& { return h().homingFiducialDiameter; });
         // The part the mark is looked for as: the library's, by its id; none chosen, the part named FIDUCIAL-HOME.
         if (config) {
+            // The library's parts; the one homing looks for shown (one chosen, else a machine's from before the choice:
+            // its part named FIDUCIAL-HOME); one chosen and deleted since, said so.
             JPFormBuilder::Named parts;
-            parts.add("FIDUCIAL-HOME (the part of that name)", "");
+            parts.add("(none)", "");
             for (const auto& p : config->parts()) parts.add(p->shownName(), p->id);
-            add.byName("homingFiducialPart", "Homing Fiducial Part", parts, [h]() -> std::string& { return h().homingFiducialPart; });
+            if (const std::string& id = h().homingFiducialPart; !id.empty() && !config->part(id)) parts.add(JPFeeder::kDeletedPart, id);
+            add.byName("homingFiducialPart", "Homing Fiducial Part", parts,
+                       [h, config] {
+                           if (!h().homingFiducialPart.empty()) return h().homingFiducialPart;
+                           const JPPart* p = config->homingPart(h().homingFiducialPart);
+                           return p ? p->id : std::string();
+                       },
+                       [h](const std::string& id) { h().homingFiducialPart = id; });
             add.searchable(JPLibrarySearch::parts(*config, parts.ids), JPLibrarySearch::kPartsTable);
             add.tip("The library's part the homing mark is looked for as: its package's footprint and its fiducial vision "
-                    "settings. Kept by the part itself, so renaming it changes nothing; not chosen, the part named "
-                    "FIDUCIAL-HOME, as OpenPnP has it.");
+                    "settings. Kept by the part itself, so renaming it changes nothing.");
         }
         add.row("Homing Method");
         add.choice("visualHoming", "Homing Method", { "Switches", "ResetToFiducialLocation" },

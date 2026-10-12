@@ -1224,6 +1224,10 @@ void JPlacerMachine::refreshSetupForm() {
     if (m_setup) m_setup->refreshForm();
 }
 
+void JPlacerMachine::libraryChanged() {
+    if (m_setup) m_setup->libraryChanged();
+}
+
 void JPlacerMachine::setConfiguration(JPConfiguration* config) {
     m_configuration = config;
     if (m_setup) m_setup->setConfiguration(config);

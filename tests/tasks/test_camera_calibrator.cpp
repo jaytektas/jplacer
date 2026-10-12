@@ -138,7 +138,7 @@ int main() {
         look.pipeline = std::make_shared<JPPipeline>(JPPipeline::fromXml(root));
     }
     // Without the part, OpenPnP's words.
-    assert(JPVisualTest::run(cell, feed, head, 1.0, nullptr).why.find("FIDUCIAL-HOME") != std::string::npos);
+    assert(JPVisualTest::run(cell, feed, head, 1.0, nullptr).why.find("Homing Fiducial Part") != std::string::npos);
     JPVisualTest::Result t = JPVisualTest::run(cell, feed, head, 1.0, &look);
     assert(!t.found && t.why.find("calibrate") != std::string::npos);
 

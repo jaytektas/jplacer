@@ -80,6 +80,10 @@ public:
     JPPart* libraryPart(const std::string& id) const;
     // The library's part whose Name (JPPart::shownName) is `name`, whatever its case; null when none.
     JPPart* partNamed(const std::string& name) const;
+    // The part visual homing looks for the homing mark as: the head's chosen one (`chosen`, its id), else (a
+    // machine set up before it was chosen) the part named kHomingPartName, as OpenPnP has it; none: null.
+    static constexpr const char* kHomingPartName = "FIDUCIAL-HOME";
+    const JPPart* homingPart(const std::string& chosen) const;
     // The library's part a matched board part is: by its id, else (renamed since) by its uuid; null when the
     // library has neither.
     JPPart* libraryPartFor(const JPBoardPart& bp) const;

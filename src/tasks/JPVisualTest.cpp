@@ -28,7 +28,7 @@ JPVisualTest::Result JPVisualTest::run(JPCell& cell, JPCameraFeed& feed, const J
     }
     if (!look || look->diameterMm <= 0) {
         r.why = "Visual homing has no part to look for the homing fiducial as: choose the head's Homing Fiducial Part "
-                "(or make a part named FIDUCIAL-HOME), with a package and fiducial vision.";
+                "(Machine Setup), a part with a package and fiducial vision.";
         return r;
     }
     if (mount.axisX.empty() || mount.axisY.empty()) {

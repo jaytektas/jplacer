@@ -584,6 +584,10 @@ JPPart* JPConfiguration::libraryPart(const std::string& id) const {
     return it == m_partsById.end() ? nullptr : it->second.get();
 }
 
+const JPPart* JPConfiguration::homingPart(const std::string& chosen) const {
+    return chosen.empty() ? partNamed(kHomingPartName) : part(chosen);
+}
+
 JPPart* JPConfiguration::partNamed(const std::string& name) const {
     const std::string wanted = upper(name);
     for (const auto& p : m_parts)

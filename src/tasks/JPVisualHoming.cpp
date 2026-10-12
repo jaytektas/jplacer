@@ -16,8 +16,6 @@ inline namespace jf {
 
 namespace {
 
-// OpenPnP's homing fiducial: the part of this name (a head's Homing Fiducial Part not chosen).
-constexpr const char* kHomePart = "FIDUCIAL-HOME";
 
 } // namespace
 
@@ -47,8 +45,7 @@ JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, con
 }
 
 const JPPart* JPVisualHoming::homePart(const JPConfiguration& configuration, const JPHeadConfig& head) {
-    if (!head.homingFiducialPart.empty()) return configuration.part(head.homingFiducialPart);
-    return configuration.partNamed(kHomePart);
+    return configuration.homingPart(head.homingFiducialPart);
 }
 
 std::optional<JPFootprint> JPVisualHoming::homeFootprint(JPConfiguration& configuration, const JPHeadConfig& head) {
