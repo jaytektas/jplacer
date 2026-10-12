@@ -156,8 +156,8 @@ void JPCameraView::buildMenu() {
     });
     m_fitItem = m_menu->add(g, "Fit the Picture");
     m_fitItem->onTriggered.connect([this] {
-        m_zoom = 1.0;
-        invalidate();
+        setZoom(1.0);
+        if (onZoomedByHand) onZoomedByHand();
     });
     setContextMenu(m_menu.get());
 }
@@ -673,11 +673,16 @@ bool JPCameraView::handleScroll(float mx, float my, float wheel) {
     // At best scale only whole steps show: a notch zooms by 2 at least.
     const double perNotch = m_quality == RenderingQuality::BestScale ? std::max(2.0, zoomPerNotch(m_sensitivity))
                                                                      : zoomPerNotch(m_sensitivity);
-    const double z = std::clamp(m_zoom * std::pow(perNotch, double(wheel)), 1.0, kMostZoom);
+    setZoom(m_zoom * std::pow(perNotch, double(wheel)));
+    if (onZoomedByHand) onZoomedByHand();
+    return true;
+}
+
+void JPCameraView::setZoom(double zoom) {
+    const double z = std::clamp(zoom, 1.0, kMostZoom);
     // Back near fitted is fitted, not 99.99% of it.
     m_zoom = z < 1.0 + 1e-6 ? 1.0 : z;
     invalidate();
-    return true;
 }
 
 void JPCameraView::setSelectionEnabled(bool on) {

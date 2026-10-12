@@ -51,8 +51,11 @@ public:
 
     // Its panel come on screen or gone off it: its light follows.
     std::function<void(bool shown)> onShown;
-    // Calibrate and Visual Test pressed: the owner runs them on this camera.
-    std::function<void()> onCalibrate;
+    // Visual Test pressed: the owner runs it on this camera (calibrating it is Machine Setup's, its camera's).
+    // The footprint shown over the picture (a placement's, a package's) this big (millimetres, JPFootprint::
+    // extentMm); none: none shown. With Hold Footprint Size down, the picture zoomed so it stays as big on the
+    // screen as it was when the button went down (or when it was last zoomed by hand), as far as the zoom goes.
+    void setFootprintExtent(std::optional<double> mm);
     // The red X beside them pressed (offered only while a task runs on this camera, setBusy): the owner
     // cancels the task. Pressed once, it is greyed while the task winds down.
     std::function<void()> onCancelTask;
@@ -129,7 +132,11 @@ private:
 
     JPCameraFeed                          m_feed;
     JPCameraView*                         m_view = nullptr;
-    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_calibrate, m_next, m_cancelTask, m_visualTest, m_autoTune, m_settings;
+    // Hold Footprint Size: the footprint shown's size, and (while held) its size times the zoom to keep: the
+    // size on the screen. None held yet: taken from the next footprint shown.
+    std::optional<double>                 m_footprintMm, m_heldSize;
+    void holdSize(bool on);
+    std::unique_ptr<JPIconButton>         m_asTaken, m_save, m_holdSize, m_next, m_cancelTask, m_visualTest, m_autoTune, m_settings;
     std::function<void()>                 m_onNext;     // askStep's
     std::unique_ptr<JLabel>               m_stepLine;   // what askStep asks, in m_asked while asked
     bool                                  m_stepLineShown = false;

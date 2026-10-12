@@ -149,8 +149,11 @@ public:
     std::function<bool()> suspended;
     // A picture vision shows (showPicture), for its owner to bring it forward.
     std::function<void()> onPictureShown;
-    // How far zoomed in: 1 is the picture fitted to the view.
+    // How far zoomed in: 1 is the picture fitted to the view. Set: held between that and kMostZoom, about the
+    // centre (as the wheel zooms). Zoomed by hand (the wheel, Fit the Picture): onZoomedByHand.
     double zoom() const { return m_zoom; }
+    void   setZoom(double zoom);
+    std::function<void()> onZoomedByHand;
     // When it was last drawn (on screen then).
     std::chrono::steady_clock::time_point drawnAt() const { return m_drawnAt; }
     static constexpr double kMostZoom = 64.0;

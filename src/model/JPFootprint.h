@@ -48,6 +48,8 @@ public:
     // Every pad's outlines (getPadsShape), and the body's (getBodyShape).
     std::vector<Outline> padsOutlines() const;
     Outline              bodyOutline() const;
+    // How big it is: the larger side of the box round its pads and its body, in millimetres; 0: nothing to it.
+    double extentMm() const;
     // The same footprint in `units` (its pads, body and dimensions converted).
     JPFootprint inUnits(JPLengthUnit units) const;
     // Pads made from the generator's numbers and added; false (and why)

@@ -75,6 +75,21 @@ std::vector<JPFootprint::Outline> JPFootprint::padsOutlines() const {
     return out;
 }
 
+double JPFootprint::extentMm() const {
+    const JPFootprint mm = inUnits(JPLengthUnit::Millimeters);
+    std::vector<Outline> outlines = mm.padsOutlines();
+    outlines.push_back(mm.bodyOutline());
+    double x0 = INFINITY, y0 = INFINITY, x1 = -INFINITY, y1 = -INFINITY;
+    for (const Outline& o : outlines)
+        for (const Point& p : o) {
+            x0 = std::min(x0, p.x);
+            y0 = std::min(y0, p.y);
+            x1 = std::max(x1, p.x);
+            y1 = std::max(y1, p.y);
+        }
+    return x1 > x0 || y1 > y0 ? std::max(x1 - x0, y1 - y0) : 0.0;
+}
+
 JPFootprint JPFootprint::inUnits(JPLengthUnit to) const {
     JPFootprint f = *this;
     const double per = JPLength(1, units).convertToUnits(to).value();

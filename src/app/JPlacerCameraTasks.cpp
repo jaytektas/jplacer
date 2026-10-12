@@ -101,7 +101,6 @@ JPlacerCameraTasks::JPlacerCameraTasks(JAppWindow& window, JPCell& cell, std::ve
     : m_window(window), m_cell(cell), m_cameras(std::move(cameras)), m_bringForward(std::move(bringForward)),
       m_cellPath(std::move(cellPath)) {
     for (JPCameraPanel* panel : m_cameras) {
-        panel->onCalibrate  = [this, panel] { calibrate(*panel); };
         panel->onVisualTest = [this, panel] { visualTest(*panel); };
         // Double-click the picture: the camera looks there.
         panel->onLookAtPixel = [this, panel](double px, double py) {
@@ -130,7 +129,6 @@ JPlacerCameraTasks::~JPlacerCameraTasks() {
 void JPlacerCameraTasks::letGo() {
     *m_alive = false;
     for (JPCameraPanel* panel : m_cameras) {
-        panel->onCalibrate   = nullptr;
         panel->onVisualTest  = nullptr;
         panel->onLookAtPixel = nullptr;
         panel->onCancelTask  = nullptr;

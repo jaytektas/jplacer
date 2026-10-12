@@ -550,12 +550,12 @@ at once:
 |---|---|
 | eye | **As taken**: lit, the picture is shown as the camera gives it; off (to begin with), it is straightened (below). The choice is kept for each camera. |
 | disk | **Save the picture** (below). |
-| target | **Calibrate** the camera (below). |
+| target | **Hold Footprint Size** (a toggle, lit while on): the footprint drawn over the picture (the placement chosen on the Job tab, the package chosen on the Packages tab) kept as big on the screen as it was when you pressed it. As another is shown (a placement chosen, **Move Camera To Previous** and **Next Placement Location**), the picture zooms in or out to keep it so, as far as the zoom goes (fitted, to 64 times). Zooming by hand (the wheel, **Fit the Picture**) while it is on makes that the size it holds. Calibrating the camera is on its Machine Setup page (the gear): **Advanced Calibration**, **Start Calibration**. |
 | tick in a ring | **Visual test** of the calibration (below). |
 | half-filled ring with rays | **Auto-Tune** now, on what the camera sees: as Machine Setup's **Defaults, then Auto-Tune**, with the camera's light on (the machine must be on), its properties kept (one step to undo). With a job paused too; not while one of its steps is under way ("The job is running: pause it first"). |
 | gear | **The camera's settings**: Machine Setup, with the camera chosen in its tree. |
 
-<!-- src: src/ui/JPCameraPanel.cpp (tabTools); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp (setLeads); src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget); src/app/JPlacerJobRun.cpp (jobWorking) -->
+<!-- src: src/ui/JPCameraPanel.cpp (tabTools, holdSize, setFootprintExtent); src/ui/JPCameraView.cpp (setZoom); src/model/JPFootprint.cpp (extentMm); src/app/JPlacerOpenPnpTabs.cpp (showFootprint); src/ui/JPIcons.cpp; src/ui/JPIconButton.cpp (setLeads); src/app/JPlacerMachine.cpp (buildCameras); JFramework include/j/core/DockWidget.h (addTitleWidget); src/app/JPlacerJobRun.cpp (jobWorking) -->
 
 Every camera is opened as soon as the machine is on (connected) and runs, its picture on screen or not, as
 OpenPnP's cameras capture from the start whether shown or not: switching between camera tabs shows each one
@@ -736,8 +736,8 @@ picture says the light is off.
 
 #### Calibrating the head camera
 
-jplacer measures its cameras itself: nothing is taken from another program. **Calibrate** (the target),
-in the tab of the camera on the head, works out how big a pixel is on the machine in X and in Y, which way the
+jplacer measures its cameras itself: nothing is taken from another program. **Start Calibration**, on
+the head camera's **Advanced Calibration** page in Machine Setup (the gear in its tab leads there), works out how big a pixel is on the machine in X and in Y, which way the
 camera is turned (or mirrored), and how its lens bends the picture. The machine must be connected and
 homed. With the head's homing mark set (its place and diameter, brought across by an OpenPnP import) it
 calibrates over that; on a new machine, with none set, it calibrates over the mark the camera is over now
@@ -805,9 +805,9 @@ How the camera is measured, and whether at two heights, is set on that tab.
 #### Calibrating a fixed camera
 
 A camera fixed to the machine (one looking up at the nozzles) cannot be moved over a mark, so the mark is
-moved over it: **Calibrate** (the target), in that camera's tab, holds a nozzle's tip over it, step by step
+moved over it: **Start Calibration**, on that camera's **Advanced Calibration** page, holds a nozzle's tip over it, step by step
 as OpenPnP's camera calibration. Each step waiting on you says what to do on a line above the picture,
-folded to the panel's width and there only while it waits; **Next** is the green start beside Calibrate in the camera's title
+folded to the panel's width and there only while it waits; **Next** is the green start in the camera's title
 strip (its tooltip OpenPnP's whole wording), and the red X beside it cancels, at any step. Nothing is laid over
 the picture or takes room from it:
 

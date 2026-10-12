@@ -50,8 +50,15 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     });
     m_save = std::make_unique<JPIconButton>(graph, "Save Picture", &JPIcons::save, "Save the picture");
     m_save->onClicked.connect([this] { savePicture(); });
-    m_calibrate = std::make_unique<JPIconButton>(graph, "Calibrate", &JPIcons::target, "Calibrate the camera");
-    m_calibrate->onClicked.connect([this] { if (onCalibrate) onCalibrate(); });
+    // Hold Footprint Size: the footprint drawn over the picture kept as big on the screen as it is, the picture
+    // zoomed as another is shown (a placement chosen, Previous and Next).
+    m_holdSize = std::make_unique<JPIconButton>(
+        graph, "Hold Footprint Size", &JPIcons::target,
+        "Hold the footprint's size: while down, the picture zooms as the footprint shown changes (a placement "
+        "chosen, Previous and Next) so the footprint stays as big on the screen as it is now, as far as the zoom "
+        "goes. Zoom by hand to change the size it holds.");
+    m_holdSize->setCheckable(true);
+    m_holdSize->onToggled.connect([this](bool on) { holdSize(on); });
     // OpenPnP's red X (its Delete's): cancels the task under way on this camera, before its next move.
     m_cancelTask = std::make_unique<JPIconButton>(graph, "Cancel", "general-remove",
                                                   "Cancel what is under way on this camera (it stops before its next move)");
@@ -98,6 +105,10 @@ JPCameraPanel::JPCameraPanel(JSceneGraph& graph, JGpuHal& hal, const JPCameraCon
     hideStepNumber();
     m_view = add(std::make_unique<JPCameraView>(graph, hal));
     m_view->onLookAt = [this](double px, double py) { if (onLookAtPixel) onLookAtPixel(px, py); };
+    // Zoomed by hand while held: the size on the screen it holds is the new one.
+    m_view->onZoomedByHand = [this] {
+        if (m_holdSize->isChecked() && m_footprintMm) m_heldSize = *m_footprintMm * m_view->zoom();
+    };
     m_view->onReticleChanged = [this](const JPReticle& r) { if (onReticleChanged) onReticleChanged(r); };
     m_view->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_view->setFeed(&m_feed);
@@ -218,8 +229,22 @@ void JPCameraPanel::setPowered(bool on) {
     m_view->setMessage(m_feed.config().name + ": the machine is off");
 }
 
+void JPCameraPanel::holdSize(bool on) {
+    m_heldSize.reset();
+    if (on && m_footprintMm) m_heldSize = *m_footprintMm * m_view->zoom();
+}
+
+void JPCameraPanel::setFootprintExtent(std::optional<double> mm) {
+    m_footprintMm = mm && *mm > 0 ? mm : std::nullopt;
+    if (!m_holdSize->isChecked() || !m_footprintMm) return;
+    if (!m_heldSize) {
+        m_heldSize = *m_footprintMm * m_view->zoom();   // held from the first footprint shown
+        return;
+    }
+    m_view->setZoom(*m_heldSize / *m_footprintMm);
+}
+
 void JPCameraPanel::setBusy(bool busy) {
-    m_calibrate->setEnabled(!busy);
     m_cancelTask->setEnabled(busy);
     m_visualTest->setEnabled(!busy);
     // A task needs pictures whether or not anyone is looking.
@@ -230,7 +255,7 @@ void JPCameraPanel::setBusy(bool busy) {
 }
 
 std::vector<JWidget*> JPCameraPanel::tabTools() const {
-    return { m_asTaken.get(), m_save.get(), m_calibrate.get(), m_next.get(), m_cancelTask.get(), m_visualTest.get(), m_autoTune.get(),
+    return { m_asTaken.get(), m_save.get(), m_holdSize.get(), m_next.get(), m_cancelTask.get(), m_visualTest.get(), m_autoTune.get(),
              m_settings.get() };
 }
 

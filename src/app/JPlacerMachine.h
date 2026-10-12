@@ -119,6 +119,9 @@ public:
     // given its id), until set again by the same key; null takes it away.
     using OverlayFor = std::function<JPCameraView::Overlay(const std::string& cameraId)>;
     void setCameraOverlay(const std::string& key, OverlayFor overlay);
+    // The footprint shown over the cameras this big (mm; none: none shown): each camera's Hold Footprint Size
+    // zooms to keep it as big on the screen (JPCameraPanel::setFootprintExtent).
+    void setCameraFootprintExtent(std::optional<double> mm);
     // What a reticle on camera `cameraId`'s picture turns by now: a camera with a rotation axis (a head's,
     // turned to a placement as it is moved there), that axis; one without (looking up at the nozzles),
     // the tool chosen in Jog (its C, as the DRO reads it), as OpenPnP's CameraView; 0 with neither.

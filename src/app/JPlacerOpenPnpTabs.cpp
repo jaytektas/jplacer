@@ -1122,8 +1122,10 @@ void JPlacerOpenPnpTabs::showFootprint(const void* from, const JPFootprint* foot
     m_footprintFrom = footprint ? from : nullptr;
     if (!footprint) {
         m_machine.setCameraOverlay(kFootprintOverlay, nullptr);
+        m_machine.setCameraFootprintExtent(std::nullopt);
         return;
     }
+    m_machine.setCameraFootprintExtent(footprint->extentMm());   // the cameras' Hold Footprint Size zooms to it
     // Each camera's turned as it is: a camera turned to a placement, its footprint with it.
     m_machine.setCameraOverlay(kFootprintOverlay, [this, f = *footprint](const std::string& cameraId) {
         return JPFootprintOverlay::of(f, [this, cameraId] { return m_machine.reticleRotation(cameraId); });

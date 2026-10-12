@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- The camera tab's target is now **Hold Footprint Size**, a toggle: while it is on, the footprint drawn over
+  the picture is kept as big on the screen as it was when you pressed it, the picture zooming in or out as
+  you go from placement to placement (**Previous** and **Next**), as far as the zoom goes; zoom by hand to
+  change the size it holds. It no longer calibrates the camera, so it cannot start a calibration by
+  mistake: that is **Start Calibration** on the camera's **Advanced Calibration** page (the gear).
+
 - The Job tab's Placements has **Move Camera To Previous Placement Location** (Next's arrow pointing back),
   left of **Move Camera To Next Placement Location**: the camera to the placement before the chosen one.
 

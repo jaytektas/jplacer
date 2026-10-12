@@ -762,6 +762,10 @@ void JPlacerMachine::rotateFor(const std::string& cameraId, double deg) {
     selectMoved(*m);
 }
 
+void JPlacerMachine::setCameraFootprintExtent(std::optional<double> mm) {
+    for (CameraDock& c : m_cameras) c.panel->setFootprintExtent(mm);
+}
+
 void JPlacerMachine::setCameraOverlay(const std::string& key, OverlayFor overlay) {
     if (overlay) m_overlays[key] = overlay;
     else m_overlays.erase(key);
