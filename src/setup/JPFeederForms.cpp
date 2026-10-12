@@ -1087,8 +1087,8 @@ void pushPullForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPF
         add.button("cloneFromTemplate", "Clone from Template",
                    "Clone the settings from the selected template feeder,\ntransforming any coordinates to the pick location and orientation.");
     add.end();
-    add.labelTip("Use this feeder as a template for cloning settings to other feeders.\nThe templates are matched by tape & reel "
-                 "specification or package of the parts\nloaded in feeders.\nWhen no template matches formally, the feeder with the "
+    add.labelTip("Use this feeder as a template for cloning settings to other feeders.\nThe templates are matched by the package of the parts\n"
+                 "loaded in feeders, or by a tape they share (their Packaging:\nwidth, pitch and type).\nWhen no template matches formally, the feeder with the "
                  "greatest similarities\nis taken (feed pitch, tape width, proximity, etc.).");
     add.row("Template:");
     add.text("clone.status", "Template:", [&config, f] { return JPPushPullTemplates::cloneTemplateStatus(config, f().id()); }, nullptr, "lines");

@@ -18,7 +18,8 @@ inline namespace jf {
 
 // The Packages tab's table, as OpenPnP's PackagesTableModel: ID (a GUID),
 // its Name (what it is shown as, edited in place and unique), Description,
-// Height (its parts', where a part has none of its own), Tape Specification, BottomVision, FiducialVision), after Source
+// Height (its parts', where a part has none of its own), BottomVision,
+// FiducialVision), after Source
 // (JPSourceColumn: the library's icon, or a board's for a package an open
 // board's part is of); all but Source and the ID edited in place.
 class JPPackagesTableModel : public JPTableModel {

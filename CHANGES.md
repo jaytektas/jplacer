@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Packages no longer have a **Tape Specification**: the tape a part comes on is its own **Packaging**. A
+  push-pull feeder's Smart Clone now matches a template by the same package, or by a tape the parts share
+  (the same width, pitch and type), not by that typed label.
+
 ## 0.1.66
 
 - A package has a **Height**: its parts' height wherever a part has none of its own. The Parts table shows

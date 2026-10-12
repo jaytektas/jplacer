@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <set>
 
 inline namespace jf {
@@ -24,6 +25,30 @@ constexpr double kRowToleranceMm = 4.0, kRowZToleranceMm = 1.0;
 constexpr double kHalfTapeWidthDiffMm = 0.5, kRowGapMm = 8.0;
 // A rotation of more than this between two tapes swaps a lever's X and Y.
 constexpr double kRotatedDegrees = 45;
+// Tape widths and pitches the same to this.
+constexpr double kSameTapeMm = 0.01;
+
+// A tape `a` comes on that `b` comes on too (its width, pitch and type), or null.
+const JPPart::Packaging* commonTape(const JPPart& a, const JPPart& b) {
+    auto taped = [](const JPPart::Packaging& k) { return k.kind == "Cut tape" || k.kind == "Reel"; };
+    for (const JPPart::Packaging& x : a.packagings)
+        if (taped(x))
+            for (const JPPart::Packaging& y : b.packagings)
+                if (taped(y) && std::abs(x.tapeWidthMm - y.tapeWidthMm) < kSameTapeMm
+                    && std::abs(x.pitchMm - y.pitchMm) < kSameTapeMm && x.tapeType == y.tapeType)
+                    return &x;
+    return nullptr;
+}
+
+// A tape as said: "8 mm Paper, 4 mm pitch".
+std::string tapeSaid(const JPPart::Packaging& k) {
+    auto n = [](double v) {
+        char b[32];
+        std::snprintf(b, sizeof b, "%g", v);
+        return std::string(b);
+    };
+    return n(k.tapeWidthMm) + " mm " + k.tapeType + ", " + n(k.pitchMm) + " mm pitch";
+}
 
 double mm(const JPLength& l) { return l.convertToUnits(kMm).value(); }
 
@@ -104,10 +129,7 @@ bool JPPushPullTemplates::compatibleParts(const JPConfiguration& config, const s
     const JPPart* p1 = partId1.empty() ? nullptr : config.part(partId1);
     const JPPart* p2 = partId2.empty() ? nullptr : config.part(partId2);
     if (!p1 || !p2) return false;
-    if (p1->packageId == p2->packageId) return true;
-    const JPPackage* k1 = config.package(p1->packageId);
-    const JPPackage* k2 = config.package(p2->packageId);
-    return k1 && k2 && k1->tapeSpecification && !k1->tapeSpecification->empty() && k1->tapeSpecification == k2->tapeSpecification;
+    return p1->packageId == p2->packageId || commonTape(*p1, *p2);
 }
 
 double JPPushPullTemplates::tapeWidthMm(const JPFeeder& feeder) {
@@ -173,15 +195,16 @@ std::string JPPushPullTemplates::cloneTemplateStatus(const JPConfiguration& conf
     const JPFeeder* t = config.feeder(templ);
     status = t->name();
     if (partOf(config, *t)) status += " with part " + t->partId();
-    if (partOf(config, *self) && compatibleParts(config, self->partId(), t->partId())) {
-        if (const JPPackage* pkg = config.package(partOf(config, *self)->packageId)) {
-            if (pkg->tapeSpecification && !pkg->tapeSpecification->empty())
-                status += " selected by common tape & reel specification " + *pkg->tapeSpecification;
-            else
-                status += " selected by common package " + pkg->shownName();
-        }
+    const JPPart* mine = partOf(config, *self);
+    const JPPart* theirs = partOf(config, *t);
+    if (mine && theirs && compatibleParts(config, self->partId(), t->partId())) {
+        const JPPackage* pkg = config.package(mine->packageId);
+        if (mine->packageId == theirs->packageId && pkg)
+            status += " selected by common package " + pkg->shownName();
+        else if (const JPPart::Packaging* tape = commonTape(*mine, *theirs))
+            status += " selected by common tape " + tapeSaid(*tape);
     } else {
-        status += " selected as partial match.\nTape & reel specifications/packages are incompatible, settings must be reviewed.";
+        status += " selected as partial match.\nTheir tapes (the parts' Packaging) and packages differ, settings must be reviewed.";
     }
     return status;
 }

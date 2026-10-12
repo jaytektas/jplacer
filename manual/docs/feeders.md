@@ -431,7 +431,8 @@ reads each uncalibrated feeder it uses, and a wrong part stops it (a feeder with
 OCR is read with the holes' calibration when the region needs no camera move, else from the region's place.
 
 **Clone Settings**: **Use this one as Template?**; **Template** says what the feeder would clone from (the template
-whose part shares its tape and reel specification or package, else the most alike: a template, the same feed pitch,
+whose part has the same package, or a tape in common with it (on the Parts tab, its **Packaging**: a cut tape or
+reel of the same width, pitch and tape type), else the most alike: a template, the same feed pitch,
 tape width and part pitch, in the same row, on, nearest), or for a template what it clones to. **Clone from
 Template** (or, for a template, **Clone to Feeders**, every feeder with a compatible part) takes the ticked settings:
 **Location** (the pick location's Z and the options), **Tape**, **Vision** (with the pipeline) and **Push-Pull**, the

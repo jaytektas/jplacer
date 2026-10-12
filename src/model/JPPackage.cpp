@@ -17,7 +17,6 @@ JPPackage JPPackage::fromXml(const JPXmlElement& e) {
     JPPackage p;
     p.id = e.attr("id");   // OpenPnP's file's: its name (the caller makes it the label)
     if (V::has(e, "description")) p.description = e.attr("description");
-    if (V::has(e, "tape-specification")) p.tapeSpecification = e.attr("tape-specification");
     if (V::has(e, "height")) p.height = JPLength(V::number(e, "height"), V::units(e, "height-units"));
     p.pickVacuumLevel = V::number(e, "pick-vacuum-level");
     p.placeBlowOffLevel = V::number(e, "place-blow-off-level");
@@ -38,7 +37,6 @@ JPXmlNode JPPackage::toXml() const {
     if (!fiducialVisionId.empty()) n.attr("fiducial-vision-id", fiducialVisionId);
     n.attr("id", id);
     if (description) n.attr("description", *description);
-    if (tapeSpecification) n.attr("tape-specification", *tapeSpecification);
     // jplacer's own (OpenPnP's packages have none): written only when known, so one without stays OpenPnP's.
     if (height.value() > 0) n.attr("height-units", V::units(height.units())).attr("height", V::number(height.value()));
     n.attr("pick-vacuum-level", V::number(pickVacuumLevel)).attr("place-blow-off-level", V::number(placeBlowOffLevel));

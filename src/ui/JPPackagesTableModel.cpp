@@ -12,7 +12,7 @@
 inline namespace jf {
 
 namespace {
-enum Col { kSource, kId, kName, kDescription, kHeight, kTape, kBottomVision, kFiducialVision, kColumns };
+enum Col { kSource, kId, kName, kDescription, kHeight, kBottomVision, kFiducialVision, kColumns };
 
 std::string upperOf(std::string s) {
     for (char& c : s) c = char(std::toupper(uint8_t(c)));
@@ -81,11 +81,6 @@ JPTableModel::Column JPPackagesTableModel::heading(int c) const {
                      "How high its parts are (board surface to pick position), for each part with no height of its own; "
                      "empty: not known",
                      Kind::Text };
-        case kTape:
-            return { "Tape Specification",
-                     "This is a text field used by some feeder implementations. Check your feeder documentation for "
-                     "more details.",
-                     Kind::Text };
         case kBottomVision:   return { "BottomVision", "", Kind::Choice };
         case kFiducialVision: return { "FiducialVision", "", Kind::Choice };
     }
@@ -119,7 +114,6 @@ std::string JPPackagesTableModel::text(int row, int c) const {
         case kName:        return p->shownName();
         case kDescription: return p->description.value_or("");
         case kHeight:      return p->height.value() > 0 ? JPLengthCell::text(p->height, true) : std::string();
-        case kTape:        return p->tapeSpecification.value_or("");
         case kBottomVision: {
             const JPVisionSettings* v = m_config.visionSettings(p->bottomVisionId);
             return v ? v->name : std::string();
@@ -178,7 +172,6 @@ bool JPPackagesTableModel::setText(int row, int c, const std::string& text, std:
             return false;
         }
     }
-    else if (c == kTape) p->tapeSpecification = text;
     else return false;
     m_said.changed(onChanged);
     return true;
@@ -198,7 +191,7 @@ void JPPackagesTableModel::setChoice(int row, int c, int index) {
 inline namespace jf {
 
 std::string JPPackagesTableModel::keyAt(int c) const {
-    static const char* const keys[kColumns] = { "source", "id", "name", "description", "height", "tape", "bottomVision", "fiducialVision" };
+    static const char* const keys[kColumns] = { "source", "id", "name", "description", "height", "bottomVision", "fiducialVision" };
     return c >= 0 && c < kColumns ? keys[c] : std::string();
 }
 

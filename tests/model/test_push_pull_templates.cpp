@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
 // What OpenPnP's push-pull feeders do across feeders: the tape width from
-// the holes, parts compatible by package or tape and reel specification, the
+// the holes, parts compatible by package or by a tape in common (their
+// Packaging: width, pitch and type), the
 // template ranked first, a template's settings cloned with its places moved
 // to the other's tape, two feeders' places swapped, a new feeder next in a
 // row, the OCR region kept, and the part OCR's text names.
@@ -24,10 +25,12 @@ namespace {
 constexpr JPLengthUnit kMm = JPLengthUnit::Millimeters;
 bool near(double a, double b) { return std::abs(a - b) < 1e-6; }
 
-void part(JPConfiguration& c, const std::string& id, const std::string& package) {
+// A part of `package`, on a cut tape of `tapeType` (8 mm, 4 mm pitch); none: no packaging.
+void part(JPConfiguration& c, const std::string& id, const std::string& package, const char* tapeType) {
     auto p = std::make_shared<JPPart>();
     p->id = id;
     p->packageId = package;
+    if (*tapeType) p->packagings.push_back({ "Cut tape", 8, 4, tapeType, 0, 0, "" });
     c.addPart(p);
 }
 
@@ -50,21 +53,21 @@ int main() {
     fs::remove_all(dir);
     fs::create_directories(dir);
     JPConfiguration c(dir.string());
-    for (const auto& [id, tape] : { std::pair { "R0603", "8x4" }, std::pair { "C0603", "8x4" }, std::pair { "SOT23", "" } }) {
+    for (const char* id : { "R0603", "C0603", "SOT23" }) {
         auto pkg = std::make_shared<JPPackage>();
         pkg->id = id;
-        if (*tape) pkg->tapeSpecification = tape;
         c.addPackage(pkg);
     }
-    part(c, "R-10K", "R0603");
-    part(c, "C-100N", "C0603");
-    part(c, "Q-BC847", "SOT23");
-    part(c, "R-1K", "R0603");
+    part(c, "R-10K", "R0603", "Paper");
+    part(c, "C-100N", "C0603", "Paper");
+    part(c, "Q-BC847", "SOT23", "Embossed");
+    part(c, "R-1K", "R0603", "");
 
-    // Compatible: the same package, or the same tape and reel specification.
+    // Compatible: the same package, or a tape in common (8 mm Paper, 4 mm pitch); not one of another type.
     assert(JPPushPullTemplates::compatibleParts(c, "R-10K", "R-1K"));
     assert(JPPushPullTemplates::compatibleParts(c, "R-10K", "C-100N"));
     assert(!JPPushPullTemplates::compatibleParts(c, "R-10K", "Q-BC847"));
+    assert(!JPPushPullTemplates::compatibleParts(c, "R-1K", "C-100N"));   // no packaging: by package only
     assert(!JPPushPullTemplates::compatibleParts(c, "", "R-1K"));
 
     const std::string a = feeder(c, "R-10K", 0), b = feeder(c, "C-100N", 12), q = feeder(c, "Q-BC847", 24);
@@ -76,7 +79,7 @@ int main() {
     c.feeder(q)->as<JPPushPullFeeder>()->usedAsTemplate = true;
     assert(JPPushPullTemplates::templateFeeder(c, q) == b);
     assert(JPPushPullTemplates::compatibleFeeders(c, a) == std::vector<std::string> { b });
-    assert(JPPushPullTemplates::cloneTemplateStatus(c, a).find("selected by common tape & reel specification 8x4") != std::string::npos);
+    assert(JPPushPullTemplates::cloneTemplateStatus(c, a).find("selected by common tape 8 mm Paper, 4 mm pitch") != std::string::npos);
     assert(JPPushPullTemplates::cloneTemplateStatus(c, q).find("Clones to none.") == 0);
 
     // A clone: the template's lever places moved to this tape (12 mm along), its tape settings taken.
@@ -127,7 +130,7 @@ int main() {
     assert(JPPushPullTemplates::identifyPart(c, "BC847 rest", 0.9, "F", id, why) && id == "Q-BC847");
     assert(!JPPushPullTemplates::identifyPart(c, "XYZ", 0.5, "F", id, why));
     assert(why == "OCR could not identify/find part id on feeder F, OCR detected part id XYZ (avg. score=0.5)");
-    part(c, "S-10K", "R0603");
+    part(c, "S-10K", "R0603", "");
     assert(!JPPushPullTemplates::identifyPart(c, "10K", 0.9, "F", id, why) && why.find("matches multiple parts") != std::string::npos);
     // Every character of the parts, no spaces.
     const std::string alphabet = JPPushPullTemplates::partsAlphabet(c, "\\");

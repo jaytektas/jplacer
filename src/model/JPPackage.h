@@ -17,15 +17,16 @@
 
 inline namespace jf {
 
-// A package, as OpenPnP's Package: its id, description, tape
-// specification, vacuum levels, footprint, the nozzle tips that can pick
-// it, and the vision settings it uses (by id; empty: inherited).
+// A package, as OpenPnP's Package: its id, description, height, vacuum
+// levels, footprint, the nozzle tips that can pick it, and the vision
+// settings it uses (by id; empty: inherited). Not OpenPnP's tape
+// specification (a label typed): the tape a part comes on is its own
+// (JPPart's Packaging); one read from OpenPnP's files is left behind.
 class JPPackage {
 public:
     std::string                id;      // a GUID (JPUuid), for good: what parts know it by; empty until it is in the library
     std::string                label;       // what it is called where it is shown (its Name), unique in the library
     std::optional<std::string> description;
-    std::optional<std::string> tapeSpecification;
     // How high its parts are, where a part says nothing of its own (0: not known).
     JPLength                   height { 0, JPLengthUnit::Millimeters };
     double                     pickVacuumLevel = 0;

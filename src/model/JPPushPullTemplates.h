@@ -26,7 +26,8 @@ public:
         bool location = false, tape = false, pushPull = false, vision = false, pipeline = false;
     };
 
-    // The same package, or the same (set) tape and reel specification.
+    // The same package, or a tape in common (JPPart's Packaging: cut tape or reel of the same width, pitch and
+    // tape type).
     static bool   compatibleParts(const JPConfiguration& config, const std::string& partId1, const std::string& partId2);
     // EIA-481's tape width from where hole 1 is in the tape's frame.
     static double tapeWidthMm(const JPFeeder& feeder);
