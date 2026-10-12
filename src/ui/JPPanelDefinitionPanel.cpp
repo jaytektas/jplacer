@@ -3,6 +3,7 @@
 
 #include "JPPanelDefinitionPanel.h"
 
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "model/JPBoardLocation.h"
@@ -101,11 +102,12 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
     m_view->onClicked.connect([this] {
         if (panel() && onViewPanel) onViewPanel();
     });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_childTable; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     children->add(std::move(bar));
     m_childTable = children->add(std::make_unique<JPTable>(graph));
     m_childTable->setStateKey("panel.children");
     m_childTable->setModel(&m_children);
+    tools->attach(*m_childTable);
     m_childTable->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_childTable->onSelectionChanged.connect([this] {
         updateActions();
@@ -140,11 +142,12 @@ JPPanelDefinitionPanel::JPPanelDefinitionPanel(JSceneGraph& graph, JPConfigurati
                          "Use children's fiducials/placements for panel alignment");
     m_useChildren->setLeads(JPIconButton::Leads::Elsewhere);
     m_useChildren->onClicked.connect([this] { useChildFiducials(); });
-    JPUiParts::columnsButton(graph, *fbar, [this] { return m_fiducialTable; }, &openMenu);
+    JPTableTools* tools2 = JPUiParts::tableTools(graph, *fbar, &openMenu);
     fiducials->add(std::move(fbar));
     m_fiducialTable = fiducials->add(std::make_unique<JPTable>(graph));
     m_fiducialTable->setStateKey("panel.fiducials");
     m_fiducialTable->setModel(&m_fiducials);
+    tools2->attach(*m_fiducialTable);
     m_fiducialTable->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_fiducialTable->onSelectionChanged.connect([this] {
         updateActions();

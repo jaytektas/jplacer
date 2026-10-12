@@ -3,6 +3,7 @@
 
 #include "JPIssuesPanel.h"
 
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "setup/JPFormBuilder.h"
@@ -129,6 +130,7 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
         if (openUri)
             openUri(std::string(kIssuesWiki) + "#" + S::tag(m_solutions.targetMilestone()) + "-milestone");
     });
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->setFixedSize(0.f, st.controlHeight);
     add(std::move(bar));
     m_milestoneText = add(std::make_unique<JLabel>(graph, " - "));
@@ -159,6 +161,7 @@ JPIssuesPanel::JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double 
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("issues");
     m_table->setModel(m_model.get());
+    tools->attach(*m_table);
     m_table->setVSizePolicy(JSizePolicyMode::Expanding, 1);
     m_table->onSelectionChanged.connect([this] { selectionChanged(); });
     m_form = m_issuePane->add(std::make_unique<JPSetupForm>(graph));

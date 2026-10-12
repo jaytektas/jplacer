@@ -55,6 +55,11 @@ notes.
 - A KiCad board read for an import gives its footprints' own properties (LCSC, MPN, Datasheet…) as columns
   to fill fields with, and its title block for the board's and the job's fields.
 - **Keep as extra** is gone from the import: a column no field matches is ignored, or made a field of its own.
+- Every table has **views**: its layout (columns, order, widths, sort) kept under a name, switched with a button
+  each beside **Columns**, or **Ctrl+1** to **Ctrl+9**. Each starts with **Standard** and **All Fields** (every
+  column, always); **New View…** makes more, each with its own icon. A view can be renamed, given another icon,
+  duplicated, moved (drag its button), locked (changes last until another view is shown) or made to keep its
+  search. The Issues & Solutions table has **Columns** and views too.
 - Every table's **Search** can look in one field: `lcsc: C15`, or `lcsc:` for the rows with anything in it,
   the field's name completing as you type it (Tab takes it). What matched is marked in each cell, the count
   of rows found shows beside the box, and a row found only in a hidden column is marked and says which.

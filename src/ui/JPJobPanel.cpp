@@ -5,6 +5,7 @@
 
 #include <j/core/FrameTimer.h>
 
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "model/JPBoardLocation.h"
@@ -152,11 +153,12 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         for (const JPPlacementsHolderLocation* l : selections()) chosen.push_back(l);
         onViewJob(chosen);
     });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     boards->add(std::move(bar));
     m_table = boards->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("job.boards");
     m_table->setModel(&m_model);
+    tools->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {
         selectionChanged();

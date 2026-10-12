@@ -5,6 +5,7 @@
 
 #include "JPIconButton.h"
 #include "JPSearchField.h"
+#include "JPTableTools.h"
 #include "JPTable.h"
 
 #include "model/JPSystemUnits.h"
@@ -72,19 +73,8 @@ JPSearchField* JPUiParts::search(JSceneGraph& graph, JContainer& bar, int column
     return field;
 }
 
-JPIconButton* JPUiParts::columnsButton(JSceneGraph& graph, JContainer& bar, std::function<JPTable*()> table,
-                                       const std::function<void(JMenu*, float, float)>* open) {
-    bar.add(std::make_unique<JSeparator>(graph, JSeparator::JOrientation::Vertical, JPIconButton::size()));
-    JPIconButton* b = bar.add(std::make_unique<JPIconButton>(
-        graph, "Columns", "table-columns", "Choose which columns this table shows (each table keeps its own)"));
-    b->setLeads(JPIconButton::Leads::Menu);
-    b->onClicked.connect([b, table = std::move(table), open] {
-        JPTable* t = table ? table() : nullptr;
-        if (!t || !open || !*open) return;
-        const JRect r = b->bounds();
-        (*open)(t->columnsMenu(), r.x, r.y + r.height);
-    });
-    return b;
+JPTableTools* JPUiParts::tableTools(JSceneGraph& graph, JContainer& bar, const std::function<void(JMenu*, float, float)>* open) {
+    return bar.add(std::make_unique<JPTableTools>(graph, open));
 }
 
 } // inline namespace jf

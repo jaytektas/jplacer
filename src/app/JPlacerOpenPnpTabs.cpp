@@ -860,6 +860,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_issues = std::make_unique<JPIssuesPanel>(graph, m_solutions,
                                                JSettings::instance().get<double>(JPlacerSettings::kIssuesSplit, kSplit));
     m_issues->openUri = [](const std::string& uri) { JDesktop::openUrl(uri); };
+    m_issues->openMenu = JPlacerMenuOpener::from(m_window, m_issues.get());
     m_issues->showError = [](const std::string& why) { JDialog::message("Error", why); };
     m_issuesDock = std::make_unique<JDockWidget>("Issues & Solutions", 0.f, 0.f, 0.f, 0.f);
     // OpenPnP's indicator: a dot after the tab's title, the colour of the severest open issue.

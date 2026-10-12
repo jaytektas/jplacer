@@ -6,6 +6,7 @@
 #include "common/JPWhen.h"
 
 #include "JPSearchField.h"
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "model/JPDefinitionChanges.h"
@@ -97,7 +98,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     m_editFeeder->onClicked.connect([this] {
         if (const auto chosen = selections(); chosen.size() == 1 && onEditFeeder) onEditFeeder(chosen.front()->partId);
     });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_search = JPUiParts::search(graph, *bar, kSearchColumns);
     add(std::move(bar));
@@ -105,6 +106,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     m_table = add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("job.placements");
     m_table->setModel(&m_model);
+    tools->attach(*m_table);
     m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {

@@ -31,6 +31,8 @@ void JPSearchField::attach(JPTable& table) {
     names = [this] { return m_table->columnNames(); };
     onTextChanged.connect([this](const std::string& t) { m_table->setFilter(t); });
     table.onViewChanged.connect([this] { updateCount(); });
+    // A view shown with its search: the search shown here (and so the table's).
+    table.onSearchShown.connect([this](const std::string& t) { setText(t); });
     updateCount();
 }
 

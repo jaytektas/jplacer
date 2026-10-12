@@ -52,7 +52,8 @@ int main() {
         t.setColumnShown("B", false);
         assert((shown(t) == std::vector<std::string>{ "A", "C" }));
         assert(t.columnsShown().size() == 3 && t.columnsShown()[1].name == "B" && !t.columnsShown()[1].shown);   // in its place
-        assert(kept["test"]["hidden"].isArray() && kept["test"]["hidden"].arr().size() == 1);
+        const JJson& layout = kept["test"]["views"][0]["layout"];   // the view shown (Standard)
+        assert(layout["hidden"].isArray() && layout["hidden"].arr().size() == 1);
     }
     {
         // The next table with its key: B still hidden.

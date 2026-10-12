@@ -17,6 +17,7 @@ inline namespace jf {
 class JMenu;
 class JPIconButton;
 class JPSearchField;
+class JPTableTools;
 class JPTable;
 
 // The small pieces every panel is built from, made one way.
@@ -34,15 +35,13 @@ public:
     static std::string coordinate(double v);
     // An angle in degrees as panels show it.
     static std::string angle(double degrees);
-    // A table's Columns… button, after a divider, added to the end of a toolbar's group: a click opens the
-    // table's columns menu (JPTable::columnsMenu: a tick for each column shown, Reset Columns) under it,
-    // through the panel's `open` (its openMenu, read when clicked). `table` is read when clicked too, so the
-    // bar may be made before its table.
     // A table's Search at the end of a toolbar: its label, the line (JPSearchField, `columns` letters wide) and the
     // count beside it; the table attached to it once made (JPSearchField::attach).
     static JPSearchField* search(JSceneGraph& graph, JContainer& bar, int columns);
-    static JPIconButton* columnsButton(JSceneGraph& graph, JContainer& bar, std::function<JPTable*()> table,
-                                       const std::function<void(JMenu*, float x, float y)>* open);
+    // A table's tools (JPTableTools: Columns… and its views' buttons), after a divider, added to the end of a
+    // toolbar's group; menus opened through the panel's `open` (its openMenu, read when clicked). Attached to
+    // its table once that is made (JPTableTools::attach).
+    static JPTableTools* tableTools(JSceneGraph& graph, JContainer& bar, const std::function<void(JMenu*, float x, float y)>* open);
 };
 
 } // inline namespace jf

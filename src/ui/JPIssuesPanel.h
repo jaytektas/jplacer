@@ -38,6 +38,9 @@ public:
     JPIssuesPanel(JSceneGraph& graph, JPSolutions& solutions, double split);
     ~JPIssuesPanel() override;
 
+    // Opens a menu at window coordinates (the table's Columns…).
+    std::function<void(JMenu*, float x, float y)> openMenu;
+
     // Search and show (OpenPnP's findIssuesAndSolutions); the first chosen.
     void findIssuesAndSolutions();
     double split() const;

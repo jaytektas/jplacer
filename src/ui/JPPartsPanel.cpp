@@ -13,6 +13,7 @@
 #include "setup/JPFormBuilder.h"
 #include "setup/JPVisionForms.h"
 #include "JPSearchField.h"
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "openpnp/JPXmlReader.h"
@@ -75,7 +76,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_copy->onClicked.connect([this] { copyPart(); });
     tool("Create Part from Clipboard", "paste", "Create a new part from a definition on the clipboard.")
         ->onClicked.connect([this] { pastePart(); });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // Show: every row, those an open board uses, or one board's.
     JLabel* showLabel = bar->add(std::make_unique<JLabel>(graph, "Show"));
@@ -98,6 +99,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("parts");
     m_table->setModel(&m_model);
+    tools->attach(*m_table);
     m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {

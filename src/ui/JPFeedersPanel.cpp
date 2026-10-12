@@ -5,6 +5,7 @@
 
 #include "JPChooserTable.h"
 #include "JPSearchField.h"
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "camera/JPImageFile.h"
@@ -80,7 +81,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_moveTool = tool("Move Tool...", "position-nozzle-on-feeder",
                       "Move the tool to the selected feeder's current pick location.");
     m_moveTool->onClicked.connect([this] { moveToPick(Tool::Nozzle); });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_search = JPUiParts::search(graph, *bar, kSearchColumns);
     add(std::move(bar));
@@ -93,6 +94,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("feeders");
     m_table->setModel(&m_model);
+    tools->attach(*m_table);
     m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {

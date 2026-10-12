@@ -4,7 +4,9 @@
 #include "JPTable.h"
 
 #include "JPOpenPnpIcons.h"
+#include "JPViewIcons.h"
 
+#include <j/core/Dialog.h>
 #include <j/core/JArrow.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
@@ -80,7 +82,10 @@ JPTable::JPTable(JSceneGraph& graph) : JControl(graph, "JPTable") {
     s_tables.insert(this);
 }
 
-JPTable::~JPTable() { s_tables.erase(this); }
+JPTable::~JPTable() {
+    s_tables.erase(this);
+    if (s_focusedTable == this) s_focusedTable = nullptr;
+}
 
 void JPTable::fieldsChanged() {
     for (JPTable* t : s_tables) {
@@ -108,7 +113,15 @@ void JPTable::setModel(JPTableModel* model) {
 
 void JPTable::setStateKey(const std::string& key) {
     m_stateKey = key;
-    m_state = s_loadState ? s_loadState(key) : JJson();
+    readViews(s_loadState ? s_loadState(key) : JJson());
+    takeLayout(m_views[size_t(m_current)].layout);
+    onViewsChanged.emit();
+}
+
+void JPTable::takeLayout(const JJson& layout) {
+    endColumnDrag(false);
+    stopEditing(true);
+    m_state = layout;
     m_orderKeys.clear();
     m_widths.clear();
     m_sortKeys.clear();
@@ -124,6 +137,223 @@ void JPTable::resetColumns() {
     m_sortKeys.clear();
     keepState();
     rebuildView();
+}
+
+// ---- views -------------------------------------------------------------------
+
+void JPTable::readViews(const JJson& state) {
+    m_views.clear();
+    m_current = 0;
+    m_viewChanged = false;
+    for (const JJson& v : state["views"].arr()) {
+        View view;
+        view.name = v["name"].str();
+        view.icon = v["icon"].str();
+        view.all = v["all"].boolean(false);
+        view.locked = v["locked"].boolean(false);
+        view.keepSearch = v["keepSearch"].boolean(false);
+        view.search = v["search"].str();
+        view.layout = v["layout"];
+        if (!view.name.empty()) m_views.push_back(std::move(view));
+    }
+    if (m_views.empty()) {
+        // Standard (a layout kept before there were views, its own) and All Fields.
+        View standard { "Standard", "list", false, false, false, "", state.contains("order") ? state : JJson() };
+        View all { "All Fields", "columns", true, false, false, "", JJson() };
+        m_views = { standard, all };
+    }
+    m_current = std::clamp(int(state["current"].number(0)), 0, int(m_views.size()) - 1);
+}
+
+void JPTable::saveViews() const {
+    if (m_stateKey.empty() || !s_saveState) return;
+    JJson j = JJson::object();
+    JJson list = JJson::array();
+    for (const View& v : m_views) {
+        JJson o = JJson::object();
+        o["name"] = v.name;
+        o["icon"] = v.icon;
+        if (v.all) o["all"] = true;
+        if (v.locked) o["locked"] = true;
+        if (v.keepSearch) {
+            o["keepSearch"] = true;
+            o["search"] = v.search;
+        }
+        o["layout"] = v.layout;
+        list.push(o);
+    }
+    j["views"] = list;
+    j["current"] = m_current;
+    s_saveState(m_stateKey, j);
+}
+
+std::string JPTable::freeIcon() const {
+    for (const JPViewIcons::Icon& i : JPViewIcons::all())
+        if (std::none_of(m_views.begin(), m_views.end(), [&i](const View& v) { return v.icon == i.key; })) return i.key;
+    return JPViewIcons::all().front().key;
+}
+
+void JPTable::showView(int i) {
+    if (i < 0 || size_t(i) >= m_views.size() || (i == m_current && !m_viewChanged)) return;
+    m_current = i;
+    m_viewChanged = false;
+    takeLayout(m_views[size_t(i)].layout);
+    saveViews();
+    if (m_views[size_t(i)].keepSearch) onSearchShown.emit(m_views[size_t(i)].search);
+    onViewsChanged.emit();
+}
+
+int JPTable::addView(const std::string& name) {
+    View v;
+    v.name = name;
+    v.icon = freeIcon();
+    v.layout = layoutNow();   // as shown now, every column of All Fields' among them
+    m_views.push_back(std::move(v));
+    m_current = int(m_views.size()) - 1;
+    m_viewChanged = false;
+    saveViews();
+    onViewsChanged.emit();
+    return m_current;
+}
+
+void JPTable::renameView(int i, const std::string& name) {
+    if (i < 0 || size_t(i) >= m_views.size() || name.empty()) return;
+    m_views[size_t(i)].name = name;
+    saveViews();
+    onViewsChanged.emit();
+}
+
+void JPTable::setViewIcon(int i, const std::string& icon) {
+    if (i < 0 || size_t(i) >= m_views.size()) return;
+    m_views[size_t(i)].icon = icon;
+    saveViews();
+    onViewsChanged.emit();
+}
+
+int JPTable::duplicateView(int i) {
+    if (i < 0 || size_t(i) >= m_views.size()) return -1;
+    View v = m_views[size_t(i)];
+    if (i == m_current) v.layout = layoutNow();   // as shown, changes and all
+    v.all = false;
+    v.name += " (copy)";
+    v.icon = freeIcon();
+    v.locked = false;
+    m_views.insert(m_views.begin() + i + 1, std::move(v));
+    m_current = i + 1;
+    m_viewChanged = false;
+    takeLayout(m_views[size_t(m_current)].layout);
+    saveViews();
+    onViewsChanged.emit();
+    return m_current;
+}
+
+void JPTable::deleteView(int i) {
+    if (i < 0 || size_t(i) >= m_views.size() || m_views.size() <= 1) return;
+    m_views.erase(m_views.begin() + i);
+    if (i == m_current) {
+        m_current = std::min(i, int(m_views.size()) - 1);
+        m_viewChanged = false;
+        takeLayout(m_views[size_t(m_current)].layout);
+    } else if (i < m_current) {
+        --m_current;
+    }
+    saveViews();
+    onViewsChanged.emit();
+}
+
+void JPTable::moveView(int from, int to) {
+    if (from < 0 || size_t(from) >= m_views.size() || to < 0 || size_t(to) > m_views.size() || to == from || to == from + 1) return;
+    const bool wasCurrent = from == m_current;
+    View v = std::move(m_views[size_t(from)]);
+    m_views.erase(m_views.begin() + from);
+    const int at = to > from ? to - 1 : to;
+    m_views.insert(m_views.begin() + at, std::move(v));
+    if (wasCurrent) m_current = at;
+    else if (from < m_current && at >= m_current) --m_current;
+    else if (from > m_current && at <= m_current) ++m_current;
+    saveViews();
+    onViewsChanged.emit();
+}
+
+void JPTable::setViewLocked(int i, bool on) {
+    if (i < 0 || size_t(i) >= m_views.size()) return;
+    m_views[size_t(i)].locked = on;
+    // Unlocked while changed: the changes are its own now.
+    if (!on && i == m_current && m_viewChanged) {
+        m_views[size_t(i)].layout = m_state;
+        m_viewChanged = false;
+    }
+    saveViews();
+    onViewsChanged.emit();
+}
+
+void JPTable::setViewKeepsSearch(int i, bool on) {
+    if (i < 0 || size_t(i) >= m_views.size()) return;
+    m_views[size_t(i)].keepSearch = on;
+    if (on && i == m_current) m_views[size_t(i)].search = m_filterText;
+    saveViews();
+}
+
+void JPTable::revertView() {
+    if (m_views.empty()) return;
+    m_viewChanged = false;
+    takeLayout(m_views[size_t(m_current)].layout);
+    if (m_views[size_t(m_current)].keepSearch) onSearchShown.emit(m_views[size_t(m_current)].search);
+    onViewsChanged.emit();
+}
+
+void JPTable::askViewName(const std::string& title, const std::string& now, std::function<void(const std::string&)> then) {
+    JDialog::input(title, "What the view is called (its button's tooltip says it):",
+                   [then = std::move(then), now](std::string name) {
+                       while (!name.empty() && std::isspace(uint8_t(name.back()))) name.pop_back();
+                       if (name.empty()) name = now;   // the name shown in the empty field
+                       if (!name.empty()) then(name);
+                   },
+                   {}, now);
+}
+
+JMenu* JPTable::viewMenu(int i) {
+    m_viewMenu = std::make_unique<JMenu>("View");
+    m_iconMenu = std::make_unique<JMenu>("Icon");
+    if (i < 0 || size_t(i) >= m_views.size()) return m_viewMenu.get();
+    const View& v = m_views[size_t(i)];
+    JMenuItem* show = m_viewMenu->add(m_graph, "Show \"" + v.name + "\"");
+    show->setEnabled(i != m_current || m_viewChanged);
+    show->onTriggered.connect([this, i] { showView(i); });
+    m_viewMenu->addSeparator(m_graph);
+    m_viewMenu->add(m_graph, "Rename…")->onTriggered.connect([this, i] {
+        if (size_t(i) < m_views.size()) askViewName("Rename View", m_views[size_t(i)].name, [this, i](const std::string& n) { renameView(i, n); });
+    });
+    for (const JPViewIcons::Icon& icon : JPViewIcons::all()) {
+        JMenuItem* item = m_iconMenu->add(m_graph, icon.label);
+        item->setCheckable(true);
+        item->setChecked(v.icon == icon.key);
+        item->onTriggered.connect([this, i, key = std::string(icon.key)] { setViewIcon(i, key); });
+    }
+    m_viewMenu->add(m_graph, "Icon", {}, m_iconMenu.get())->setTooltip("The icon its button shows");
+    m_viewMenu->add(m_graph, "Duplicate")->onTriggered.connect([this, i] { duplicateView(i); });
+    JMenuItem* lock = m_viewMenu->add(m_graph, "Locked");
+    lock->setCheckable(true);
+    lock->setChecked(v.locked);
+    lock->setTooltip("Keeps what it was made as: a change while it is shown lasts until another view is shown, or Revert View");
+    lock->onTriggered.connect([this, i, lock] { setViewLocked(i, lock->isChecked()); });
+    JMenuItem* search = m_viewMenu->add(m_graph, "Keeps Its Search");
+    search->setCheckable(true);
+    search->setChecked(v.keepSearch);
+    search->setTooltip("Shown with the search it had (\"" + (v.keepSearch ? v.search : m_filterText) + "\")");
+    search->onTriggered.connect([this, i, search] { setViewKeepsSearch(i, search->isChecked()); });
+    if (i == m_current) {
+        JMenuItem* revert = m_viewMenu->add(m_graph, "Revert View");
+        revert->setEnabled(m_viewChanged);
+        revert->setTooltip("Put back as it was kept, the changes made while it is shown undone");
+        revert->onTriggered.connect([this] { revertView(); });
+    }
+    m_viewMenu->addSeparator(m_graph);
+    JMenuItem* del = m_viewMenu->add(m_graph, "Delete View");
+    del->setEnabled(m_views.size() > 1);
+    del->setTooltip(m_views.size() > 1 ? "Taken away; the others stay" : "A table keeps one view at least");
+    del->onTriggered.connect([this, i] { deleteView(i); });
+    return m_viewMenu.get();
 }
 
 const std::vector<int>& JPTable::order() const {
@@ -143,6 +373,8 @@ const std::vector<int>& JPTable::order() const {
                 if (n.isString()) known.insert(n.str());
         for (int c = 0; m_model && c < m_model->columnCount(); ++c)
             if (m_model->column(c).hiddenAtFirst && !known.count(m_orderKeys[size_t(c)])) m_hidden.insert(m_orderKeys[size_t(c)]);
+        // All Fields: every column, whatever was kept.
+        if (!m_views.empty() && m_views[size_t(m_current)].all) m_hidden.clear();
         // A field added here: shown, after the column it was added after.
         bool placed = false;
         for (const auto& [key, after] : m_addedHere) {
@@ -201,6 +433,7 @@ void JPTable::setColumnShown(const std::string& key, bool shown) {
     const std::vector<int> all = allColumns();
     const bool known = std::any_of(all.begin(), all.end(), [&](int c) { return m_orderKeys[size_t(c)] == name; });
     if (!known || shown == (m_hidden.count(name) == 0)) return;
+    if (!shown && !m_views.empty() && m_views[size_t(m_current)].all) return;   // All Fields shows every one
     if (!shown && order().size() <= 1) return;   // the last one shown stays
     m_allOrder = all;
     if (shown) {
@@ -230,6 +463,20 @@ void JPTable::setColumnShown(const std::string& key, bool shown) {
 
 JMenu* JPTable::columnsMenu() {
     m_columnsMenu = std::make_unique<JMenu>("Columns");
+    // The views: each one (the one shown ticked), a new one, the one shown's own actions.
+    for (size_t i = 0; i < m_views.size(); ++i) {
+        JMenuItem* item = m_columnsMenu->add(m_graph, m_views[i].name + (int(i) == m_current && m_viewChanged ? " (changed)" : ""));
+        item->setCheckable(true);
+        item->setChecked(int(i) == m_current);
+        if (i < 9) item->setTooltip("Ctrl+" + std::to_string(i + 1) + " shows it");
+        item->onTriggered.connect([this, i] { showView(int(i)); });
+    }
+    JMenuItem* newView = m_columnsMenu->add(m_graph, "New View…");
+    newView->setTooltip("A view of this table made from the one shown: its columns, their order, widths and sort, kept under a name");
+    newView->onTriggered.connect([this] { askViewName("New View", "", [this](const std::string& n) { addView(n); }); });
+    m_columnsMenu->add(m_graph, "This View", {}, viewMenu(m_current));
+    m_columnsMenu->addSeparator(m_graph);
+    const bool everyField = !m_views.empty() && m_views[size_t(m_current)].all;
     const std::vector<ColumnShown> columns = columnsShown();
     const size_t shownCount = size_t(std::count_if(columns.begin(), columns.end(), [](const ColumnShown& c) { return c.shown; }));
     for (const ColumnShown& c : columns) {
@@ -244,6 +491,10 @@ JMenu* JPTable::columnsMenu() {
         if (c.shown && shownCount <= 1) {
             item->setEnabled(false);
             item->setTooltip("The last column shown stays");
+        }
+        if (everyField) {
+            item->setEnabled(false);
+            item->setTooltip("All Fields shows every column: another view hides some");
         }
         // The tick has already flipped when this runs: it says what is wanted.
         item->onTriggered.connect([this, item, key = c.key] { setColumnShown(key, item->isChecked()); });
@@ -343,9 +594,9 @@ void JPTable::applySort() {
     }
 }
 
-void JPTable::keepState() const {
-    if (!m_model) return;
+JJson JPTable::layoutNow() const {
     JJson st = JJson::object();
+    if (!m_model) return st;
     JJson o = JJson::array();
     for (const int c : allColumns()) o.push(JJson(m_orderKeys[size_t(c)]));
     st["order"] = o;
@@ -370,8 +621,25 @@ void JPTable::keepState() const {
             sort.push(key);
         }
     st["sort"] = sort;
+    return st;
+}
+
+void JPTable::keepState() const {
+    if (!m_model) return;
+    const JJson st = layoutNow();
     m_state = st;
-    if (!m_stateKey.empty() && s_saveState) s_saveState(m_stateKey, st);
+    if (m_views.empty()) return;
+    // The one shown as it is now; a locked one only shows it, changed.
+    View& v = m_views[size_t(m_current)];
+    if (v.locked) {
+        if (!m_viewChanged) {
+            m_viewChanged = true;
+            const_cast<JPTable*>(this)->onViewsChanged.emit();
+        }
+        return;
+    }
+    v.layout = st;
+    saveViews();
 }
 
 void JPTable::refresh() {
@@ -504,6 +772,12 @@ void JPTable::setFilter(const std::string& text) {
     m_filter = std::move(filter);
     m_filterKey = key;
     m_filterText = text;
+    // A view keeping its search keeps it as it is now (a locked one only shows it).
+    if (!m_views.empty() && m_views[size_t(m_current)].keepSearch && !m_views[size_t(m_current)].locked
+        && m_views[size_t(m_current)].search != text) {
+        m_views[size_t(m_current)].search = text;
+        saveViews();
+    }
     const size_t before = m_selected.size();
     rebuildView();
     if (m_selected.size() != before) selectionChanged();
@@ -1273,6 +1547,7 @@ void JPTable::prepareContextMenu(float mx, float my) {
 }
 
 void JPTable::onFocusEvent(bool focused) {
+    if (focused) s_focusedTable = this;
     if (!focused) {
         stopEditing(true);
         endColumnDrag(false);

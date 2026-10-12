@@ -88,8 +88,9 @@ More about how updates work is in [Updates and betas](updates.md).
 ## Keys
 
 Every function that can be given a key is listed, by menu: **File**, **Edit**, **Machine**, **Jog** (the
-[Jog panel](machine.md#jog)'s buttons), **Help**, and the Jog panel's steps (**Jog Distance**, **Jog
-Speed**; see [Jog](#jog) below). Each has a box showing its key, or **None**.
+[Jog panel](machine.md#jog)'s buttons), **Help**, the Jog panel's steps (**Jog Distance**, **Jog
+Speed**; see [Jog](#jog) below), and **Tables** (**Show View 1** to **9**, Ctrl+1 to Ctrl+9: the table last
+clicked in shows that view; see [Views](tables.md#views)). Each has a box showing its key, or **None**.
 
 - **Click a function's box**, and it reads "Press a key...": press the key, with Ctrl, Alt or Shift if you
   want them. Escape leaves the key as it was. A plain key (an arrow, a digit, a letter) can be given, as
@@ -107,7 +108,7 @@ A key goes to the box you are typing in first: a digit or an arrow given to a jo
 or moves the cursor there, and does its function only where nothing else uses it. A menu shows each
 entry's key, and the Jog panel's buttons say theirs when you hover over them.
 
-<!-- src: src/app/JPKeyMap.cpp (add, assign, reset, resetAll, parse); src/app/JPlacerMenuBuilder.cpp (entry, the default keys); src/app/JPlacerPreferencesDialog.cpp (keysPage, fillKeys); src/app/JPlacerSettings.cpp (keyFor) -->
+<!-- src: src/app/JPKeyMap.cpp (add, assign, reset, resetAll, parse); src/app/JPlacerMenuBuilder.cpp (entry, the default keys); src/app/JPlacerApp.cpp (table.view); src/app/JPlacerPreferencesDialog.cpp (keysPage, fillKeys); src/app/JPlacerSettings.cpp (keyFor) -->
 
 ## Jog
 

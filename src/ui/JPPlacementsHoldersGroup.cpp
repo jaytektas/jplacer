@@ -3,6 +3,7 @@
 
 #include "JPPlacementsHoldersGroup.h"
 
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include <j/core/Dialog.h>
@@ -119,11 +120,12 @@ JPPlacementsHoldersGroup::JPPlacementsHoldersGroup(JSceneGraph& graph, JPConfigu
         // Panels in panels: OpenPnP cleans up again until nothing more goes.
         remove(unused, false, m_kind == JPPlacementsHolder::Kind::Panel, false);
     });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     add(std::move(bar));
     m_table = add(std::make_unique<JPTable>(graph));
     m_table->setStateKey(std::string(m_kind == JPPlacementsHolder::Kind::Board ? "boards" : "panels"));
     m_table->setModel(&m_model);
+    tools->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] { selectionChanged(); });
     m_table->onEditRefused = [](const std::string&) {};

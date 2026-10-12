@@ -11,6 +11,7 @@
 #include "JPFieldGrid.h"
 #include "JPGroupFrame.h"
 #include "JPSearchField.h"
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "model/JPKicadModImporter.h"
@@ -102,7 +103,7 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     m_copy->onClicked.connect([this] { copyPackage(); });
     tool("Create Package from Clipboard", "paste", "Create a new package from a definition on the clipboard.")
         ->onClicked.connect([this] { pastePackage(); });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // Show: every row, those an open board uses, or one board's.
     JLabel* showLabel = bar->add(std::make_unique<JLabel>(graph, "Show"));
@@ -124,6 +125,7 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("packages");
     m_table->setModel(&m_model);
+    tools->attach(*m_table);
     m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] { updateWizards(); });
@@ -512,12 +514,13 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
     });
     m_padDelete->setEnabled(false);
     m_padMark->setEnabled(false);
-    JPUiParts::columnsButton(g, *bar, [this] { return m_pads; }, &openMenu);
+    JPTableTools* tools2 = JPUiParts::tableTools(g, *bar, &openMenu);
     padsFrame->add(std::move(bar));
     m_padsModel.setFootprint(&f);
     m_pads = padsFrame->add(std::make_unique<JPTable>(g));
     m_pads->setStateKey("packages.pads");
     m_pads->setModel(&m_padsModel);
+    tools2->attach(*m_pads);
     m_pads->onSelectionChanged.connect([this] {
         const bool one = m_pads->selectedRow() >= 0;
         m_padDelete->setEnabled(one);

@@ -4,6 +4,7 @@
 #include "JPBoardPlacementsPanel.h"
 
 #include "JPSearchField.h"
+#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "model/JPDefinitionChanges.h"
@@ -83,7 +84,7 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_view->onClicked.connect([this] {
         if (m_board && onViewBoard) onViewBoard();
     });
-    JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
+    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(toolSeparator(graph));
     JLabel* revisionLabel = bar->add(std::make_unique<JLabel>(graph, "Revision"));
     revisionLabel->setFixedSize(JTextHelper::measureWidth("Revision") + st.spacing, st.controlHeight);
@@ -99,6 +100,7 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_table = add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("board.placements");
     m_table->setModel(&m_model);
+    tools->attach(*m_table);
     m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {

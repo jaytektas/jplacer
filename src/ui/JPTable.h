@@ -54,6 +54,14 @@ inline namespace jf {
 //    and shown again in its place. With a state key, the order, widths, sort
 //    and hidden columns are kept (by the columns' keys) and brought back,
 //    every table alike.
+//  - VIEWS: a table's layouts by name (its views), each its own order,
+//    widths, sort and columns shown, the one shown changed as it is used;
+//    switched in one click (a toolbar's view buttons, Columns…, Ctrl+1 to
+//    Ctrl+9). Standard (as shipped) and All Fields (every column, always,
+//    those added later too) to begin with; more made from the one shown.
+//    A view locked keeps what it was made as: a change while it is shown
+//    lasts until another is shown or it is put back (Revert View). A view
+//    may keep its search, shown with it.
 //  - FIELDS: a model whose rows have fields (JPTableModel::fieldsOf) is shown
 //    with them (JPFieldsModel over it, the app's fields, s_fields): a column
 //    for each field added, none for a built-in removed. The Columns… menu and
@@ -93,6 +101,45 @@ public:
     static inline std::function<void(const std::string& key, const JJson& state)> s_saveState;
     // The columns as shipped: the model's order, widths shared out, no sort, every one shown.
     void resetColumns();
+
+    // Its views (VIEWS above): what each is called, the icon its button shows (JPViewIcons), whether it shows
+    // every column always (All Fields), is locked, keeps its search (and which); its layout as kept.
+    struct View {
+        std::string name;
+        std::string icon;
+        bool        all = false;
+        bool        locked = false;
+        bool        keepSearch = false;
+        std::string search;
+        JJson       layout;
+    };
+    const std::vector<View>& views() const { return m_views; }
+    int  currentView() const { return m_current; }
+    // The one shown changed since it was shown (a locked one, Revert View puts it back).
+    bool viewChanged() const { return m_viewChanged; }
+    void showView(int i);
+    // A view made from the one shown (its layout, a free icon), shown; its index.
+    int  addView(const std::string& name);
+    void renameView(int i, const std::string& name);
+    void setViewIcon(int i, const std::string& icon);
+    int  duplicateView(int i);
+    // Taken away (the last one stays).
+    void deleteView(int i);
+    // `from` moved to before `to` (views().size(): the end).
+    void moveView(int from, int to);
+    void setViewLocked(int i, bool on);
+    void setViewKeepsSearch(int i, bool on);
+    // The one shown put back as it was kept (a locked one's changes undone).
+    void revertView();
+    // The menu of a view's own actions (rename, icon, duplicate, lock, keep search, delete; a view button's
+    // right-click), made afresh each time it is asked for.
+    JMenu* viewMenu(int i);
+    // The views changed: added, taken away, renamed, moved, shown (a toolbar's view buttons made again).
+    jf::JSignal<> onViewsChanged;
+    // A view shown with its search: what the table's search line is to show.
+    jf::JSignal<std::string> onSearchShown;
+    // The table last focused (Ctrl+1 to 9 switch its view).
+    static JPTable* focused() { return s_focusedTable; }
     // Which columns are shown: each of the model's, by name, in its place among them (a hidden one keeps its
     // place and width for when it is shown again).
     struct ColumnShown {
@@ -171,6 +218,17 @@ private:
     static inline bool s_alternateRows = true;
     // Every table there is, for fieldsChanged.
     static inline std::set<JPTable*> s_tables;
+    static inline JPTable* s_focusedTable = nullptr;
+    // The views as kept with the table's state (none kept: Standard, from a layout kept before views, and All
+    // Fields); the whole of it as kept.
+    void readViews(const JJson& state);
+    void saveViews() const;
+    // The current view's layout taken into the order, widths and sort (made again).
+    void takeLayout(const JJson& layout);
+    // An icon no view has yet (the first, when every one is used).
+    std::string freeIcon() const;
+    // A view's name asked for, then `then` with it (JDialog::input; empty: nothing).
+    void askViewName(const std::string& title, const std::string& now, std::function<void(const std::string&)> then);
     // A field added here: shown here (hidden in the other tables of its kind), after the column `after`
     // (a key; empty: at the end).
     void fieldAdded(const std::string& key, const std::string& after);
@@ -200,6 +258,8 @@ private:
     void  applyState() const;
     void  applySort();
     void  keepState() const;
+    // The layout as it is now (order, hidden, widths, sort), as kept.
+    JJson layoutNow() const;
     // A heading dragged: the order its place would give; the drag ended (kept or put back).
     void  previewDrop(float mx);
     void  endColumnDrag(bool keep);
@@ -230,7 +290,12 @@ private:
     // Fields added here, to be shown (and where) once the columns are made again.
     mutable std::vector<std::pair<std::string, std::string>> m_addedHere;
     std::string                    m_stateKey;
-    mutable JJson                  m_state;           // as kept: order, widths and sort by the columns' keys
+    mutable JJson                  m_state;           // the layout shown: order, widths and sort by the columns' keys
+    mutable std::vector<View>      m_views;   // the one shown's layout kept as it changes (keepState)
+    int                            m_current = 0;
+    mutable bool                   m_viewChanged = false;   // the one shown changed, locked: not kept
+    std::unique_ptr<JMenu>         m_viewMenu;
+    std::unique_ptr<JMenu>         m_iconMenu;
     mutable std::vector<int>       m_order;           // view position -> model column (the columns shown)
     mutable std::vector<int>       m_allOrder;        // every column in its place, the hidden ones too, as last made
     mutable std::set<std::string>  m_hidden;          // the hidden columns, by key

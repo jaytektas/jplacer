@@ -40,17 +40,48 @@ They are kept by what each column is, not by its heading, so a column you rename
 
 <!-- src: src/ui/JPTable.cpp (setColumnWidth, previewDrop, endColumnDrag, applyState, keepState, order); src/ui/JPTableModel.h (Column::key, keyOf); src/app/JPlacerApp.cpp (s_loadState, s_saveState); src/app/JPlacerSettings.h (kTableState) -->
 
+## Views
+
+A **view** is a table's layout kept under a name: which columns it shows, their order and widths, and its
+sort. Each table has its own, and switching between them changes the whole layout in one click: a simple
+view, a supplier's, a production view, your own. Each starts with two: **Standard**, the table as jplacer
+ships it, and **All Fields**, every column, always (those you add later too; its ticks in **Columns** are
+greyed, as it hides none). Whatever you change in a view (a column shown or hidden, moved, widened, a sort)
+is kept in that view as you change it: there is nothing to save.
+
+<!-- src: src/ui/JPTable.cpp (readViews, saveViews, showView, keepState, order: All Fields, setColumnShown); src/ui/JPTable.h (View) -->
+
+Beside **Columns** on the toolbar, each view has a button showing its icon, its name in its tooltip; the view
+shown is lit. Click one to show it, or press **Ctrl+1** to **Ctrl+9** in the table for its first nine (the
+keys can be changed in **Edit ▸ Preferences…**, as **Show View 1** to **9**). Drag a button along the row to
+move its view there. Right-click it for its own menu:
+
+| Entry | |
+|---|---|
+| **Show "*name*"** | Shows it. |
+| **Rename…** | Gives it another name. |
+| **Icon** | The icon its button shows: List, Columns, Star, Truck, Wrench, Eye, Person, Clipboard, Tag, Flag, Box, Gear or Check. |
+| **Duplicate** | A copy of it beside it (as shown now, changes and all), shown. |
+| **Locked** | Keeps the view as it is: a change while it is shown lasts only until another view is shown, its button marked with a dot meanwhile. Unlocked while changed, the change is its own. |
+| **Keeps Its Search** | The view keeps the search typed while it is shown, and puts it back in **Search** whenever it is shown again: a production view of feeders showing only those enabled, a view of the parts with no height. |
+| **Revert View** | (the view shown) Puts it back as it was kept, the changes since it was shown undone. |
+| **Delete View** | Takes it away (a table keeps one view at least). |
+
+<!-- src: src/ui/JPTableTools.cpp (ViewButton, rebuild, dropIndex); src/ui/JPTable.cpp (viewMenu, moveView, duplicateView, deleteView, setViewLocked, setViewKeepsSearch, revertView, renameView, setViewIcon); src/ui/JPViewIcons.cpp; src/app/JPlacerApp.cpp (table.view) -->
+
 ## Columns
 
-**Columns** (the table icon), at the end of a toolbar's icons after a divider, chooses which columns the
-table shows. It opens a list of every column with a tick for each one shown: click one to hide it or to show
-it again in its place, at the width it had. The last column showing cannot be hidden. **Reset Columns** at
+**Columns** (the table icon), at the end of a toolbar's icons after a divider, starts with the table's
+views: each one (the one shown ticked, *(changed)* after a locked one changed), **New View…** (a view made
+from the one shown, named as you say, with an icon no other view has yet) and **This View**, the view shown's
+own menu. Then it chooses which columns the table shows: a tick for each column shown; click one to hide it
+or to show it again in its place, at the width it had. The last column showing cannot be hidden. **Reset Columns** at
 the bottom shows them all again, as they first were. Which columns are shown is kept with the rest of the
 table's layout, each table its own. The tables on the **Job**, **Boards**, **Panels**, **Parts**,
-**Packages**, **Vision** and **Feeders** tabs have it, the footprint's pads too, and so does the table a
-feeder's **Part** drops.
+**Packages**, **Vision**, **Feeders** and **Issues & Solutions** tabs have it and their views, the
+footprint's pads too, and the table a feeder's **Part** drops keeps its own layout.
 
-<!-- src: src/ui/JPUiParts.cpp (columnsButton); src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
+<!-- src: src/ui/JPUiParts.cpp (tableTools); src/ui/JPTableTools.cpp; src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPIssuesPanel.cpp; src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
 
 Right-click a heading for that column's menu: **Hide "*name*"**, **Add Field After "*name*"…**, **Edit Field
 "*name*"…** and **Reset Columns**.

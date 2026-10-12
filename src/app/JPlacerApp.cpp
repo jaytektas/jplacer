@@ -127,6 +127,13 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
     m_keys = std::make_unique<JPKeyMap>();
     JPlacerMenuBuilder::build(*m_window, m_app.sceneGraph(), *this);
     addJogStepKeys();
+    // Ctrl+1 to Ctrl+9: the table last clicked in shows its first to ninth view.
+    for (int n = 1; n <= 9; ++n)
+        m_keys->add("table.view." + std::to_string(n), "Tables", "Show View " + std::to_string(n),
+                    JMenuShortcut { static_cast<JKeyEvent::JKey>(int(JKeyEvent::JKey::_1) + n - 1), true, false, false },
+                    [n] {
+                        if (JPTable* t = JPTable::focused()) t->showView(n - 1);
+                    });
     // OpenPnP's Startup event: its scripts run once jplacer is up.
     m_machine->runEvent("Startup");
     // The docks and the window as last left, once every dock is in (the first frame).
