@@ -79,9 +79,11 @@ or to show it again in its place, at the width it had. The last column showing c
 the bottom shows them all again, as they first were. Which columns are shown is kept with the rest of the
 table's layout, each table its own. The tables on the **Job**, **Boards**, **Panels**, **Parts**,
 **Packages**, **Vision**, **Feeders** and **Issues & Solutions** tabs have it and their views, the
-footprint's pads too, and the table a feeder's **Part** drops keeps its own layout.
+footprint's pads too, and the table a feeder's **Part** drops keeps its own layout. A table with no view buttons (the one a
+**Part** or **Package** cell drops, those in a window of their own) is a plain table: its **Columns** and its
+headings' menu show and hide its columns, and offer no views and no fields to add or edit.
 
-<!-- src: src/ui/JPUiParts.cpp (tableTools); src/ui/JPTableTools.cpp; src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPIssuesPanel.cpp; src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
+<!-- src: src/ui/JPUiParts.cpp (tableTools); src/ui/JPTableTools.cpp; src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPIssuesPanel.cpp; src/ui/JPTable.h (setHasTools); src/ui/JPTableTools.cpp (attach); src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
 
 Right-click a heading for that column's menu: **Hide "*name*"**, **Show in Every View** (shown in each of
 the table's views, not only the one shown), **Add Field After "*name*"…**, **Edit Field "*name*"…** and

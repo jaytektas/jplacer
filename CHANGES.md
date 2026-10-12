@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A table with no view buttons (the one a Part or Package cell drops, those in a window of their own) is a plain
+  table again: it offers no views and no fields to add or edit, only its columns to show and hide.
+
 ## 0.1.56
 
 - Every table's things can have fields of your own: **Add Field…** in **Columns** or on a heading's right-click

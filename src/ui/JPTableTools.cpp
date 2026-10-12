@@ -82,6 +82,7 @@ JPTableTools::~JPTableTools() { *m_alive = false; }
 
 void JPTableTools::attach(JPTable& table) {
     m_table = &table;
+    table.setHasTools(true);
     // Made again on the next frame, not inside the click (a button's own signal) that changed the views.
     table.onViewsChanged.connect([this] {
         if (m_rebuildPosted) return;

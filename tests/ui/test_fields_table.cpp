@@ -124,10 +124,14 @@ int main() {
         JPTable here(graph), there(graph);
         here.setModel(&model);
         here.setStateKey("here");
+        here.setHasTools(true);   // a table with its toolbar's tools: its fields offered
         there.setModel(&model);
         there.setStateKey("there");
         // Reel, added with no table to show it: hidden until chosen.
         assert((shown(here) == std::vector<std::string>{ "Label", "Enabled" }));
+        // A plain table (a chooser's, a dialog's) offers no fields.
+        for (const auto& w : there.columnsMenu()->items())
+            if (auto* item = dynamic_cast<JMenuItem*>(w.get())) assert(item->label() != "Add Field…" && item->label() != "Edit Fields…");
         trigger(here.columnsMenu(), "Add Field…");
         assert((shown(here) == std::vector<std::string>{ "Label", "Enabled", "Lane" }));
         assert((shown(there) == std::vector<std::string>{ "Label", "Enabled" }));

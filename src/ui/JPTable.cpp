@@ -484,19 +484,21 @@ void JPTable::setColumnShown(const std::string& key, bool shown) {
 
 JMenu* JPTable::columnsMenu() {
     m_columnsMenu = std::make_unique<JMenu>("Columns");
-    // The views: each one (the one shown ticked), a new one, the one shown's own actions.
-    for (size_t i = 0; i < m_views.size(); ++i) {
+    // The views: each one (the one shown ticked), a new one, the one shown's own actions (a table with tools).
+    for (size_t i = 0; m_hasTools && i < m_views.size(); ++i) {
         JMenuItem* item = m_columnsMenu->add(m_graph, m_views[i].name + (int(i) == m_current && m_viewChanged ? " (changed)" : ""));
         item->setCheckable(true);
         item->setChecked(int(i) == m_current);
         if (i < 9) item->setTooltip("Ctrl+" + std::to_string(i + 1) + " shows it");
         item->onTriggered.connect([this, i] { showView(int(i)); });
     }
-    JMenuItem* newView = m_columnsMenu->add(m_graph, "New View…");
-    newView->setTooltip("A view of this table made from the one shown: its columns, their order, widths and sort, kept under a name");
-    newView->onTriggered.connect([this] { askViewName("New View", "", [this](const std::string& n) { addView(n); }); });
-    m_columnsMenu->add(m_graph, "This View", {}, viewMenu(m_current));
-    m_columnsMenu->addSeparator(m_graph);
+    if (m_hasTools) {
+        JMenuItem* newView = m_columnsMenu->add(m_graph, "New View…");
+        newView->setTooltip("A view of this table made from the one shown: its columns, their order, widths and sort, kept under a name");
+        newView->onTriggered.connect([this] { askViewName("New View", "", [this](const std::string& n) { addView(n); }); });
+        m_columnsMenu->add(m_graph, "This View", {}, viewMenu(m_current));
+        m_columnsMenu->addSeparator(m_graph);
+    }
     const bool everyField = !m_views.empty() && m_views[size_t(m_current)].all;
     const std::vector<ColumnShown> columns = columnsShown();
     const size_t shownCount = size_t(std::count_if(columns.begin(), columns.end(), [](const ColumnShown& c) { return c.shown; }));
@@ -521,7 +523,7 @@ JMenu* JPTable::columnsMenu() {
         item->onTriggered.connect([this, item, key = c.key] { setColumnShown(key, item->isChecked()); });
     }
     m_columnsMenu->addSeparator(m_graph);
-    if (const std::optional<JPFieldSet::Of> of = m_fieldsModel ? m_fieldsModel->fieldsOf() : std::nullopt) {
+    if (const std::optional<JPFieldSet::Of> of = m_fieldsModel && m_hasTools ? m_fieldsModel->fieldsOf() : std::nullopt) {
         const std::string kind = JPFieldSet::plural(*of);
         JMenuItem* add = m_columnsMenu->add(m_graph, "Add Field…");
         add->setTooltip("A field of your own for " + kind + ": shown here, offered by every table of " + kind
@@ -1541,7 +1543,7 @@ void JPTable::buildHeaderMenu(int column) {
     // Kept until the next is made: the one open is this one.
     m_headerMenu = std::make_unique<JMenu>("Columns");
     const JPField* field = m_fieldsModel && column >= 0 ? m_fieldsModel->fieldAt(column) : nullptr;
-    const std::optional<JPFieldSet::Of> of = m_fieldsModel ? m_fieldsModel->fieldsOf() : std::nullopt;
+    const std::optional<JPFieldSet::Of> of = m_fieldsModel && m_hasTools ? m_fieldsModel->fieldsOf() : std::nullopt;
     if (m_model && column >= 0) {
         const JPTableModel::Column col = m_model->column(column);
         const std::string key = JPTableModel::keyOf(col);
@@ -1550,10 +1552,12 @@ void JPTable::buildHeaderMenu(int column) {
         hide->setTooltip("Not shown in this table (Columns… shows it again)");
         hide->setEnabled(order().size() > 1);
         hide->onTriggered.connect([this, key] { setColumnShown(key, false); });
-        JMenuItem* everywhere = m_headerMenu->add(m_graph, "Show in Every View");
-        everywhere->setTooltip("Shown in each of this table's views, not only this one");
-        everywhere->setEnabled(m_views.size() > 1);
-        everywhere->onTriggered.connect([this, key] { showInEveryView(key); });
+        if (m_hasTools) {
+            JMenuItem* everywhere = m_headerMenu->add(m_graph, "Show in Every View");
+            everywhere->setTooltip("Shown in each of this table's views, not only this one");
+            everywhere->setEnabled(m_views.size() > 1);
+            everywhere->onTriggered.connect([this, key] { showInEveryView(key); });
+        }
         if (of) {
             m_headerMenu->addSeparator(m_graph);
             JMenuItem* add = m_headerMenu->add(m_graph, "Add Field After \"" + name + "\"…");

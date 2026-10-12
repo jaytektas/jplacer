@@ -158,6 +158,10 @@ public:
     jf::JSignal<> onViewsChanged;
     // A view shown with its search: what the table's search line is to show.
     jf::JSignal<std::string> onSearchShown;
+    // Given a toolbar's tools (JPTableTools: its view buttons): its menus offer its views and its fields. A table
+    // without (a chooser's, a dialog's) is a plain one: its columns shown and hidden, nothing more.
+    void setHasTools(bool on) { m_hasTools = on; }
+    bool hasTools() const { return m_hasTools; }
     // The table last focused (Ctrl+1 to 9 switch its view).
     static JPTable* focused() { return s_focusedTable; }
     // Which columns are shown: each of the model's, by name, in its place among them (a hidden one keeps its
@@ -334,6 +338,7 @@ private:
     int                            m_current = 0;
     mutable bool                   m_viewChanged = false;   // the one shown changed, locked: not kept
     std::unique_ptr<JMenu>         m_viewMenu;
+    bool                           m_hasTools = false;
     std::unique_ptr<JMenu>         m_iconMenu;
     mutable std::vector<int>       m_order;           // view position -> model column (the columns shown)
     mutable std::vector<int>       m_allOrder;        // every column in its place, the hidden ones too, as last made
