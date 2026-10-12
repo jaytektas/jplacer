@@ -63,10 +63,10 @@ public:
     // a request ({ "call": "moveTo", ... }) answered (the result, or
     // { "error": why }). Its scripts reach it through the helper modules
     // jplacer.py and jplacer.js in the scripts folder, or by writing a line of
-    // JSON to fd 3 and reading the answer's line from fd 4. Set by the owner;
+    // JSON to the first channel JPLACER_API names and reading the answer's line
+    // from the second (fds 3 and 4 on Linux; named pipes on Windows). Set by the owner;
     // called on the thread that runs the script.
     std::function<JJson(const JJson& request)> api;
-    static constexpr int kRequestFd = JPScriptProcess::kRequestFd, kAnswerFd = JPScriptProcess::kAnswerFd;
 
     // An event's scripts run; false with why when one fails.
     bool on(const std::string& event, const JJson& globals, std::string& why);

@@ -7,25 +7,16 @@
 
 #include <j/core/Log.h>
 
-#include <fcntl.h>
-#include <poll.h>
-#include <signal.h>
-#include <spawn.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
 #include <chrono>
 #include <cstdlib>
-
-extern char** environ;
 
 inline namespace jf {
 
 namespace {
 
 constexpr const char* kProgram = "gst-launch-1.0";
-constexpr int kFramesFd = 3;
+constexpr int kFramesFd = 3;              // the pictures' channel: the child's descriptor 3 (Linux)
+constexpr size_t kMessages = 0, kFrames = 1;
 constexpr int kStartMs = 10000;          // for the pipeline to say what it gives
 constexpr int kPipeBytes = 1 << 20;      // room for a picture or so in the pipe
 
@@ -84,38 +75,26 @@ bool JPGstreamerSource::open(std::string& error) {
         error = m_name + ": no pipeline set";
         return false;
     }
-    int frames[2], messages[2];
-    if (::pipe2(frames, O_CLOEXEC) != 0 || ::pipe2(messages, O_CLOEXEC) != 0) {
-        error = m_name + ": cannot run GStreamer";
-        return false;
-    }
-    ::fcntl(frames[0], F_SETPIPE_SZ, kPipeBytes);
-    // The pipeline as given, its output turned to RGBA and written raw to fd 3,
-    // synced to the clock as OpenPnP's appsink is (an fdsink is not unless
-    // told): a source that is not live (a file, a test pattern) comes at its
-    // own rate, not as fast as it can.
-    const std::string launch = m_pipeline + " ! videoconvert ! capsfilter name=jplacercaps caps=video/x-raw,format=RGBA ! fdsink fd="
-                             + std::to_string(kFramesFd) + " sync=true";
-    std::vector<std::string> args = words(launch);
-    args.insert(args.begin(), { kProgram, "-v" });
-    std::vector<char*> argv;
-    for (std::string& a : args) argv.push_back(a.data());
-    argv.push_back(nullptr);
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_adddup2(&actions, frames[1], kFramesFd);
-    posix_spawn_file_actions_adddup2(&actions, messages[1], STDOUT_FILENO);
-    posix_spawn_file_actions_adddup2(&actions, messages[1], STDERR_FILENO);
-    const int failed = posix_spawnp(&m_pid, kProgram, &actions, nullptr, argv.data(), environ);
-    posix_spawn_file_actions_destroy(&actions);
-    ::close(frames[1]);
-    ::close(messages[1]);
-    m_frames = frames[0];
-    m_messages = messages[0];
-    if (failed) {
-        m_pid = -1;
-        close();
-        error = m_name + ": GStreamer (" + std::string(kProgram) + ") is not installed";
+    // The pipeline as given, its output turned to RGBA and written raw to the pictures' channel (Linux: fd 3;
+    // Windows: a named pipe, which GStreamer writes as a file), synced to the clock as OpenPnP's appsink is (a
+    // sink is not unless told): a source that is not live (a file, a test pattern) comes at its own rate, not as
+    // fast as it can. What it says goes to its output: the caps it settled on, its errors.
+    std::string launch;
+    const auto args = [this, &launch](const std::vector<std::string>& names) {
+#if defined(_WIN32)
+        const std::string sink = "filesink location=" + names.at(0);
+#else
+        const std::string sink = "fdsink fd=" + names.at(0);
+#endif
+        launch = m_pipeline + " ! videoconvert ! capsfilter name=jplacercaps caps=video/x-raw,format=RGBA ! " + sink + " sync=true";
+        std::vector<std::string> a = words(launch);
+        a.insert(a.begin(), { kProgram, "-v" });
+        return a;
+    };
+    std::string why;
+    m_gst = JPChildProcess::start(args, nullptr, "", { { kFramesFd, JPChildProcess::Way::FromChild, size_t(kPipeBytes) } }, why);
+    if (!m_gst) {
+        error = m_name + ": GStreamer (" + std::string(kProgram) + ") is not installed (" + why + ")";
         return false;
     }
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_name << ": GStreamer " << launch;
@@ -134,26 +113,25 @@ bool JPGstreamerSource::open(std::string& error) {
             close();
             return false;
         }
-        pollfd p { m_messages, POLLIN, 0 };
-        ::poll(&p, 1, int(left));
+        m_gst->waitAny({ kMessages }, int(left));
     }
     return true;
 }
 
 bool JPGstreamerSource::listen(std::string& error) {
     for (;;) {
-        pollfd p { m_messages, POLLIN, 0 };
-        if (::poll(&p, 1, 0) <= 0) return true;
         char buf[4096];
-        const ssize_t n = ::read(m_messages, buf, sizeof buf);
-        if (n <= 0) {
+        const int n = m_gst->read(kMessages, buf, sizeof buf, 0);
+        if (n == 0) return true;   // nothing more said for now
+        if (n < 0) {
             error = m_name + ": GStreamer stopped" + (m_said.empty() ? std::string() : ": " + m_said);
             return false;
         }
         m_said.append(buf, size_t(n));
         for (size_t nl; (nl = m_said.find('\n')) != std::string::npos;) {
-            const std::string line = m_said.substr(0, nl);
+            std::string line = m_said.substr(0, nl);
             m_said.erase(0, nl + 1);
+            if (!line.empty() && line.back() == '\r') line.pop_back();
             if (m_width <= 0 && caps(line, m_width, m_height, m_fps))
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << m_name << ": " << m_width << "x" << m_height << " @ " << m_fps;
             if (line.rfind("ERROR", 0) == 0) {
@@ -167,15 +145,11 @@ bool JPGstreamerSource::listen(std::string& error) {
 }
 
 void JPGstreamerSource::close() {
-    if (m_pid > 0) {
-        ::kill(m_pid, SIGTERM);
-        int status = 0;
-        ::waitpid(m_pid, &status, 0);
+    if (m_gst) {
+        m_gst->stop();
+        m_gst->wait();
     }
-    m_pid = -1;
-    if (m_frames >= 0) ::close(m_frames);
-    if (m_messages >= 0) ::close(m_messages);
-    m_frames = m_messages = -1;
+    m_gst.reset();
     m_said.clear();
 }
 
@@ -189,7 +163,7 @@ std::vector<JPCaptureMode> JPGstreamerSource::modes() const {
 }
 
 bool JPGstreamerSource::grab(JPFrame& frame, int timeoutMs, std::string& error) {
-    if (m_frames < 0) {
+    if (!m_gst) {
         error = m_name + ": not running";
         return false;
     }
@@ -200,22 +174,19 @@ bool JPGstreamerSource::grab(JPFrame& frame, int timeoutMs, std::string& error) 
     const auto deadline = clock::now() + std::chrono::milliseconds(timeoutMs);
     // A whole picture; then, while another whole one is waiting, that one (the newest).
     for (bool first = true;; first = false) {
-        if (!first) {
-            int waiting = 0;
-            if (::ioctl(m_frames, FIONREAD, &waiting) != 0 || size_t(waiting) < size) break;
-        }
+        if (!first && m_gst->available(kFrames) < size) break;
         for (size_t got = 0; got < size;) {
             // None yet: as long as asked. A picture half come: the rest, given the time a start takes.
-            const auto left = got == 0 ? std::chrono::duration_cast<std::chrono::milliseconds>(deadline - clock::now()).count()
-                                       : kStartMs;
-            pollfd p { m_frames, POLLIN, 0 };
-            if (::poll(&p, 1, int(std::max<long long>(0, left))) <= 0) {
+            const int left = got == 0 ? int(std::max<long long>(
+                                            0, std::chrono::duration_cast<std::chrono::milliseconds>(deadline - clock::now()).count()))
+                                      : kStartMs;
+            const int n = m_gst->read(kFrames, reinterpret_cast<char*>(frame.rgba.data()) + got, size - got, left);
+            if (n == 0) {
                 if (got == 0) return false;
                 error = m_name + ": a picture stopped part-way";
                 return false;
             }
-            const ssize_t n = ::read(m_frames, frame.rgba.data() + got, size - got);
-            if (n <= 0) {
+            if (n < 0) {
                 listen(error);
                 if (error.empty()) error = m_name + ": GStreamer stopped";
                 return false;

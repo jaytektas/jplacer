@@ -1,0 +1,3 @@
+// jplacer.exe's resources: its icon (made from packaging/jplacer.svg as it builds) and its manifest.
+1 ICON "jplacer.ico"
+1 24 "jplacer.manifest"

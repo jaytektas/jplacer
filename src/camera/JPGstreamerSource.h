@@ -5,8 +5,9 @@
 
 #include "JPCaptureSource.h"
 
-#include <sys/types.h>
+#include "common/JPChildProcess.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -42,8 +43,8 @@ private:
     bool listen(std::string& error);
 
     std::string m_name, m_pipeline;
-    pid_t       m_pid = -1;
-    int         m_frames = -1, m_messages = -1;
+    // gst-launch: what it says on its output (channel 0), its pictures on channel kFrames.
+    std::unique_ptr<JPChildProcess> m_gst;
     std::string m_said;
     int         m_width = 0, m_height = 0;
     double      m_fps = 0;

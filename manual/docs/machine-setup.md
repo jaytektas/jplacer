@@ -132,8 +132,8 @@ axes' home coordinates, -437 and 437 on OpenPnP's) and **Scale Factor - X** and 
   it; 0 or less is refused. **Change Feeder ID**, with a **New ID** of 0 to 99 and **Change**, gives the
   feeder its Feeder ID names the new one (kept in the feeder), and the actuator then uses it.
 
-Its cameras are read through the NeoDen's own camera library, **libneodencam.so**, which must be
-installed where the system finds libraries (without it, the camera's window says it could not be loaded).
+Its cameras are read through the NeoDen's own camera library, **libneodencam.so** (on Windows
+NeoDen's **NeodenCamera.dll**), which must be installed where the system finds libraries (without it, the camera's window says it could not be loaded).
 Loaded the first time a NeoDen camera opens, its cameras are counted and the down and up ones (1 and 5)
 set to 1024 x 1024; the pictures are grey.
 

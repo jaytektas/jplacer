@@ -128,7 +128,7 @@ folder read again), **Open Scripts Directory**, and **Clear Scripting Engine Poo
 the machine's **Pool scripting engines?** end, and events found without scripts are looked for again (greyed when
 there is nothing to clear).
 
-A script is a Python (`.py`, run by `python3`), JavaScript (`.js`, run by `node`) or shell (`.sh`) file, each run
+A script is a Python (`.py`, run by `python3`; on Windows `python`), JavaScript (`.js`, run by `node`) or, on Linux, shell (`.sh`) file, each run
 as a program of its own; with the machine's **Pool scripting engines?** ticked (Machine Setup, the machine's
 General settings, as OpenPnP's), Python and JavaScript scripts are run by interpreters kept from one script to
 the next, faster to start, but what one script leaves behind (a module's state, the working folder) is there

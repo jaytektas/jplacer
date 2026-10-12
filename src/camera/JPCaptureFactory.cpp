@@ -11,9 +11,9 @@
 #include "JPSimulatedSource.h"
 #include "JPSimulatedUpCamera.h"
 #if defined(__linux__)
-#if defined(__linux__)
 #include "JPV4L2Source.h"
-#endif
+#elif defined(_WIN32)
+#include "JPMediaFoundationSource.h"
 #endif
 
 #include <j/config/Json.h>
@@ -120,6 +120,15 @@ std::unique_ptr<JPCaptureSource> JPCaptureFactory::create(const std::string& cam
             return nullptr;
         }
         return std::make_unique<JPV4L2Source>(device["name"].str(), device["controls"]);
+    }
+#elif defined(_WIN32)
+    // A capture device ("v4l2" in the cell file, whatever the system: the name it is kept by) through Media Foundation.
+    if (backend == "v4l2") {
+        if (device["name"].str().empty()) {
+            error = cameraName + ": no capture device named in its configuration";
+            return nullptr;
+        }
+        return std::make_unique<JPMediaFoundationSource>(device["name"].str(), device["controls"]);
     }
 #endif
     error = cameraName + ": no capture backend '" + backend + "' on this system";

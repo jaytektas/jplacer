@@ -10,6 +10,12 @@ notes.
 
 ## Unreleased
 
+- jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
+  Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
+  cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
+  (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
+  cameras work as on Linux.
+
 - The Job tab's **Measure Board Z** toggle only sets that setting (and saves it): it no longer applies the
   whole machine setup again, which could crash jplacer when pressed before homing. Press it again to take
   it back (it is no longer an Edit ▸ Undo step).

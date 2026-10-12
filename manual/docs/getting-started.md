@@ -14,9 +14,18 @@ somewhere you can write to.
 
 <!-- src: packaging/build-appimage.sh (the file name); JFramework include/j/update/JSelfInstaller.h (an AppImage replaces itself) -->
 
+jplacer for Windows (10 or 11, 64-bit) comes as an installer, `jplacer-<version>-setup.exe`: run it, and
+jplacer is installed in Program Files with an entry in the Start menu (and, if you tick it, an icon on the
+desktop), then started. Each version installs over the one before. `jplacer-<version>-windows-x64.zip`
+is the same jplacer to unzip anywhere and run (`jplacer.exe`) without installing; that copy does not
+update itself. Its USB cameras are read through Windows' own camera support (Media Foundation); a
+computer whose graphics have no Vulkan (a virtual machine's, say) still runs it, drawing more slowly.
+
+<!-- src: packaging/build-windows.sh (the installer and the zip); packaging/windows/jplacer.iss (Program Files, the Start menu, the desktop icon, started when done); src/camera/JPMediaFoundationSource.cpp; packaging/build-windows-deps.sh (the Vulkan loader beside jplacer.exe) -->
+
 ## Your applications menu
 
-The first time the AppImage runs, jplacer adds itself to your desktop's applications menu, with its
+On Windows the installer puts it in the Start menu. On Linux, the first time the AppImage runs, jplacer adds itself to your desktop's applications menu, with its
 icon, so after that you can start it like any other program. Each time it starts, it points that menu
 entry at wherever the AppImage is now, so moving the file does not leave a launcher that no longer
 works.
@@ -28,8 +37,9 @@ out, untick **Show jplacer in the applications menu** in [Preferences](preferenc
 
 ## Where your settings are kept
 
-jplacer keeps what it knows in its configuration folder, `~/.config/jplacer` (or `jplacer` under
-`$XDG_CONFIG_HOME` when that is set):
+jplacer keeps what it knows in its configuration folder: on Linux `~/.config/jplacer` (or `jplacer`
+under `$XDG_CONFIG_HOME` when that is set), on Windows `%APPDATA%\jplacer` (installing, updating and
+uninstalling jplacer never touch it):
 
 | File | What it holds |
 |---|---|

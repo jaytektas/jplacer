@@ -3,7 +3,9 @@
 # Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 #
 # Build the libraries jplacer links on Windows, static, with MinGW-w64 (the Windows SDK's toolchain): zlib,
-# libpng, libjpeg-turbo, Expat, OpenSSL and SQLite, the ones Linux has from the system. Once; then
+# libpng, libjpeg-turbo, Expat, OpenSSL and SQLite, the ones Linux has from the system; and Khronos's Vulkan loader
+# (vulkan-1.dll, shipped beside jplacer.exe: a PC whose GPU has no Vulkan, a virtual machine's, still starts it, and
+# JFramework draws in software). Once; then
 # packaging/build-windows.sh builds jplacer.exe against them.
 #
 #   packaging/build-windows-deps.sh      -> $HOME/jplacer-deps-win (sources in $HOME/src/windows-deps)
@@ -21,6 +23,7 @@ JPEG=3.0.3
 EXPAT=2.6.2
 OPENSSL=3.0.15
 SQLITE=3460100   # 3.46.1, as sqlite.org names its amalgamation
+VULKAN=1.3.290
 SQLITE_YEAR=2024
 
 mkdir -p "$SRC" "$PREFIX"
@@ -78,5 +81,13 @@ fi
     cp sqlite3.h sqlite3ext.h "$PREFIX/include/"
 )
 echo "sqlite $SQLITE"
+
+# The Vulkan loader, and the headers it is built with.
+fetch "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v$VULKAN.tar.gz" "Vulkan-Headers-$VULKAN"
+cmakeBuild "Vulkan-Headers-$VULKAN"
+fetch "https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/v$VULKAN.tar.gz" "Vulkan-Loader-$VULKAN"
+cmakeBuild "Vulkan-Loader-$VULKAN" -DBUILD_SHARED_LIBS=ON -DVULKAN_HEADERS_INSTALL_DIR="$PREFIX" -DBUILD_TESTS=OFF \
+    -DUSE_MASM=OFF -DENABLE_WERROR=OFF
+echo "vulkan loader $VULKAN"
 
 echo "Windows libraries installed in $PREFIX"

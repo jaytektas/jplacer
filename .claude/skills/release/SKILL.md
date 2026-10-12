@@ -1,6 +1,6 @@
 ---
 name: release
-description: Build and publish a jplacer release (AppImage + SHA256SUMS + manual) to github.com/jaytektas/jplacer, raising the version automatically. Use when asked to "release", "cut a release", "ship it" or "push a release".
+description: Build and publish a jplacer release (AppImage, Windows installer and zip, SHA256SUMS, manual) to github.com/jaytektas/jplacer, raising the version automatically. Use when asked to "release", "cut a release", "ship it" or "push a release".
 ---
 
 # Releasing jplacer
@@ -45,7 +45,9 @@ It does, in order:
 1. **The version**: one past the last published release (patch), committed with the notes as
    `jplacer x.y.z`. A version already raised past the last release (a hand-raised minor/major, or a
    re-run after a failure) is kept, so re-running is safe.
-2. Builds jplacer, the manual, the AppImage (manual inside), and `dist/release-<version>/` + SHA256SUMS.
+2. Builds jplacer, the manual, the AppImage (manual inside), the Windows build (`packaging/build-windows.sh`:
+   the installer `jplacer-<version>-setup.exe`, what Windows' updater installs, and the zip), and
+   `dist/release-<version>/` + SHA256SUMS.
 3. Pushes `main` to origin, creates the release with the version's CHANGES.md section as its
    notes, and publishes the manual to GitHub Pages.
 
@@ -54,7 +56,8 @@ It does, in order:
     gh release view v<version> --json isPrerelease,assets --jq '{pre:.isPrerelease, assets:[.assets[].name]}'
     gh api repos/jaytektas/jplacer/releases/latest --jq .tag_name
 
-`pre` is false, the assets are the AppImage and SHA256SUMS, and Latest is the new tag.
+`pre` is false, the assets are the AppImage, the Windows installer and zip, and SHA256SUMS, and Latest is
+the new tag.
 
 ## 5. Tell the user
 

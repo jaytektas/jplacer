@@ -56,6 +56,7 @@ cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="${JFRAMEWORK_SDK:-$HOME/jframe
 cmake --build build --target jplacer --parallel
 manual/tools/build.sh
 packaging/build-appimage.sh
+packaging/build-windows.sh "$VERSION"
 packaging/gather-release.sh
 
 [ "$PUBLISH" = 1 ] || exit 0

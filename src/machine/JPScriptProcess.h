@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "common/JPChildProcess.h"
+
 #include <j/config/Json.h>
 
 #include <functional>
@@ -30,7 +32,9 @@ public:
         std::string last;         // the last line it printed
     };
 
-    // `argv` started with `env`, in `cwd`; served or once. Null with why when it cannot be started.
+    // `argv` started with `env` (and where its channels to jplacer are: JPLACER_API, the requests and answers;
+    // served, JPLACER_SERVE, the runs and their ends: each a file descriptor's number on Linux, a named pipe's
+    // name on Windows), in `cwd`; served or once. Null with why when it cannot be started.
     static std::unique_ptr<JPScriptProcess> spawn(const std::vector<std::string>& argv, const std::vector<std::string>& env,
                                                   const std::string& cwd, bool served, std::string& why);
     ~JPScriptProcess();
@@ -42,7 +46,7 @@ public:
     // and a served one is gone). A served one that ends by itself is Lost.
     Result run(const std::string& name, const JJson& request, const std::function<JJson(const JJson&)>& api, int timeoutMs);
     // Whether it is still there to serve another run.
-    bool serving() const { return m_served && m_pid > 0; }
+    bool serving() const { return m_served && m_child != nullptr; }
 
 private:
     JPScriptProcess() = default;
@@ -50,10 +54,10 @@ private:
     // Lines out of `text` into the log, the last kept.
     void logLines(const std::string& name, std::string& text, std::string& last);
 
-    int  m_pid = -1;
+    // Its channels: its output (0), its requests, our answers; served, the runs we send and their ends.
+    static constexpr size_t kOut = 0, kRequests = 1, kAnswers = 2, kRuns = 3, kEnds = 4;
+    std::unique_ptr<JPChildProcess> m_child;
     bool m_served = false;
-    // Ours of its pipes: its output, its requests, our answers; served, the runs we send and their ends.
-    int  m_out = -1, m_requests = -1, m_answers = -1, m_runs = -1, m_ends = -1;
     std::string m_asked, m_told;
 };
 

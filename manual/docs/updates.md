@@ -28,10 +28,12 @@ A download that does not match is not installed, and nothing is changed if a dow
 
 <!-- src: JFramework include/j/app/JAppUpdater.h (offer, download, the checksum check, requestClose after staging) -->
 
-Only the AppImage can update itself. A copy of jplacer built from source tells you an update is
-available but cannot install it.
+On Linux the AppImage updates itself: the new one replaces it. On Windows the update is the new
+version's installer, run once jplacer has closed without asking anything (you see its progress), which
+installs over the old one and starts the new. A copy of jplacer built from source, or unzipped from the
+Windows zip, tells you an update is available but cannot install it.
 
-<!-- src: JFramework include/j/update/JSelfInstaller.h (canInstallHere) -->
+<!-- src: JFramework include/j/update/JSelfInstaller.h (canInstallHere, stage, installAndRestart); packaging/windows/jplacer.iss ([Run]) -->
 
 ## Beta versions
 

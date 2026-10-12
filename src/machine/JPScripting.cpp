@@ -33,8 +33,12 @@ import json, os
 
 globals = json.loads(os.environ.get("JPLACER_GLOBALS", "{}"))
 event = os.environ.get("JPLACER_EVENT", "")
-_request, _answer = (int(f) for f in os.environ.get("JPLACER_API", "3,4").split(","))
-_answers = os.fdopen(_answer, "r")
+# Each channel to jplacer by its number (Linux: a file descriptor) or its name (Windows: a named pipe).
+def _channel(where, mode):
+    return os.fdopen(int(where), mode) if where.isdigit() else open(where, mode)
+_request, _answer = os.environ.get("JPLACER_API", "3,4").split(",")
+_requests = _channel(_request, "w")
+_answers = _channel(_answer, "r")
 
 class Error(Exception):
     pass
@@ -42,7 +46,8 @@ class Error(Exception):
 def call(name, **arguments):
     """Ask the machine; the answer, or Error with why."""
     arguments["call"] = name
-    os.write(_request, (json.dumps(arguments, default=str) + "\n").encode())
+    _requests.write(json.dumps(arguments, default=str) + "\n")
+    _requests.flush()
     answer = json.loads(_answers.readline())
     if "error" in answer:
         raise Error(answer["error"])
@@ -66,7 +71,11 @@ constexpr const char* kNodeModule = R"JS(// jplacer's machine, for the scripts j
 //   const jplacer = require("jplacer");
 //   jplacer.moveTo("N1", { x: 10, y: 20 });
 const fs = require("fs");
-const [request, answer] = (process.env.JPLACER_API || "3,4").split(",").map(Number);
+// Each channel to jplacer by its number (Linux: a file descriptor) or its name (Windows: a named pipe).
+const channel = (where, mode) => (/^\d+$/.test(where) ? Number(where) : fs.openSync(where, mode));
+const [requestAt, answerAt] = (process.env.JPLACER_API || "3,4").split(",");
+const request = channel(requestAt, "w");
+const answer = channel(answerAt, "r");
 let pending = "";
 
 function call(name, args = {}) {
@@ -942,8 +951,9 @@ constexpr const char* kPythonStart =
 constexpr const char* kPythonServe = R"PY(
 import sys, os, json, runpy, traceback
 import jplacer, jplacer_openpnp
-_runs = os.fdopen(5, "r")
-_ends = os.fdopen(6, "w")
+_runsAt, _endsAt = os.environ.get("JPLACER_SERVE", "5,6").split(",")
+_runs = jplacer._channel(_runsAt, "r")
+_ends = jplacer._channel(_endsAt, "w")
 for _line in _runs:
     _run = json.loads(_line)
     jplacer.globals = _run["globals"]
@@ -978,13 +988,21 @@ const jplacer = require("jplacer");
 const openpnp = require("jplacer_openpnp");
 class Exit { constructor(code) { this.code = code; } }
 const leave = process.exit.bind(process);
+// The runs sent, and their ends told, by number (Linux) or name (Windows), as jplacer's API.
+const [runsAt, endsAt] = (process.env.JPLACER_SERVE || "5,6").split(",");
+const runs = /^\d+$/.test(runsAt) ? Number(runsAt) : fs.openSync(runsAt, "r");
+const ends = /^\d+$/.test(endsAt) ? Number(endsAt) : fs.openSync(endsAt, "w");
 process.exit = (code) => { throw new Exit(code === undefined ? 0 : code); };
 const buf = Buffer.alloc(65536);
 let pending = "";
 for (;;) {
     while (!pending.includes("\n")) {
         let n = 0;
-        try { n = fs.readSync(5, buf, 0, buf.length, null); } catch (e) { if (e.code === "EAGAIN") continue; throw e; }
+        try { n = fs.readSync(runs, buf, 0, buf.length, null); } catch (e) {
+            if (e.code === "EAGAIN") continue;
+            if (e.code === "EOF") leave(0);   // Windows: the pipe closed
+            throw e;
+        }
         if (n <= 0) leave(0);
         pending += buf.toString("utf8", 0, n);
     }
@@ -1003,7 +1021,7 @@ for (;;) {
         if (e instanceof Exit) code = e.code;
         else { console.error(e && e.stack ? e.stack : String(e)); code = 1; }
     }
-    fs.writeSync(6, JSON.stringify({ exit: code }) + "\n");
+    fs.writeSync(ends, JSON.stringify({ exit: code }) + "\n");
 }
 )JS";
 
@@ -1048,7 +1066,12 @@ std::string JPScripting::eventsDirectory() const { return (fs::path(m_directory)
 fs::path JPScripting::helpersDirectory() const { return fs::path(m_directory) / kHelpersDir; }
 
 const std::vector<std::pair<std::string, std::string>>& JPScripting::interpreters() {
+    // Windows' Python installs as python (there is no python3), and has no shell to run a .sh.
+#if defined(_WIN32)
+    static const std::vector<std::pair<std::string, std::string>> k { { ".py", "python" }, { ".js", "node" } };
+#else
     static const std::vector<std::pair<std::string, std::string>> k { { ".py", "python3" }, { ".js", "node" }, { ".sh", "sh" } };
+#endif
     return k;
 }
 
@@ -1080,13 +1103,18 @@ bool JPScripting::execute(const std::string& path, const JJson& globals, std::st
     std::vector<std::string> env;
     for (char** e = environ; *e; ++e) env.emplace_back(*e);
     env.push_back("JPLACER_SCRIPTS=" + m_directory);
-    env.push_back("JPLACER_API=" + std::to_string(kRequestFd) + "," + std::to_string(kAnswerFd));
     {
         const char* py = std::getenv("PYTHONPATH");
         const char* node = std::getenv("NODE_PATH");
         const std::string helpers = helpersDirectory().string();
-        env.push_back("PYTHONPATH=" + helpers + (py && *py ? ":" + std::string(py) : std::string()));
-        env.push_back("NODE_PATH=" + helpers + (node && *node ? ":" + std::string(node) : std::string()));
+        // A list of folders, each system's way (Windows' ";", else ":").
+#if defined(_WIN32)
+        const std::string sep = ";";
+#else
+        const std::string sep = ":";
+#endif
+        env.push_back("PYTHONPATH=" + helpers + (py && *py ? sep + std::string(py) : std::string()));
+        env.push_back("NODE_PATH=" + helpers + (node && *node ? sep + std::string(node) : std::string()));
     }
     // OpenPnP's scripting.on and scripting.execute, asked by the script: answered here (each on an interpreter of its
     // own: this one is busy), anything else asked of the machine.

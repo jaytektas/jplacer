@@ -42,9 +42,10 @@ file(GLOB JPLACER_APP_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 add_library(jplacer_common STATIC ${JPLACER_COMMON_SRC})
 target_include_directories(jplacer_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(jplacer_common PUBLIC JFramework::platform)
-# Windows' sockets (JPSocket: Winsock), its processes and libraries are the system's own.
+# Windows' sockets (JPSocket: Winsock), its processes and libraries are the system's own; the static OpenSSL
+# needs its certificate stores and its crypto (crypt32, bcrypt, advapi32, user32).
 if(WIN32)
-    target_link_libraries(jplacer_common PUBLIC ws2_32)
+    target_link_libraries(jplacer_common PUBLIC ws2_32 crypt32 bcrypt advapi32 user32)
 endif()
 
 # Controllers, links, firmware profiles. No widget header is included here.
@@ -60,12 +61,18 @@ target_link_libraries(jplacer_openpnp PUBLIC jplacer_machine PRIVATE EXPAT::EXPA
 # each, frames as RGBA. libjpeg(-turbo) decodes MJPG.
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
-# A capture device is read through Video4Linux on Linux only (JPCaptureFactory offers it there alone).
+# A capture device is read through Video4Linux on Linux, Media Foundation on Windows (JPCaptureFactory).
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(FILTER JPLACER_CAMERA_SRC EXCLUDE REGEX "JPV4L2Source\\.cpp$")
 endif()
+if(NOT WIN32)
+    list(FILTER JPLACER_CAMERA_SRC EXCLUDE REGEX "JPMediaFoundationSource\\.cpp$")
+endif()
 add_library(jplacer_camera STATIC ${JPLACER_CAMERA_SRC})
 target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE jplacer_openpnp JPEG::JPEG PNG::PNG)
+if(WIN32)
+    target_link_libraries(jplacer_camera PUBLIC mfplat mf mfreadwrite mfuuid strmiids ole32)
+endif()
 
 # Measuring pictures: finding marks, to a fraction of a pixel, with nothing to tune.
 add_library(jplacer_vision STATIC ${JPLACER_VISION_SRC})
@@ -120,9 +127,22 @@ target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSI
 target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_import jplacer_model jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
-# Windows plays its sounds itself (JPlacerSound: winmm's PlaySound).
+# Windows plays its sounds itself (JPlacerSound: winmm's PlaySound). A Windows program (no console window), the
+# compiler's own runtime linked in, so jplacer.exe needs no DLL beside it but the system's (and Vulkan's).
 if(WIN32)
     target_link_libraries(jplacer PRIVATE winmm)
+    set_target_properties(jplacer PROPERTIES WIN32_EXECUTABLE TRUE)
+    # Its icon (packaging/jplacer.svg at the sizes Windows shows) and its manifest (packaging/windows), as resources.
+    set(JPLACER_ICO ${CMAKE_CURRENT_BINARY_DIR}/jplacer.ico)
+    add_custom_command(OUTPUT ${JPLACER_ICO}
+        COMMAND rsvg-convert -w 256 -h 256 -o ${CMAKE_CURRENT_BINARY_DIR}/jplacer-256.png ${CMAKE_CURRENT_SOURCE_DIR}/packaging/jplacer.svg
+        COMMAND convert ${CMAKE_CURRENT_BINARY_DIR}/jplacer-256.png -define icon:auto-resize=256,64,48,32,16 ${JPLACER_ICO}
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/packaging/jplacer.svg VERBATIM)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/jplacer.manifest ${CMAKE_CURRENT_BINARY_DIR}/jplacer.manifest COPYONLY)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/jplacer.rc ${CMAKE_CURRENT_BINARY_DIR}/jplacer.rc COPYONLY)
+    set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/jplacer.rc PROPERTIES OBJECT_DEPENDS ${JPLACER_ICO})
+    target_sources(jplacer PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/jplacer.rc)
+    target_link_options(jplacer PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 
 # TESTS: one executable per test file under tests/<module>/, run by ctest.
