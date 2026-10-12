@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.68
+
 - Importing a CPL and BOM no longer makes one part of different parts that share a name. EasyEDA's
   pick-and-place file names parts by their value, so every 100nF (0402 and 0603 alike) became one part,
   and the same for other values on more than one BOM line. Rows are now one part by their MPN, else their
