@@ -10,6 +10,34 @@ notes.
 
 ## Unreleased
 
+- Every table's things can have fields of your own: **Add Field…** in **Columns** or on a heading's right-click
+  menu adds one (text, a number, a length, yes/no or a choice) to parts, packages, pads, placements, boards,
+  panels, the job's boards, feeders or vision settings, and **Job ▸ Job Fields…** to jobs. A field is a column
+  in every table of its kind, and **Edit Fields…** renames it, changes its type or deletes it. jplacer's own
+  columns can be renamed, and those it can do without removed. The tables are described on a page of their own,
+  **Tables**.
+- The Feeders and Vision tabs' tables have **Columns** too.
+- Importing a board from its CPL and BOM offers every field to fill, yours included: a placement's, a part's
+  and its package's from each row, and a board's or the job's one value for the whole import (from a column,
+  from what the file says about itself such as a KiCad board's revision, or typed in the window). **New …
+  Field…** in a column's list makes a field named after the column. Parts and packages the import makes
+  get their values; a library part keeps its own where it has one.
+- A KiCad board read for an import gives its footprints' own properties (LCSC, MPN, Datasheet…) as columns
+  to fill fields with, and its title block for the board's and the job's fields.
+- **Keep as extra** is gone from the import: a column no field matches is ignored, or made a field of its own.
+- Every table has **views**: its layout (columns, order, widths, sort) kept under a name, switched with a button
+  each beside **Columns**, or **Ctrl+1** to **Ctrl+9**. Each starts with **Standard** and **All Fields** (every
+  column, always); **New View…** makes more, each with its own icon. A view can be renamed, given another icon,
+  duplicated, moved (drag its button), locked (changes last until another view is shown) or made to keep its
+  search. The Issues & Solutions table has **Columns** and views too.
+- A value typed, a tick or a choice in a row of several chosen goes into all of them, and **Ctrl+V** pastes
+  cells copied from a table or a spreadsheet (one value into every row chosen; refused by one cell, nothing is
+  pasted). **Edit ▸ Undo** takes back changes made in every table, not only the library's, one step a change.
+- Every table's **Search** can look in one field: `lcsc: C15`, or `lcsc:` for the rows with anything in it,
+  the field's name completing as you type it (Tab takes it). What matched is marked in each cell, the count
+  of rows found shows beside the box, and a row found only in a hidden column is marked and says which.
+- A library made by 0.1.55 opens as it is, and keeps the fields you add.
+
 ## 0.1.55
 
 - A part has a **Name**, shown wherever the part is, and beside its ID on the Parts tab, where it is changed
@@ -40,33 +68,6 @@ notes.
   whatever it was set to.
 - An OpenPnP machine saved by an older OpenPnP brings its feeders' retry count in as their feed retries, as
   OpenPnP does (they had come in as 3 feed and 3 pick retries).
-- Every table's things can have fields of your own: **Add Field…** in **Columns** or on a heading's right-click
-  menu adds one (text, a number, a length, yes/no or a choice) to parts, packages, pads, placements, boards,
-  panels, the job's boards, feeders or vision settings, and **Job ▸ Job Fields…** to jobs. A field is a column
-  in every table of its kind, and **Edit Fields…** renames it, changes its type or deletes it. jplacer's own
-  columns can be renamed, and those it can do without removed. The tables are described on a page of their own,
-  **Tables**.
-- The Feeders and Vision tabs' tables have **Columns** too.
-- Importing a board from its CPL and BOM offers every field to fill, yours included: a placement's, a part's
-  and its package's from each row, and a board's or the job's one value for the whole import (from a column,
-  from what the file says about itself such as a KiCad board's revision, or typed in the window). **New …
-  Field…** in a column's list makes a field named after the column. Parts and packages the import makes
-  get their values; a library part keeps its own where it has one.
-- A KiCad board read for an import gives its footprints' own properties (LCSC, MPN, Datasheet…) as columns
-  to fill fields with, and its title block for the board's and the job's fields.
-- **Keep as extra** is gone from the import: a column no field matches is ignored, or made a field of its own.
-- Every table has **views**: its layout (columns, order, widths, sort) kept under a name, switched with a button
-  each beside **Columns**, or **Ctrl+1** to **Ctrl+9**. Each starts with **Standard** and **All Fields** (every
-  column, always); **New View…** makes more, each with its own icon. A view can be renamed, given another icon,
-  duplicated, moved (drag its button), locked (changes last until another view is shown) or made to keep its
-  search. The Issues & Solutions table has **Columns** and views too.
-- A value typed, a tick or a choice in a row of several chosen goes into all of them, and **Ctrl+V** pastes
-  cells copied from a table or a spreadsheet (one value into every row chosen; refused by one cell, nothing is
-  pasted). **Edit ▸ Undo** takes back changes made in every table, not only the library's, one step a change.
-- Every table's **Search** can look in one field: `lcsc: C15`, or `lcsc:` for the rows with anything in it,
-  the field's name completing as you type it (Tab takes it). What matched is marked in each cell, the count
-  of rows found shows beside the box, and a row found only in a hidden column is marked and says which.
-- A library made by 0.1.55 opens as it is, and keeps the fields you add.
 
 ## 0.1.54
 
