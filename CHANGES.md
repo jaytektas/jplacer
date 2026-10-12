@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.62
+
 - The head's **Homing Fiducial Part** lists only the library's parts (**(none)** until one is chosen), its list
   keeps up with parts added, renamed or deleted without leaving the head and coming back, and a deleted one
   shows as (none). A machine set up before the choice still uses (and shows) its part named
