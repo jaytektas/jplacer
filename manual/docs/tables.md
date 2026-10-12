@@ -88,6 +88,33 @@ Right-click a heading for that column's menu: **Hide "*name*"**, **Add Field Aft
 
 <!-- src: src/ui/JPTable.cpp (buildHeaderMenu, prepareContextMenu) -->
 
+## Editing many rows, pasting and undo
+
+A value typed into a cell, a tick or a choice, in a row that is one of several chosen, goes into every row
+chosen: choose 50 parts, type *LCSC* in one row's **Supplier**, and it is in all 50. Choose the rows, then
+type (or press **F2**) in the cell, tick it, or pick its choice; a double-click in one of the chosen rows edits
+them all too, where a plain click on one chooses it alone. A row that cannot take the value (one whose cell
+cannot be changed) is left as it is; a value refused by one row is taken by none, the cell staying open to put
+it right. The status line says how many were changed.
+
+<!-- src: src/ui/JPTable.cpp (editRows, setCells, stopEditing, toggle, openChoices, handleMousePress, handleMouseRelease); src/app/JPlacerApp.cpp (s_status) -->
+
+**Ctrl+V** pastes what **Ctrl+C** copied, or a block of cells copied from a spreadsheet (a tab between
+cells, a line a row): from the chosen cell, down the rows and along the columns as the table shows them. One
+value goes into every row chosen. A cell that cannot be changed is passed over, and the status line says how
+many. A value a cell cannot take (a word for a number, a choice it does not have) and nothing at all is
+pasted, the first few refused named.
+
+<!-- src: src/ui/JPTable.cpp (paste, setCellValue) -->
+
+Each change is one step **Edit ▸ Undo** (Ctrl+Z) takes back and **Edit ▸ Redo** (Ctrl+Y) makes again,
+however many cells it changed, named for it ("Undo Change Rank of 12 Placements", "Undo Change 3 Cells of 2
+Rows"). The library's tables (parts, packages and their pads) are undone as the library's changes are (see
+[Parts](parts.md#undo-and-redo)); the others' steps are kept with Machine Setup's and the library's, the last
+made first, the last 200 of them.
+
+<!-- src: src/ui/JPTableHistory.cpp (record); src/ui/JPTable.cpp (putCells, setCells); src/ui/JPPartsTableModel.h (ownHistory); src/app/JPlacerApp.cpp (m_tableEdits); src/app/JPlacerUndo.cpp -->
+
 ## Fields
 
 Each column of a table of things (parts, placements, feeders…) is one of their **fields**. jplacer has its

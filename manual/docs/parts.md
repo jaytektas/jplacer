@@ -168,7 +168,7 @@ changed on a part's or package's pages, a footprint added, changed or deleted, t
 and what choosing a part for a board taught the library (a name remembered, a part added). Each says
 what it would undo or redo: "Undo Delete Part R0603-10k", "Undo Change Package SOT-23", "Undo Delete 3
 Parts", "Undo New Footprint SOT-23-3". A part or package put back by Undo is the same one, its place in the
-list kept. Undo and Redo go through the library's changes and Machine Setup's together, the last made
-first. The last 200 steps are kept. Stock (lots and their ledger) is kept as it is made and is not undone.
+list kept. Undo and Redo go through the library's changes, Machine Setup's and the other tables' together, the last
+made first. The last 200 steps are kept. Stock (lots and their ledger) is kept as it is made and is not undone.
 
 <!-- src: src/setup/JPLibraryHistory.cpp (note, describe, undo, redo); src/model/JPConfiguration.cpp (librarySnapshot, restoreLibrary); src/app/JPlacerOpenPnpTabs.cpp (libraryChanged, changed); src/app/JPlacerUndo.cpp; src/app/JPlacerApp.cpp -->

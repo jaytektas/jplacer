@@ -13,6 +13,7 @@
 #include "JPlacerMachine.h"
 #include "JPlacerOpenPnpTabs.h"
 #include "JPlacerUndo.h"
+#include "ui/JPTableHistory.h"
 
 #include "ui/JPOpenPnpIcons.h"
 
@@ -71,6 +72,7 @@ private:
     // Edit's Undo and Redo: made before the histories it steps through (Machine Setup's, the library's) and gone
     // after them, so none reports to it once it is gone.
     JPlacerUndo m_undo;
+    JPTableHistory m_tableEdits;   // what is changed in the tables, but the library's (its own history)
     // The open cell and its panel; before the window in destruction order.
     std::unique_ptr<JPlacerMachine> m_machine;
     // OpenPnP's tabs (Parts…), in the machine's layout: gone before the machine.

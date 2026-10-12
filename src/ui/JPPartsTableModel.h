@@ -49,6 +49,7 @@ public:
     std::optional<JPFieldSet::Of> fieldsOf() const override { return JPFieldSet::Of::Parts; }
     const JPFieldValues* custom(int row) const override;
     bool   setCustom(int row, const std::string& key, const JJson& value) override;
+    bool   ownHistory() const override { return true; }   // the library's (JPLibraryHistory)
     void   beginEdits() override { m_said.begin(); }
     void   endEdits() override { m_said.end(onChanged); }
 

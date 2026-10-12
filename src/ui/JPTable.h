@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPFieldsModel.h"
+#include "JPTableHistory.h"
 #include "JPTableModel.h"
 
 #include <j/config/Json.h>
@@ -43,7 +44,14 @@ inline namespace jf {
 //  - EDITING: a text cell is edited on a double-click, F2 or by typing (all
 //    its text chosen first); Return or Tab keeps it, Escape puts it back. A
 //    tick box changes on a click; a choice opens its menu on a click.
-//  - Ctrl+C copies the chosen rows, a tab between cells.
+//  - Ctrl+C copies the chosen rows, a tab between cells. Ctrl+V pastes such
+//    cells from the cell chosen, down and along (one value into every row
+//    chosen); one a cell cannot take, and nothing is pasted. A cell that
+//    cannot be changed is passed over.
+//  - MANY ROWS: a value typed, a tick or a choice in a row of several chosen
+//    goes into all of them. Each change is one step of the table edits'
+//    history (s_history; undone with Edit ▸ Undo), but where the model has a
+//    history of its own (ownHistory); and said in the status (s_status).
 //  - A column's heading shows its tooltip; drag a heading's edge to widen it.
 //  - COLUMNS: drag a heading sideways to move its column; while it is
 //    dragged the table shows how it will look (the column floating with the
@@ -94,6 +102,16 @@ public:
     static inline FieldHooks s_fieldHooks;
     // Fields changed (added, renamed, removed): every table shows them as they are now.
     static void fieldsChanged();
+
+    // The app's history of what is changed in tables, and its status line (a change of many rows said).
+    static inline JPTableHistory*                         s_history = nullptr;
+    static inline std::function<void(const std::string&)> s_status;
+    static bool alive(const JPTable* t) { return s_tables.count(const_cast<JPTable*>(t)) > 0; }
+    // The cells set back to their values before a change (undo), or again to those after it (redo), found by their
+    // keys; one change of the model's, no step made.
+    void putCells(const std::vector<JPTableHistory::Cell>& cells, bool before);
+    // The clipboard's cells pasted from the chosen cell (Ctrl+V).
+    void paste();
     // Where its columns' order, widths and sort are kept (the app's hooks, s_loadState and s_saveState): brought
     // back now (and when the model's columns change), kept as they are changed. Every table has one of its own.
     void setStateKey(const std::string& key);
@@ -234,6 +252,25 @@ private:
     void fieldAdded(const std::string& key, const std::string& after);
     // The headings' right-click menu for the column under `mx` (-1: none).
     void buildHeaderMenu(int column);
+    // A cell's value as an edit gives it (a tick "true" or "false", else its text), and set from one (false, and
+    // why, when it is refused).
+    std::string cellValue(int row, int c) const;
+    bool        setCellValue(int row, int c, const std::string& value, std::string& error);
+    // Cells set as one change: the model's edits begun and ended, a step of the history, the change said. A
+    // value refused: when `atomic`, every cell put back as it was and nothing kept; else that one left. What
+    // was refused and why in `refused`; how many changed in `changed`.
+    struct CellSet {
+        int         row, column;
+        std::string value;
+    };
+    bool setCells(const std::vector<CellSet>& sets, bool atomic, std::vector<std::string>& refused, int& changed);
+    // A tick turned over, in every row chosen with it.
+    void toggle(int row, int c);
+    // The rows an edit of `row` goes to: the rows chosen, in their order, when it is one of several; else it.
+    std::vector<int> editRows(int row) const;
+    // A row's model index by its key, or -1; a column's by its key, or -1.
+    int rowByKey(const std::string& key) const;
+    int columnByKey(const std::string& key) const;
     struct SortKey {
         int  column;
         bool ascending;
@@ -324,6 +361,10 @@ private:
     int                            m_lead = -1;       // model row
     int                            m_leadColumn = 0;
     int                            m_anchor = -1;     // model row a Shift range runs from
+    // A plain click on a row of several chosen: it alone chosen as the click is released (-1: none); and the
+    // rows chosen before that, for a double-click's second press.
+    int                            m_collapseOnRelease = -1;
+    std::set<int>                  m_beforeCollapse;
     mutable std::vector<float>     m_widths;
     float                          m_scrollX = 0, m_scrollY = 0;
     // A model row to bring into view once the table has its height (chosen while hidden).

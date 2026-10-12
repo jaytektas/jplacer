@@ -60,6 +60,9 @@ notes.
   column, always); **New View…** makes more, each with its own icon. A view can be renamed, given another icon,
   duplicated, moved (drag its button), locked (changes last until another view is shown) or made to keep its
   search. The Issues & Solutions table has **Columns** and views too.
+- A value typed, a tick or a choice in a row of several chosen goes into all of them, and **Ctrl+V** pastes
+  cells copied from a table or a spreadsheet (one value into every row chosen; refused by one cell, nothing is
+  pasted). **Edit ▸ Undo** takes back changes made in every table, not only the library's, one step a change.
 - Every table's **Search** can look in one field: `lcsc: C15`, or `lcsc:` for the rows with anything in it,
   the field's name completing as you type it (Tab takes it). What matched is marked in each cell, the count
   of rows found shows beside the box, and a row found only in a hidden column is marked and says which.

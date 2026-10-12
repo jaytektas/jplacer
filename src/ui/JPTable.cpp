@@ -1337,7 +1337,23 @@ void JPTable::handleMousePress(float mx, float my) {
         stopEditing(true);
     }
     if (c >= 0) m_leadColumn = c;
-    selectView(v, JWidget::s_shiftDown, JWidget::s_ctrlDown);
+    // A press on a row of several chosen keeps them chosen: a tick or a choice goes into them all; a plain
+    // click lets go of the others as it is released; a double-click edits them all (the rows chosen before its
+    // first click put back).
+    const bool plain = !JWidget::s_shiftDown && !JWidget::s_ctrlDown;
+    if (plain && JWidget::s_doubleClick && m_beforeCollapse.size() > 1 && m_beforeCollapse.count(r)) m_selected = m_beforeCollapse;
+    m_beforeCollapse.clear();
+    m_collapseOnRelease = -1;
+    if (plain && m_selected.size() > 1 && m_selected.count(r)) {
+        m_lead = m_anchor = r;
+        const JPTableModel::Kind k = c >= 0 ? m_model->column(c).kind : JPTableModel::Kind::Text;
+        if (!JWidget::s_doubleClick && (k == JPTableModel::Kind::Text || k == JPTableModel::Kind::Number || !m_model->editable(r, c)))
+            m_collapseOnRelease = r;
+        ensureVisible(v);
+        m_graph.invalidateNode(m_nodeId, DirtySelf);
+    } else {
+        selectView(v, JWidget::s_shiftDown, JWidget::s_ctrlDown);
+    }
     if (canDragRows() && !JWidget::s_shiftDown && !JWidget::s_ctrlDown) {
         m_rowDrag = r;
         m_rowDragFromY = my;
@@ -1346,8 +1362,7 @@ void JPTable::handleMousePress(float mx, float my) {
     const JPTableModel::Kind kind = m_model->column(c).kind;
     const bool editable = m_model->editable(r, c);
     if (kind == JPTableModel::Kind::Boolean && editable) {
-        m_model->setChecked(r, c, !m_model->checked(r, c));
-        refresh();
+        toggle(r, c);
     } else if (kind == JPTableModel::Kind::Choice && editable) {
         openChoices(r, c);
     } else if (kind == JPTableModel::Kind::Picker && editable) {
@@ -1398,6 +1413,14 @@ bool JPTable::canDragRows() const {
 }
 
 void JPTable::handleMouseRelease(float mx, float my) {
+    // A plain click on a row of several chosen, nothing else done: it alone chosen now (the others kept for a
+    // double-click's second press).
+    if (m_collapseOnRelease >= 0 && m_dropBefore < 0) {
+        m_beforeCollapse = m_selected;
+        m_selected = { m_collapseOnRelease };
+        selectionChanged();
+    }
+    m_collapseOnRelease = -1;
     if (m_headerPress >= 0) {
         if (m_columnDrag) endColumnDrag(true);
         else {
@@ -1646,21 +1669,22 @@ bool JPTable::handleKeyEvent(const JKeyEvent& ke) {
         copySelection();
         return true;
     }
+    if (ke.ctrl && ke.key == K::V) {
+        paste();
+        return true;
+    }
     if (m_lead < 0) return false;
     const JPTableModel::Kind kind = m_model->column(m_leadColumn).kind;
     const bool editable = m_model->editable(m_lead, m_leadColumn);
     if (ke.key == K::F2 && editable) {
         if (kind == JPTableModel::Kind::Choice) openChoices(m_lead, m_leadColumn);
         else if (kind == JPTableModel::Kind::Picker) m_model->pick(m_lead, m_leadColumn);
-        else if (kind == JPTableModel::Kind::Boolean) {
-            m_model->setChecked(m_lead, m_leadColumn, !m_model->checked(m_lead, m_leadColumn));
-            refresh();
-        } else startEditing(m_lead, m_leadColumn, nullptr);
+        else if (kind == JPTableModel::Kind::Boolean) toggle(m_lead, m_leadColumn);
+        else startEditing(m_lead, m_leadColumn, nullptr);
         return true;
     }
     if (ke.key == K::Space && kind == JPTableModel::Kind::Boolean && editable) {
-        m_model->setChecked(m_lead, m_leadColumn, !m_model->checked(m_lead, m_leadColumn));
-        refresh();
+        toggle(m_lead, m_leadColumn);
         return true;
     }
     // Typing on a text cell starts editing it with what was typed.
@@ -1690,6 +1714,213 @@ void JPTable::copySelection() const {
 
 // ---- editing ----------------------------------------------------------------
 
+namespace {
+
+std::string folded(std::string s) {
+    for (char& c : s) c = char(std::tolower(uint8_t(c)));
+    return s;
+}
+
+} // namespace
+
+std::string JPTable::cellValue(int row, int c) const {
+    if (m_model->column(c).kind == JPTableModel::Kind::Boolean) return m_model->checked(row, c) ? "true" : "false";
+    return m_model->text(row, c);
+}
+
+bool JPTable::setCellValue(int row, int c, const std::string& value, std::string& error) {
+    switch (m_model->column(c).kind) {
+        case JPTableModel::Kind::Boolean: {
+            const std::string v = folded(value);
+            bool on;
+            if (v == "true" || v == "yes" || v == "y" || v == "1" || v == "x" || v == "on") on = true;
+            else if (v == "false" || v == "no" || v == "n" || v == "0" || v == "off" || v.empty()) on = false;
+            else {
+                error = "'" + value + "' is not a tick (yes or no)";
+                return false;
+            }
+            if (m_model->checked(row, c) != on) m_model->setChecked(row, c, on);
+            return m_model->checked(row, c) == on || (error = "not changed", false);
+        }
+        case JPTableModel::Kind::Choice: {
+            const std::vector<std::string> choices = m_model->choices(row, c);
+            for (size_t i = 0; i < choices.size(); ++i)
+                if (folded(choices[i]) == folded(value)) {
+                    if (m_model->text(row, c) != choices[i]) m_model->setChoice(row, c, int(i));
+                    return true;
+                }
+            error = "'" + value + "' is not one of its choices";
+            return false;
+        }
+        case JPTableModel::Kind::Picker:
+            error = "chosen in its own window";
+            return false;
+        default:
+            if (m_model->text(row, c) == value) return true;
+            if (!m_model->setText(row, c, value, error)) {
+                if (error.empty()) error = "'" + value + "' is not taken";
+                return false;
+            }
+            return true;
+    }
+}
+
+std::vector<int> JPTable::editRows(int row) const {
+    if (m_selected.size() <= 1 || !m_selected.count(row)) return { row };
+    return selectedRows();
+}
+
+int JPTable::rowByKey(const std::string& key) const {
+    for (int r = 0; m_model && r < m_model->rowCount(); ++r)
+        if (m_model->rowKey(r) == key) return r;
+    return -1;
+}
+
+int JPTable::columnByKey(const std::string& key) const {
+    for (int c = 0; m_model && c < m_model->columnCount(); ++c)
+        if (JPTableModel::keyOf(m_model->column(c)) == key) return c;
+    return -1;
+}
+
+void JPTable::toggle(int row, int c) {
+    // A tick, in every row chosen with it.
+    std::vector<CellSet> sets;
+    const std::string to = m_model->checked(row, c) ? "false" : "true";
+    for (const int r : editRows(row))
+        if (m_model->editable(r, c)) sets.push_back({ r, c, to });
+    std::vector<std::string> refused;
+    int changed = 0;
+    setCells(sets, false, refused, changed);
+}
+
+bool JPTable::setCells(const std::vector<CellSet>& sets, bool atomic, std::vector<std::string>& refused, int& changed) {
+    changed = 0;
+    if (!m_model || sets.empty()) return true;
+    std::vector<JPTableHistory::Cell> done;
+    std::vector<std::pair<int, int>> where;   // each done cell's row and column, to put back
+    m_model->beginEdits();
+    for (const CellSet& set : sets) {
+        if (set.row < 0 || set.row >= m_model->rowCount() || set.column < 0 || set.column >= m_model->columnCount()) continue;
+        const std::string before = cellValue(set.row, set.column);
+        if (before == set.value) continue;
+        std::string error;
+        if (!setCellValue(set.row, set.column, set.value, error)) {
+            // Which row, by the first thing it shows.
+            std::string row;
+            for (const int c : order())
+                if (row.empty()) row = m_model->text(set.row, c);
+            refused.push_back(m_model->column(set.column).name + (row.empty() ? std::string() : " of " + row) + ": " + error);
+            if (atomic) break;
+            continue;
+        }
+        done.push_back({ m_model->rowKey(set.row), JPTableModel::keyOf(m_model->column(set.column)), before, cellValue(set.row, set.column) });
+        where.push_back({ set.row, set.column });
+    }
+    if (atomic && !refused.empty()) {
+        // Put back what was set, in the reverse order.
+        for (size_t i = done.size(); i-- > 0;) {
+            std::string ignored;
+            setCellValue(where[i].first, where[i].second, done[i].before, ignored);
+        }
+        done.clear();
+    }
+    m_model->endEdits();
+    refresh();
+    changed = int(done.size());
+    if (done.empty()) return refused.empty();
+    // One step, named for it; said when it is more than one row.
+    const std::optional<JPFieldSet::Of> of = m_model->fieldsOf();
+    std::set<std::string> rows, columns;
+    for (const auto& d : done) {
+        rows.insert(d.row);
+        columns.insert(d.column);
+    }
+    const std::string kind = of ? JPFieldSet::plural(*of) : std::string("Rows");
+    const int c = columnByKey(*columns.begin());
+    std::string text = columns.size() == 1 ? "Change " + (c >= 0 ? m_model->column(c).name : std::string("a Cell")) : "Change " + std::to_string(done.size()) + " Cells";
+    if (rows.size() > 1) text += " of " + std::to_string(rows.size()) + " " + kind;
+    if (s_history && !m_model->ownHistory()) s_history->record(*this, done, text);
+    if (rows.size() > 1 && s_status) s_status(text + (s_history || m_model->ownHistory() ? " (Edit \xE2\x96\xB8 Undo takes it back)" : ""));
+    return refused.empty();
+}
+
+void JPTable::putCells(const std::vector<JPTableHistory::Cell>& cells, bool before) {
+    if (!m_model) return;
+    stopEditing(false);
+    m_model->beginEdits();
+    for (const JPTableHistory::Cell& cell : cells) {
+        const int r = rowByKey(cell.row), c = columnByKey(cell.column);
+        if (r < 0 || c < 0) continue;
+        std::string ignored;
+        setCellValue(r, c, before ? cell.before : cell.after, ignored);
+    }
+    m_model->endEdits();
+    refresh();
+}
+
+void JPTable::paste() {
+    if (!m_model || m_lead < 0) return;
+    stopEditing(true);
+    // The clipboard's rows and cells (a tab between them, as Ctrl+C copies them).
+    std::vector<std::vector<std::string>> block;
+    std::string text = JWidget::clipboardGet();
+    while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) text.pop_back();
+    if (text.empty()) return;
+    size_t from = 0;
+    while (from <= text.size()) {
+        size_t nl = text.find('\n', from);
+        std::string line = text.substr(from, nl == std::string::npos ? std::string::npos : nl - from);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        std::vector<std::string> cells;
+        size_t at = 0;
+        while (true) {
+            const size_t tab = line.find('\t', at);
+            cells.push_back(line.substr(at, tab == std::string::npos ? std::string::npos : tab - at));
+            if (tab == std::string::npos) break;
+            at = tab + 1;
+        }
+        block.push_back(std::move(cells));
+        if (nl == std::string::npos) break;
+        from = nl + 1;
+    }
+    const std::vector<int>& shown = order();
+    const int startPos = std::max(0, positionOf(m_leadColumn));
+    std::vector<CellSet> sets;
+    int passed = 0;
+    auto put = [&](int r, int pos, const std::string& v) {
+        if (pos < 0 || size_t(pos) >= shown.size()) return;
+        const int c = shown[size_t(pos)];
+        if (!m_model->editable(r, c) || m_model->column(c).kind == JPTableModel::Kind::Picker) {
+            ++passed;
+            return;
+        }
+        sets.push_back({ r, c, v });
+    };
+    if (block.size() == 1 && block[0].size() == 1 && m_selected.size() > 1) {
+        // One value: into every row chosen.
+        for (const int r : selectedRows()) put(r, startPos, block[0][0]);
+    } else {
+        // A block: down from the row chosen, along from its column, as the table shows them.
+        const int v0 = viewIndexOf(m_lead);
+        for (size_t i = 0; i < block.size(); ++i) {
+            const int v = v0 + int(i);
+            if (v < 0 || size_t(v) >= m_view.size()) break;
+            for (size_t j = 0; j < block[i].size(); ++j) put(m_view[size_t(v)], startPos + int(j), block[i][j]);
+        }
+    }
+    std::vector<std::string> refused;
+    int changed = 0;
+    if (!setCells(sets, true, refused, changed)) {
+        std::string why = "Nothing pasted: ";
+        for (size_t i = 0; i < refused.size() && i < 3; ++i) why += (i ? "; " : "") + refused[i];
+        if (onEditRefused) onEditRefused(why);
+        if (s_status) s_status(why);
+        return;
+    }
+    if (s_status && (changed > 0 || passed > 0))
+        s_status(std::to_string(changed) + " cell(s) pasted" + (passed ? ", " + std::to_string(passed) + " that cannot be changed passed over" : std::string()));
+}
+
 void JPTable::startEditing(int r, int c, const std::string* typed) {
     stopEditing(true);
     m_editing = true;
@@ -1711,8 +1942,19 @@ bool JPTable::stopEditing(bool keep, bool stayIfRefused) {
     if (!m_editing) return true;
     const int r = m_editRow, c = m_editColumn;
     if (keep && m_model && r < m_model->rowCount() && m_edit.text() != m_model->text(r, c)) {
-        std::string error;
-        if (!m_model->setText(r, c, m_edit.text(), error)) {
+        // Into every row chosen with it (those that can take it); refused by one, by none.
+        std::vector<CellSet> sets;
+        for (const int row : editRows(r))
+            if (m_model->editable(row, c)) sets.push_back({ row, c, m_edit.text() });
+        std::vector<std::string> refused;
+        int changed = 0;
+        const std::string typed = m_edit.text();
+        m_editing = false;   // the rows made again as they change: not drawn as edited meanwhile
+        const bool taken = setCells(sets, true, refused, changed);
+        m_editing = true;
+        if (!taken) {
+            const std::string error = refused.empty() ? std::string() : refused.front().substr(refused.front().find(": ") + 2);
+            m_edit.setText(typed);
             if (onEditRefused && !error.empty()) onEditRefused(error);
             // As a Swing table: a value it cannot take keeps the cell open.
             if (stayIfRefused) {
@@ -1750,10 +1992,15 @@ void JPTable::openChoices(int r, int c) {
     for (size_t i = 0; i < choices.size(); ++i)
         if (choices[i] == now) m_choiceCombo->setCurrentIndex(int(i));
     if (auto search = m_model->choiceSearch(r, c)) m_choiceCombo->setSearch(std::move(*search));
-    m_choiceCombo->onIndexChanged.connect([this, r, c](int index) {
-        if (!m_model || r >= m_model->rowCount() || index < 0) return;
-        m_model->setChoice(r, c, index);
-        refresh();
+    m_choiceCombo->onIndexChanged.connect([this, r, c, choices](int index) {
+        if (!m_model || r >= m_model->rowCount() || index < 0 || size_t(index) >= choices.size()) return;
+        // The choice, in every row chosen with it.
+        std::vector<CellSet> sets;
+        for (const int row : editRows(r))
+            if (m_model->editable(row, c)) sets.push_back({ row, c, choices[size_t(index)] });
+        std::vector<std::string> refused;
+        int changed = 0;
+        setCells(sets, false, refused, changed);
     });
     JComboBox::onOpenPopupHook(m_choiceCombo.get());
 }

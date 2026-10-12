@@ -37,6 +37,11 @@
 inline namespace jf {
 
 namespace {
+// How long a table's change of many rows is said in the status line.
+constexpr int kTableStatusMs = 6000;
+} // namespace
+
+namespace {
 constexpr const char* kWindowTitle  = "jplacer";
 constexpr uint32_t    kWindowWidth  = 1280;
 constexpr uint32_t    kWindowHeight = 800;
@@ -121,6 +126,15 @@ JPlacerApp::JPlacerApp(std::string settingsPath) {
                                              [&h] { return h.undoText(); }, [&h] { return h.redoText(); },
                                              [&h] { h.undo(); }, [&h] { h.redo(); }, [&h] { return h.serial(); } });
         h.onChanged = [this, libraryUndo] { m_undo.changed(libraryUndo); };
+        // And what is changed in the tables (but the library's: its history notes it).
+        JPTableHistory& t = m_tableEdits;
+        const int tableUndo = m_undo.add({ [&t] { return t.canUndo(); }, [&t] { return t.canRedo(); },
+                                           [&t] { return t.undoText(); }, [&t] { return t.redoText(); },
+                                           [&t] { t.undo(); }, [&t] { t.redo(); }, [&t] { return t.serial(); } });
+        t.onChanged = [this, tableUndo] { m_undo.changed(tableUndo); };
+        JPTable::s_history = &m_tableEdits;
+        // A change of many rows said in the status line.
+        JPTable::s_status = [this](const std::string& text) { m_window->showStatus(text, kTableStatusMs); };
     }
     m_machine->startWithDefault();   // after the tabs: its feeders go to the Feeders tab
     JMenuManager::instance().setTearOffEnabled(JPlacerSettings::tearOffMenus());

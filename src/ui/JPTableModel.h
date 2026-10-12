@@ -117,6 +117,9 @@ public:
     // False when the row keeps none.
     virtual bool setCustom(int, const std::string& /*key*/, const JJson& /*value*/) { return false; }
 
+    // Whether its edits are undone by a history of its own (the library's notes every change): the table makes
+    // no steps of its own for them (JPTableHistory).
+    virtual bool ownHistory() const { return false; }
     // Edits to many rows at once (a value typed into all the rows chosen, a paste): begun, then ended, so the
     // model says the change once (saved and redrawn once, not once a row).
     virtual void beginEdits() {}
