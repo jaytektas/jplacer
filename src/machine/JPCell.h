@@ -312,6 +312,9 @@ public:
     // A new squareness correction (JPSquarenessConfig). Every coordinate means
     // something else after it, so the machine is no longer homed.
     void setSquareness(const JPSquarenessConfig& squareness);
+    // The machine's vision settings (what a fiducial check, bottom vision and the like read as they run): taken as
+    // they are, nothing else touched (the machine stays homed, its controllers as they are).
+    void setVision(const JPVisionConfig& vision);
     JPSquarenessConfig squareness() const;
 
     // An axis's backlash compensation, in use from the next move (the cell's

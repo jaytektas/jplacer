@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The Job tab's **Measure Board Z** toggle only sets that setting (and saves it): it no longer applies the
+  whole machine setup again, which could crash jplacer when pressed before homing. Press it again to take
+  it back (it is no longer an Edit ▸ Undo step).
+
 ## 0.1.69
 
 - Changing a setting only a job or a check uses (Machine Setup's Vision settings, the job processor's; the

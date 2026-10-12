@@ -2339,6 +2339,17 @@ void JPlacerMachine::changeSetup(const std::string& what, const std::function<vo
     if (m_setup) m_setup->change(what, edit);
 }
 
+void JPlacerMachine::setMeasureBoardZ(bool on) {
+    if (!m_cell) return;
+    JPCellConfig cell = m_cell->config();
+    cell.vision.measureBoardZ = on;
+    m_cell->setVision(cell.vision);
+    std::string error;
+    if (!cell.save(m_cellPath, error)) m_window.showStatus("Measure Board Z? is in use but not saved: " + error, kErrorMs);
+    if (m_setup) m_setup->measured([on](JPCellConfig& c) { c.vision.measureBoardZ = on; });
+    if (onSetupApplied) onSetupApplied();   // the toggle shown as it now is
+}
+
 void JPlacerMachine::calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished) {
     for (CameraDock& c : m_cameras)
         if (c.panel->camera().id == cameraId && m_cameraTasks) {

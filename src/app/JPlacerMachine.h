@@ -319,6 +319,9 @@ public:
     // whether a camera has a calibration.
     void          showSetupNode(const std::string& path);
     void          changeSetup(const std::string& what, const std::function<void(JPCellConfig&)>& edit);
+    // Measure Board Z? (Machine Setup's Vision; the Job tab's toggle): the flag set on the machine and saved, Machine
+    // Setup shown it, nothing else touched (no change applied: nothing reads it until a fiducial check).
+    void          setMeasureBoardZ(bool on);
     bool          cameraCalibrated(const std::string& cameraId) const;
     // Where the docks live, and View's entries for them.
     JPlacerLayout& layout() { return m_layout; }

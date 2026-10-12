@@ -2149,6 +2149,13 @@ std::map<std::string, double> JPCell::toAxes(std::map<std::string, double> squar
     return square;
 }
 
+void JPCell::setVision(const JPVisionConfig& vision) {
+    m_thread.post([this, vision] {
+        std::lock_guard lk(m_mutex);
+        m_config.vision = vision;
+    });
+}
+
 void JPCell::setSquareness(const JPSquarenessConfig& squareness) {
     m_thread.post([this, squareness] {
         {
