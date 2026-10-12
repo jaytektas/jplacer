@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The Job tab's Placements has **Move Camera To Previous Placement Location** (Next's arrow pointing back),
+  left of **Move Camera To Next Placement Location**: the camera to the placement before the chosen one.
+
 - A submenu of a menu long enough to wrap into two columns (a table's **Columns**, its **This View**) opens
   to the side away from the other column, so it can be reached: it opened over the second column, and moving
   to it closed it.

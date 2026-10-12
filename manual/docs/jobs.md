@@ -102,9 +102,11 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or
 **Disabled**). A board's own (its placements' IDs, parts, sides, where they lie, types, comments) are
 changed here, for every use of it (and New and Remove Placement(s) work); Enabled, Placed and Error
-Handling for this use alone. **Move Camera To Placement Location** (and **To Next**), **Move Tool To Placement Location**,
+Handling for this use alone. **Move Camera To Placement Location**, **Move Tool To Placement Location**,
 **Capture Camera Placement Location** and **Capture Tool Placement Location** work as the board ones,
-for the chosen placement. **Edit Placement Feeder** (one placement of a board) opens the
+for the chosen placement. **Move Camera To Previous Placement Location** and **To Next** (the arrows either
+side of it) choose the placement before or after the chosen one, as the table shows them (none chosen: the
+last, or the first), and take the camera there. **Edit Placement Feeder** (one placement of a board) opens the
 [Feeders](feeders.md) tab on the feeder holding its part: an enabled one first, else a disabled one, else
 a new feeder is made for it. Right-click for **Set Type**,
 **Set Side**, **Set Placed**, **Set Enabled** and **Set Error Handling**; **Space** turns the chosen

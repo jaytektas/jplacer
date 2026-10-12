@@ -87,7 +87,8 @@ void JPIconButton::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             if (tex != kNullTexture) {
                 // The button's face first, the icon over it, the marks below over both.
                 vg.flush(buf);
-                buf.pushImage(b.x + (b.width - side) * 0.5f, b.y + (b.height - side) * 0.5f, side, side, tex);
+                buf.pushImage(b.x + (b.width - side) * 0.5f, b.y + (b.height - side) * 0.5f, side, side, tex, nullptr,
+                              m_mirrored ? 1.f : 0.f, 0.f, m_mirrored ? 0.f : 1.f, 1.f);
                 vg = JVectorCanvas();
             }
         }

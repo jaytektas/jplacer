@@ -97,12 +97,17 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     m_remove->onClicked.connect([this] { removePlacements(); });
     bar->add(toolSeparator(graph));
     m_cameraTo = tool("Move Camera To Placement Location", "position-camera", "Position the camera at the placement's location.");
-    m_cameraTo->onClicked.connect([this] { moveTo(Tool::Camera, false); });
+    m_cameraTo->onClicked.connect([this] { moveTo(Tool::Camera, Step::Chosen); });
+    // Next's icon mirrored: back the way Next goes.
+    m_cameraPrevious = tool("Move Camera To Previous Placement Location", "position-camera-move-next",
+                            "Position the camera at the previous placement's location.");
+    m_cameraPrevious->setMirrored(true);
+    m_cameraPrevious->onClicked.connect([this] { moveTo(Tool::Camera, Step::Previous); });
     m_cameraNext = tool("Move Camera To Next Placement Location", "position-camera-move-next",
                         "Position the camera at the next placements location.");
-    m_cameraNext->onClicked.connect([this] { moveTo(Tool::Camera, true); });
+    m_cameraNext->onClicked.connect([this] { moveTo(Tool::Camera, Step::Next); });
     m_toolTo = tool("Move Tool To Placement Location", "position-nozzle", "Position the tool at the placement's location.");
-    m_toolTo->onClicked.connect([this] { moveTo(Tool::Nozzle, false); });
+    m_toolTo->onClicked.connect([this] { moveTo(Tool::Nozzle, Step::Chosen); });
     bar->add(toolSeparator(graph));
     m_turn = tool("Turn 90°", "rotate-counterclockwise",
                   "Turn the chosen placement a quarter counter-clockwise: its footprint, drawn on the camera, follows. A "
@@ -294,6 +299,7 @@ void JPJobPlacementsPanel::updateActions() {
     const bool facingUp = one && m_location && chosen.front()->side == m_location->globalSide();
     m_cameraTo->setEnabled(facingUp);
     m_cameraNext->setEnabled(facingUp);
+    m_cameraPrevious->setEnabled(facingUp);
     m_toolTo->setEnabled(facingUp);
     m_captureCamera->setEnabled(editDefinition && facingUp);
     m_turn->setEnabled(facingUp && chosen.front()->type == JPPlacement::Type::Placement);
@@ -359,13 +365,13 @@ void JPJobPlacementsPanel::removePlacements() {
     changed();
 }
 
-void JPJobPlacementsPanel::moveTo(Tool tool, bool next) {
+void JPJobPlacementsPanel::moveTo(Tool tool, Step step) {
     if (!m_location || !moveTool) return;
-    if (next) {
-        // The next row shown chosen first.
+    if (step != Step::Chosen) {
+        // The next (or previous) row shown chosen first; none chosen: the first (or the last).
         const auto rows = m_table->selectedRows();
-        const int view = rows.empty() ? -1 : m_table->viewIndexOf(rows.front());
-        const int to = m_table->modelRowAt(view + 1);
+        const int view = rows.empty() ? (step == Step::Next ? -1 : m_table->viewRowCount()) : m_table->viewIndexOf(rows.front());
+        const int to = m_table->modelRowAt(step == Step::Next ? view + 1 : view - 1);
         if (to >= 0) m_table->selectRow(to);
     }
     const auto chosen = selections();
@@ -419,7 +425,7 @@ void JPJobPlacementsPanel::verifyChosen() {
         const JPPlacement* p = m_model.placement(row);
         if (p && p->verified.by.empty() && p->side == m_location->globalSide() && p->type == JPPlacement::Type::Placement) {
             m_table->selectRow(row);
-            moveTo(Tool::Camera, false);
+            moveTo(Tool::Camera, Step::Chosen);
             return;
         }
     }

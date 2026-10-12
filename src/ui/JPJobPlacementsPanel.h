@@ -91,7 +91,10 @@ private:
     void buildMenu();
     void newPlacement();
     void removePlacements();
-    void moveTo(Tool tool, bool next);
+    // The chosen placement, or the row after it or before it as the table shows them (chosen first): the tool
+    // taken there.
+    enum class Step { Chosen, Next, Previous };
+    void moveTo(Tool tool, Step step);
     void capture(Tool tool);
     void changed();
 
@@ -118,6 +121,7 @@ private:
     JPIconButton*                       m_remove = nullptr;
     JPIconButton*                       m_cameraTo = nullptr;
     JPIconButton*                       m_cameraNext = nullptr;
+    JPIconButton*                       m_cameraPrevious = nullptr;
     JPIconButton*                       m_toolTo = nullptr;
     JPIconButton*                       m_captureCamera = nullptr;
     JPIconButton*                       m_captureTool = nullptr;

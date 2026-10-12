@@ -42,6 +42,8 @@ public:
     // Drawn as a button at rest too (a surface and an edge), for a pad of
     // controls rather than a panel's tools.
     void setFramed(bool on) { m_framed = on; }
+    // Its OpenPnP icon drawn mirrored, left for right (an icon pointing the other way: Previous to its Next).
+    void setMirrored(bool on) { m_mirrored = on; }
     // A state its glyph shows in colour: Good (the theme's success colour), Bad (its danger colour), or None
     // (its usual ink). Greyed while disabled whatever it is.
     enum class Tone { None, Good, Bad };
@@ -66,6 +68,7 @@ private:
     std::string m_icon;   // an OpenPnP icon's name, instead of a glyph
     bool  m_checkable = false;
     bool  m_framed    = false;
+    bool  m_mirrored  = false;
     bool  m_checked = false;
     Leads m_leads   = Leads::Nowhere;
 };
