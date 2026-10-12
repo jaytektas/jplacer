@@ -190,6 +190,9 @@ the library has is left as it is.
 - **Sides**: **Top and Bottom** (to begin with), **Top Only** or **Bottom Only**: the placement file's rows
   of the other side are left out, and **What it makes** says how many. On a **Merge** the board's
   placements on that side stay as they are; a **Replace** takes them off with the rest.
+- **Fetch Footprints from LCSC** (kept for the next import): once you **Import**, each package the board's
+  parts are of that has no pads is given its footprint from LCSC, by the LCSC part number of its part (see
+  [Footprints from LCSC](packages.md#footprints-from-lcsc)).
 
 A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
 grouped by manufacturer and MPN where the files give them, else by value and footprint, and each keeps
@@ -210,7 +213,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/ui/JPBoardPlacementsPanel.cpp (takeMade); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 

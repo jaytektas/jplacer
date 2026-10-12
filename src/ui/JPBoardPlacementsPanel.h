@@ -47,6 +47,8 @@ public:
     std::function<void(JPBoard&)> openBoardParts;
     // Opens the CPL and BOM import (JPlacerCplBomImportDialog); `imported` has the board it made.
     std::function<void(std::function<void(JPBoard&)> imported)> openCplBom;
+    // An import taken (its parts and packages the library's now): `imported` as it was read.
+    std::function<void(const JPBoard& imported)> onImportTaken;
     // Opens a new revision's upgrade (JPlacerBoardUpgradeDialog) of the board from `files`; `made` has the new
     // revision and the label of the one shown now (for a board that kept none).
     std::function<void(JPBoard& board, std::shared_ptr<JPBoard> files,

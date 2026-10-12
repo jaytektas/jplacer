@@ -20,6 +20,7 @@ open boards, or one board's.
 | **Delete Package** (cross) | Deletes the chosen packages, after asking. A package a part uses is not deleted: it says which part. |
 | **Copy Package to Clipboard** | Puts the chosen package on the clipboard as text, as OpenPnP keeps a package (its name its ID). |
 | **Create Package from Clipboard** | Asks for a name and makes a package from what the clipboard holds, with an ID of its own. |
+| **Fetch Missing Footprints** (a chip, an arrow into it) | Gives every package with no pads its footprint from LCSC, by the LCSC part number of a part of it (see [Footprints from LCSC](#footprints-from-lcsc)); the status line says how far, and what could not be fetched is listed at the end. |
 
 **Search** works as on the [Parts](parts.md) tab, and the table sorts, chooses and edits the same way.
 
@@ -59,7 +60,9 @@ Level** for placing.
 - **Generate** makes the pads from the numbers beside it: **Dual** (two rows; **Pad count** a multiple of
   2), **Quad** (four sides; a multiple of 4), **BGA** (a square grid; a square number, those within the
   **Inside dimension** left out), or **KiCad**, read from a KiCad footprint file (`.kicad_mod`): its SMD
-  pads on the top copper. **Outside dimension** is the footprint's overall width (Dual) or width and
+  pads on the top copper; or, the last button, from **LCSC**: asked for an LCSC part number (C14663; left
+  empty, the LCSC part number of a part of the package, where one has it), its footprint's pads fetched
+  ([Footprints from LCSC](#footprints-from-lcsc)). **Outside dimension** is the footprint's overall width (Dual) or width and
   height (Quad); **Pad pitch** the distance between pads; **Pad Across** a pad's size along the pitch;
   **% Roundness** how rounded the pads are, in percent of their smaller side (negative: only the inner
   side). Pads already there are deleted first, after asking.
@@ -86,7 +89,8 @@ left), and its pads (how many, and where they came from). **Use as the Package's
 footprint (the Footprint tab, what vision measures the part by) this one's pads and body; **Delete** takes
 it out of the library. **From the Package's Footprint** makes one from the package's own, named after the
 package; **Import KiCad Footprint…** reads one from a `.kicad_mod` file, named and known by its file's
-name. The names boards' files give a footprint are learned too, as parts are chosen (see [Choosing a
+name; **Import LCSC Footprint…** fetches one by an LCSC part number, named and known by EasyEDA's name for
+it (`SOIC-8_L5.0-W4.0-P1.27-LS6.0-BL`). The names boards' files give a footprint are learned too, as parts are chosen (see [Choosing a
 part](boards.md#choosing-a-part)). A library from before footprints had its packages' CAD names moved onto
 a footprint of each, made from the package's own.
 
@@ -122,6 +126,26 @@ some of its parts have settings of their own, takes those off each of them (afte
 use the package's again.
 
 <!-- src: src/ui/JPPackagesPanel.cpp (visionTab, visionAct); src/setup/JPVisionForms.cpp (act, specializedIn) -->
+
+## Footprints from LCSC
+
+A part's footprint can be fetched by its LCSC part number (the C number, as C14663: a JLCPCB BOM's
+**LCSC Part #**), from the lookup EasyEDA's own tools use, so it need not be exported. Only the part
+number is sent. Its SMD pads on the top copper are taken, in millimetres from the footprint's origin
+(where EasyEDA's placement files put the part), each as EasyEDA turns it: rectangles square, ovals and
+circles round, a polygon pad the rectangle round it; through-hole pads are left out; pad 1 is marked. The
+status line says how many pads, and what was made of the pads that did not fit. Each answer is kept, in
+the configuration folder's `lcsc` folder, so a part is asked for once and found again without the network.
+The lookup is not one EasyEDA documents: when it cannot be reached, or does not know the part, it says so
+and nothing changes.
+
+Fetched for a package with no pads (**Fetch Missing Footprints**, or an import's **Fetch Footprints from
+LCSC**, see [Boards](boards.md#importing-a-cpl-and-bom)), what EasyEDA says of the part is given to the
+package's parts with that LCSC part number where they have none: its description, its MPN (with its
+manufacturer), and its height where its 3D model's name gives one (`…-H0.8`). A package that has pads is
+left as it is; one given pads while the fetch ran keeps them.
+
+<!-- src: src/model/JPEasyEdaPart.cpp (parse, partNumber, url); src/model/JPLcscLookup.cpp (find, giveFootprint, describe, lcscOf); src/ui/JPPackagesPanel.cpp (lcscPads, lcscFootprint, askLcsc, fetchFootprints) -->
 
 Every change to a package, its footprint and the library's footprints, a package made or deleted, can be
 taken back with **Edit ▸ Undo** and made again with **Edit ▸ Redo** (see [Parts](parts.md#undo-and-redo)).

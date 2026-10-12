@@ -3,6 +3,7 @@
 
 #include "JPlacerCplBomImportDialog.h"
 
+#include "JPlacerSettings.h"
 #include "common/JPlacerLog.h"
 #include "import/JPKicadBoardFile.h"
 #include "ui/JPGroupFrame.h"
@@ -10,6 +11,7 @@
 #include "ui/JPTextField.h"
 #include "ui/JPUiParts.h"
 
+#include <j/config/Settings.h>
 #include <j/core/Dialog.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
@@ -176,6 +178,14 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
     m_create->onStateChanged.connect([this](bool on) {
         m_import.createMissing = on;
         m_refillSummary = true;
+    });
+    JCheckBox* lcsc = makes->add(std::make_unique<JCheckBox>(g, "Fetch Footprints from LCSC", 0.f));
+    lcsc->setTooltip("Once you Import, each package the board uses that has no pads is given its footprint from LCSC, "
+                     "by the LCSC part number of its part (only the part numbers are sent)");
+    lcsc->setChecked(JSettings::instance().get<bool>(JPlacerSettings::kImportFetchLcsc, false));
+    lcsc->onStateChanged.connect([](bool on) {
+        JSettings::instance().set(JPlacerSettings::kImportFetchLcsc, on);
+        JPlacerSettings::save();
     });
     middle->add(std::move(makes));
     m_content->add(std::move(middle));

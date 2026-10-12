@@ -93,6 +93,21 @@ void JPIcons::photograph(JVectorCanvas& vg, float cx, float cy, float size, cons
     vg.fillCircle(cx + w * 0.7f, top + h * 0.45f, size * 0.04f, JPaint::solid(ink));
 }
 
+void JPIcons::fetchPart(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    const float line = size * kLine, w = size * 0.26f, top = cy - size * 0.02f, h = size * 0.4f;
+    // The chip, its legs either side.
+    vg.strokeRect(cx - w, top, 2 * w, h, line, JPaint::solid(ink));
+    for (int i = 0; i < 3; ++i) {
+        const float y = top + h * (0.22f + 0.28f * i);
+        vg.drawLine(cx - w - size * 0.14f, y, cx - w, y, line, JPaint::solid(ink));
+        vg.drawLine(cx + w, y, cx + w + size * 0.14f, y, line, JPaint::solid(ink));
+    }
+    // The arrow down into it.
+    const float head = size * 0.13f, from = cy - size * 0.48f, tip = top - size * 0.03f;
+    vg.drawLine(cx, from, cx, tip - head * 0.6f, line, JPaint::solid(ink));
+    vg.fillConvex({ { cx - head, tip - head }, { cx + head, tip - head }, { cx, tip } }, JPaint::solid(ink));
+}
+
 void JPIcons::save(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     const float half = size * 0.38f, line = size * kLine;
     vg.strokeRoundedRect(cx - half, cy - half, 2 * half, 2 * half, size * 0.06f, line, JPaint::solid(ink));

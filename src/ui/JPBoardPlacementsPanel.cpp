@@ -380,6 +380,7 @@ void JPBoardPlacementsPanel::takeMade(const JPBoard& imported) {
     if (parts > 0 || packages > 0)
         JLOGC(JPlacerLog::kBoardImport, JLogLevel::Info) << parts << " part(s) and " << packages
                                                          << " package(s) the import made added to the library";
+    if (onImportTaken) onImportTaken(imported);
 }
 
 void JPBoardPlacementsPanel::upgrade(JPBoard* board, std::shared_ptr<JPBoard> files) {

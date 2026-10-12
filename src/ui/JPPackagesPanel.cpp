@@ -14,7 +14,9 @@
 #include "JPTableTools.h"
 #include "JPUiParts.h"
 
+#include "JPIcons.h"
 #include "model/JPKicadModImporter.h"
+#include "model/JPLcscLookup.h"
 #include "model/JPLengthUnits.h"
 #include "openpnp/JPXmlReader.h"
 #include "openpnp/JPXmlWriter.h"
@@ -27,10 +29,13 @@
 #include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
 #include <j/core/JTextHelper.h>
+#include <j/core/MainThreadDispatcher.h>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <thread>
 
 inline namespace jf {
 
@@ -103,6 +108,11 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     m_copy->onClicked.connect([this] { copyPackage(); });
     tool("Create Package from Clipboard", "paste", "Create a new package from a definition on the clipboard.")
         ->onClicked.connect([this] { pastePackage(); });
+    bar->add(toolSeparator(graph));
+    bar->add(std::make_unique<JPIconButton>(graph, "Fetch Missing Footprints", JPIcons::fetchPart,
+                                            "Give every package with no pads its footprint from LCSC, by the LCSC part "
+                                            "number of a part of it (only the part numbers are sent)"))
+        ->onClicked.connect([this] { fetchFootprints({}); });
     JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // Show: every row, those an open board uses, or one board's.
@@ -425,6 +435,16 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
         b->onClicked.connect([this, t] { generatePads(t); });
         gens->add(std::move(b));
     }
+    // From LCSC, by a part number asked for.
+    {
+        auto b = std::make_unique<JPIconButton>(g, "Fetch the footprint from LCSC", JPIcons::fetchPart,
+                                                "Fetch the footprint of an LCSC part number (C14663) from EasyEDA: its "
+                                                "pads replace these (only the part number is sent)");
+        b->setFramed(true);
+        b->setLeads(JPIconButton::Leads::Elsewhere);
+        b->onClicked.connect([this] { lcscPads(); });
+        gens->add(std::move(b));
+    }
     grid->widget("Generate", std::move(gens));
     grid->skip();
     number(*grid, "Body Width", "", &JPFootprint::bodyWidth);
@@ -569,6 +589,161 @@ void JPPackagesPanel::generatePads(JPFootprint::Generator type) {
     }
 }
 
+std::string JPPackagesPanel::lcscCache() const {
+    return (std::filesystem::path(m_config.directory()) / JPLcscLookup::kCacheFolder).string();
+}
+
+std::string JPPackagesPanel::lcscOfPackage(const std::string& packageId) const {
+    for (const auto& p : m_config.parts())
+        if (p->packageId == packageId)
+            if (const std::string n = JPLcscLookup::lcscOf(*p); !n.empty()) return n;
+    return "";
+}
+
+void JPPackagesPanel::askLcsc(const std::string& title, const std::string& suggested,
+                              std::function<void(const JPEasyEdaPart&)> found) {
+    std::weak_ptr<bool> alive = m_alive;
+    const std::string cache = lcscCache();
+    const std::string prompt = suggested.empty() ? "The LCSC part number (C14663):"
+                                                 : "The LCSC part number (left empty: " + suggested + ", its part's):";
+    JDialog::input(title, prompt, [this, alive, cache, suggested, found](std::string typed) {
+        if (const auto a = alive.lock(); !a || !*a) return;
+        const std::string number = typed.empty() ? suggested : typed;
+        if (JPEasyEdaPart::partNumber(number).empty()) {
+            JDialog::message("Not an LCSC Part Number", "\"" + number + "\" is not an LCSC part number: C followed by its digits, as C14663.");
+            return;
+        }
+        if (JPTable::s_status) JPTable::s_status("Asking EasyEDA for " + JPEasyEdaPart::partNumber(number) + "\xE2\x80\xA6");
+        std::thread([this, alive, cache, number, found] {
+            JPEasyEdaPart part;
+            std::string why;
+            const bool ok = JPLcscLookup::find(cache, number, part, why);
+            JMainThreadDispatcher::instance().post([this, alive, ok, part, why, found] {
+                if (const auto a = alive.lock(); !a || !*a) return;
+                if (!ok) {
+                    JDialog::message("Footprint Not Fetched", why);
+                    return;
+                }
+                found(part);
+            });
+        }).detach();
+    }, {}, suggested);
+}
+
+namespace {
+// What is said of a part's pads as fetched: how many, and what was made of what does not fit.
+std::string padsSaid(const JPEasyEdaPart& p) {
+    std::string s = p.lcsc + " (" + p.footprintName + "): " + std::to_string(p.pads.size()) + " pad(s)";
+    if (p.polygons) s += ", " + std::to_string(p.polygons) + " polygon pad(s) made the rectangle round them";
+    if (p.throughHole) s += ", " + std::to_string(p.throughHole) + " through-hole pad(s) left out";
+    return s;
+}
+} // namespace
+
+void JPPackagesPanel::lcscPads() {
+    const std::string id = m_shown;
+    if (!m_config.package(id)) return;
+    askLcsc("Fetch Footprint from LCSC", lcscOfPackage(id), [this, id](const JPEasyEdaPart& part) {
+        auto give = [this, id, part] {
+            JPPackage* k = m_config.package(id);
+            if (!k) return;
+            JPLcscLookup::giveFootprint(*k, part);
+            if (JPTable::s_status) JPTable::s_status(padsSaid(part));
+            refresh();
+            changed();
+        };
+        const JPPackage* k = m_config.package(id);
+        if (k && !k->footprint.pads.empty()) {
+            JDialogOptions opts;
+            opts.okLabel = "Yes";
+            opts.cancelLabel = "No";
+            JDialog::confirm("Delete all pads?", "Are you sure you want to delete all existing pads?", give, nullptr, opts);
+        } else {
+            give();
+        }
+    });
+}
+
+void JPPackagesPanel::lcscFootprint(const std::string& packageId) {
+    askLcsc("Import LCSC Footprint", lcscOfPackage(packageId), [this, packageId](const JPEasyEdaPart& part) {
+        if (!m_config.package(packageId)) return;
+        auto f = std::make_shared<JPLibraryFootprint>();
+        f->name = part.footprintName.empty() ? part.lcsc : part.footprintName;
+        f->cadNames = { f->name };
+        f->packageId = packageId;
+        f->geometry.units = JPLengthUnit::Millimeters;
+        f->geometry.pads = part.pads;
+        f->source = "LCSC " + part.lcsc + " (EasyEDA)";
+        m_config.addFootprint(f);
+        if (JPTable::s_status) JPTable::s_status(padsSaid(part));
+        changed();
+        updateWizards(true);
+    });
+}
+
+void JPPackagesPanel::fetchFootprints(std::vector<std::string> packageIds) {
+    if (m_fetching) {
+        if (JPTable::s_status) JPTable::s_status("Footprints are being fetched from LCSC already");
+        return;
+    }
+    // Each package with no pads, by a part of it that has an LCSC part number.
+    std::vector<std::pair<std::string, std::string>> asks;   // package, LCSC part number
+    int without = 0;
+    for (const auto& k : m_config.packages()) {
+        if (!packageIds.empty() && std::find(packageIds.begin(), packageIds.end(), k->id) == packageIds.end()) continue;
+        if (!k->footprint.pads.empty()) continue;
+        if (const std::string n = lcscOfPackage(k->id); !n.empty()) asks.emplace_back(k->id, n);
+        else ++without;
+    }
+    if (asks.empty()) {
+        if (JPTable::s_status)
+            JPTable::s_status(without ? std::to_string(without) + " package(s) with no pads, none with a part that has an LCSC part number"
+                                      : "Every package has its pads");
+        return;
+    }
+    m_fetching = true;
+    std::weak_ptr<bool> alive = m_alive;
+    const std::string cache = lcscCache();
+    std::thread([this, alive, cache, asks, without] {
+        int given = 0;
+        std::vector<std::string> failed;
+        for (size_t i = 0; i < asks.size(); ++i) {
+            JPEasyEdaPart part;
+            std::string why;
+            const bool ok = JPLcscLookup::find(cache, asks[i].second, part, why);
+            if (!ok) failed.push_back(asks[i].second + ": " + why);
+            else ++given;
+            const std::string packageId = asks[i].first;
+            const std::string said = "Fetching footprints from LCSC: " + std::to_string(i + 1) + " of " + std::to_string(asks.size());
+            JMainThreadDispatcher::instance().post([this, alive, ok, part, packageId, said] {
+                if (const auto a = alive.lock(); !a || !*a) return;
+                if (JPTable::s_status) JPTable::s_status(said);
+                if (!ok) return;
+                JPPackage* k = m_config.package(packageId);
+                if (!k || !k->footprint.pads.empty()) return;   // given pads meanwhile: kept
+                JPLcscLookup::giveFootprint(*k, part);
+                // Its parts' empty fields: what LCSC says of the part.
+                for (const auto& p : m_config.parts())
+                    if (p->packageId == packageId && JPLcscLookup::lcscOf(*p) == part.lcsc) JPLcscLookup::describe(*p, part);
+            });
+        }
+        JMainThreadDispatcher::instance().post([this, alive, given, failed, without] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            m_fetching = false;
+            refresh();
+            changed();
+            std::string s = std::to_string(given) + " footprint(s) fetched from LCSC";
+            if (without) s += "; " + std::to_string(without) + " package(s) have no part with an LCSC part number";
+            if (JPTable::s_status) JPTable::s_status(s);
+            if (!failed.empty()) {
+                std::string text;
+                for (const std::string& f : failed) text += (text.empty() ? "" : "\n") + f;
+                JDialog::message("Footprints Not Fetched", text);
+            }
+        });
+    }).detach();
+}
+
 void JPPackagesPanel::remakeLater() {
     std::weak_ptr<bool> alive = m_alive;
     JMainThreadDispatcher::instance().post([this, alive] {
@@ -701,6 +876,10 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintsTab(JPPackage& p) {
             updateWizards(true);
         });
     });
+    JButton* lcsc = buttons->add(JPUiParts::button(g, "Import LCSC Footprint\xE2\x80\xA6"));
+    lcsc->setTooltip("A footprint fetched from EasyEDA by an LCSC part number (C14663), named and known by EasyEDA's "
+                     "name for it (only the part number is sent)");
+    lcsc->onClicked.connect([this, packageId] { lcscFootprint(packageId); });
     buttons->setVSizePolicy(JSizePolicyMode::Fixed);
     buttons->setSize(0.f, JStyle::current().buttonHeight);
     list->addChildWidget(std::move(buttons));

@@ -11,6 +11,7 @@
 #include "JPTable.h"
 
 #include "model/JPConfiguration.h"
+#include "model/JPEasyEdaPart.h"
 #include "setup/JPVisionForms.h"
 
 #include <j/core/JComboBox.h>
@@ -40,6 +41,9 @@ public:
 
     std::function<void()> onChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
+    // The packages given pads from LCSC (JPLcscLookup), on a thread of their own: each of `packageIds` with no pads
+    // whose parts have an LCSC part number (empty: every such package), the status line saying how far.
+    void fetchFootprints(std::vector<std::string> packageIds);
     // The chosen package's footprint to draw over the cameras (null: none
     // chosen), as OpenPnP's PackageVisionWizard draws it: told when another
     // is chosen (here, or by linked tables) or it is edited, not when the
@@ -105,6 +109,15 @@ private:
     std::unique_ptr<JContainer> visionTab(JPPackage& p, JPVisionSettings::Kind kind);
     void visionAct(const std::string& action);
     void generatePads(JPFootprint::Generator type);
+    // The shown package's pads from an LCSC part number asked for; a footprint of the package from one.
+    void lcscPads();
+    void lcscFootprint(const std::string& packageId);
+    // An LCSC part number asked for (`suggested` taken when left empty), then looked up off the screen's thread:
+    // `found` with the part, or the reason said.
+    void askLcsc(const std::string& title, const std::string& suggested, std::function<void(const JPEasyEdaPart&)> found);
+    // The LCSC part number of a part of the package, where one has it; empty: none.
+    std::string lcscOfPackage(const std::string& packageId) const;
+    std::string lcscCache() const;
 
     JPConfiguration&                          m_config;
     JPPackagesTableModel                      m_model;
@@ -123,6 +136,7 @@ private:
     JPIconButton*                             m_padDelete = nullptr;
     JPIconButton*                             m_padMark = nullptr;
     std::string                               m_shown;   // the package whose tabs are shown
+    bool                                      m_fetching = false;   // fetchFootprints under way
     std::string                               m_footprintShown;   // the package onShowFootprint was last told of
     int                                       m_lastTab = 0;
     std::shared_ptr<bool>                     m_alive = std::make_shared<bool>(true);

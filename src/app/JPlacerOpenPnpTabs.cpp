@@ -130,6 +130,15 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             if (any) m_job.changed();
         });
     };
+    // An import taken: the packages it uses with no pads given their footprints from LCSC, where asked.
+    placements.onImportTaken = [this](const JPBoard& imported) {
+        if (!JSettings::instance().get<bool>(JPlacerSettings::kImportFetchLcsc, false) || !m_packages) return;
+        std::vector<std::string> ids;
+        for (const JPBoardPart& bp : imported.parts())
+            if (bp.state == JPBoardPart::State::Matched)
+                if (const JPPart* p = m_job.configuration().libraryPartFor(bp)) ids.push_back(p->packageId);
+        if (!ids.empty()) m_packages->fetchFootprints(ids);
+    };
     placements.openUpgrade = [this](JPBoard& board, std::shared_ptr<JPBoard> files,
                                     std::function<void(JPBoardRevision, std::string)> made) {
         m_window.openModal<JPlacerBoardUpgradeDialog>(board, std::move(files), std::move(made));

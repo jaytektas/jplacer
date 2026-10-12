@@ -16,6 +16,8 @@ public:
     static void eye(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A camera (its body, lens and the bump on top): photograph.
     static void photograph(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // A chip with an arrow down into it: a part's footprint fetched (from LCSC, by its part number).
+    static void fetchPart(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A floppy disk: save.
     static void save(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A target: a ring with a centre and four ticks (calibrate).
