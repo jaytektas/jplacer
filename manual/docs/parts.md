@@ -51,6 +51,7 @@ Delete Part works on one part or several; Pick Part and Copy Part on one.
 | **Description** | Its name. |
 | **Value** | Its electrical value as written (100n, 4k7); matched to a board's however that is written. |
 | **MPN** | Its manufacturer's part number: the first of its identifiers (the **Library** tab has them all). |
+| **Supplier PN** | Its supplier's part number, the first of those it has (the **Library** tab has them all): where an import keeps an LCSC number (C14663), and what its footprint is fetched from LCSC by. Typed here, it changes that number (its supplier kept), or adds one; an LCSC number's supplier is LCSC. Emptied, it is taken out. |
 | **Height** | The distance between the board's surface and where the nozzle picks it, in mm (in its own units, with their name, when those are not mm). |
 | **Through-Board Depth** | How far any of it reaches below the board when placed; added to the height for Dynamic Safe Z. Zero for surface-mount parts. |
 | **Package** | Its package, chosen from a list to search. |

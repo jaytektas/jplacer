@@ -1868,8 +1868,13 @@ bool JPTable::setCells(const std::vector<CellSet>& sets, bool atomic, std::vecto
     const int c = columnByKey(*columns.begin());
     std::string text = columns.size() == 1 ? "Change " + (c >= 0 ? m_model->column(c).name : std::string("a Cell")) : "Change " + std::to_string(done.size()) + " Cells";
     if (rows.size() > 1) text += " of " + std::to_string(rows.size()) + " " + kind;
-    if (s_history && !m_model->ownHistory()) s_history->record(*this, done, text);
-    if (rows.size() > 1 && s_status) s_status(text + (s_history || m_model->ownHistory() ? " (Edit \xE2\x96\xB8 Undo takes it back)" : ""));
+    // Those a history of the model's own notes (the library's) are not stepped back here as well.
+    std::vector<JPTableHistory::Cell> ours;
+    for (size_t i = 0; i < done.size(); ++i)
+        if (!m_model->ownHistoryAt(where[i].second)) ours.push_back(done[i]);
+    if (s_history) s_history->record(*this, ours, text);
+    const bool undone = s_history || std::any_of(where.begin(), where.end(), [this](const auto& w) { return m_model->ownHistoryAt(w.second); });
+    if (rows.size() > 1 && s_status) s_status(text + (undone ? " (Edit \xE2\x96\xB8 Undo takes it back)" : ""));
     return refused.empty();
 }
 

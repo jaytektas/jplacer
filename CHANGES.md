@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- The Parts table shows each part's **Supplier PN**: where an LCSC number from an import is kept (and what its
+  footprint is fetched by), and you can type one in. It was kept before, but shown only on the part's
+  Library page.
+
+- The Job tab's Placements can show each placement's part's and package's columns (**Part ▸ Value**,
+  **Package ▸ Name** and the rest, under **Columns**), and change them there: the change is the library
+  part's or package's, so every placement of it shows it.
+
 ## 0.1.64
 
 - Opening a job with a panel in it could close jplacer at once: a board or panel added to a panel (in the

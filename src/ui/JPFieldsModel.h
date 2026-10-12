@@ -57,6 +57,10 @@ public:
     bool   customEditable(int row) const override { return m_source.customEditable(row); }
     bool   setCustom(int row, const std::string& key, const JJson& value) override { return m_source.setCustom(row, key, value); }
     bool   ownHistory() const override { return m_source.ownHistory(); }
+    bool   ownHistoryAt(int c) const override {
+        const int s = sourceColumn(c);
+        return s >= 0 ? m_source.ownHistoryAt(s) : m_source.ownHistory();
+    }
     void   beginEdits() override { m_source.beginEdits(); }
     void   endEdits() override { m_source.endEdits(); }
 

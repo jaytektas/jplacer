@@ -194,6 +194,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_job.changed();
         m_libraryHistory.note();   // a part chosen there may have taught the library a name, or added to it
     };
+    m_jobPanel->onLibraryChanged = [this] { libraryChanged(); };
     m_jobPanel->toolLocation = [this, setupTool](JPJobPanel::Tool t) { return m_machine.toolLocation(setupTool(t)); };
     m_jobPanel->moveTool = [this, setupTool](JPJobPanel::Tool t, const JPLocation& at) { m_machine.moveToolTo(setupTool(t), at); };
     m_jobPanel->chooseExisting = chooseExisting;

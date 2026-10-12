@@ -120,6 +120,8 @@ public:
     // Whether its edits are undone by a history of its own (the library's notes every change): the table makes
     // no steps of its own for them (JPTableHistory).
     virtual bool ownHistory() const { return false; }
+    // The same for one column's edits (a table showing the library's columns beside its own: a placement's part's).
+    virtual bool ownHistoryAt(int /*column*/) const { return ownHistory(); }
     // Edits to many rows at once (a value typed into all the rows chosen, a paste): begun, then ended, so the
     // model says the change once (saved and redrawn once, not once a row).
     virtual void beginEdits() {}

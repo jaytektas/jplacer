@@ -6,6 +6,10 @@
 #include "JPGroupFrame.h"
 #include "JPIconButton.h"
 #include "JPBoardTools.h"
+#include "JPFieldsModel.h"
+#include "JPLinkedColumnsModel.h"
+#include "JPPackagesTableModel.h"
+#include "JPPartsTableModel.h"
 #include "JPPlacementsTableModel.h"
 #include "JPTable.h"
 
@@ -35,7 +39,10 @@ class JPSearchField;
 // Placement Location, Capture Camera and Tool Placement Location, Edit
 // Placement Feeder, a search box, and the right-click Set Type, Set Side,
 // Set Placed, Set Enabled, Set Error Handling. Space turns the chosen
-// placement on or off.
+// placement on or off. Its Columns… offer each placement's part's columns
+// (the Parts tab's, its fields with them) and its part's package's (the
+// Packages tab's), headed Part ▸ and Package ▸: edited here, the library's
+// part or package is changed, for every placement of it.
 class JPJobPlacementsPanel : public JPGroupFrame {
 public:
     enum class Tool { Camera, Nozzle };
@@ -44,6 +51,8 @@ public:
 
     // The job or a board changed.
     std::function<void()> onChanged;
+    // A library part or package changed (in a Part ▸ or Package ▸ column).
+    std::function<void()> onLibraryChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
     // Where a tool is now (machine millimetres), and taking it to a place at safe Z.
     std::function<std::optional<JPLocation>(Tool)> toolLocation;
@@ -89,6 +98,17 @@ private:
     JPConfiguration&                    m_config;
     std::function<JPJob*()>             m_job;
     JPPlacementsTableModel              m_model;
+    // The Part ▸ and Package ▸ columns: the Parts and Packages tabs' tables, their fields with them.
+    JPPartsTableModel                   m_parts;
+    JPFieldsModel                       m_partFields;
+    JPPackagesTableModel                m_packages;
+    JPFieldsModel                       m_packageFields;
+    JPLinkedColumnsModel                m_linked;
+    // The library's row of a placement row's part, and of its package (-1: none).
+    int partRowOf(int row) const;
+    int packageRowOf(int row) const;
+    // A library part or package changed here: said, with how many placements here are of it.
+    void libraryEdited(const std::string& what, const std::string& name, int placementsHere);
     JPPlacementsHolderLocation*         m_location = nullptr;
     std::string                         m_footprintShown;   // what showFootprint was last told of ("": none)
     JPTable*                            m_table = nullptr;

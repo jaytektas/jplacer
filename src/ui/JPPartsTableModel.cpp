@@ -8,6 +8,7 @@
 #include "JPChooserTable.h"
 #include "JPLengthCell.h"
 
+#include "model/JPEasyEdaPart.h"
 #include "setup/JPLibrarySearch.h"
 
 #include <algorithm>
@@ -19,10 +20,13 @@ inline namespace jf {
 
 namespace {
 
-enum Col { kSource, kId, kName, kDescription, kValue, kMpn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
+enum Col { kSource, kId, kName, kDescription, kValue, kMpn, kSupplierPn, kHeight, kDepth, kPackage, kSpeed, kBottomVision, kFiducialVision, kPlacements,
            kFeeders, kPackagings, kSuppliers, kMakers, kStock, kDatasheet, kColumns };
+// A part's supplier part number's identifier kind, and LCSC's name as a supplier.
+constexpr const char* kSupplierPnKind = "supplierPn";
+constexpr const char* kLcsc = "LCSC";
 // Each column's field (JPFieldSet::Of::Parts), in their order.
-constexpr const char* kKeys[kColumns] = { "source", "id", "name", "description", "value", "mpn", "height", "depth", "package",
+constexpr const char* kKeys[kColumns] = { "source", "id", "name", "description", "value", "mpn", "supplierPn", "height", "depth", "package",
                                           "speed", "bottomVision", "fiducialVision", "placements", "feeders", "packaging",
                                           "suppliers", "manufacturer", "stock", "datasheet" };
 
@@ -111,6 +115,11 @@ JPTableModel::Column JPPartsTableModel::heading(int c) const {
         case kValue:          return { "Value", "Its electrical value as written (100n, 4k7); the Library page has the rest", Kind::Text };
         case kMpn:
             return { "MPN", "Its manufacturer's part number, the first of its identifiers (the Library page has them all)",
+                     Kind::Text };
+        case kSupplierPn:
+            return { "Supplier PN",
+                     "Its supplier's part number (an LCSC C number: what its footprint is fetched by), the first of its "
+                     "identifiers (the Library page has them all)",
                      Kind::Text };
         case kHeight:         return { "Height", "Part height; the distance between board surface and pick position.", Kind::Text };
         case kDepth:
@@ -254,6 +263,10 @@ std::string JPPartsTableModel::text(int row, int c) const {
             for (const auto& i : p->identifiers)
                 if (i.kind == "mpn") return i.code;
             return "";
+        case kSupplierPn:
+            for (const auto& i : p->identifiers)
+                if (i.kind == kSupplierPnKind) return i.code;
+            return "";
         case kHeight:      return JPLengthCell::text(p->height, true);
         case kDepth:       return JPLengthCell::text(p->throughBoardDepth, true);
         case kPackage:     return m_config.package(p->packageId) ? m_config.package(p->packageId)->shownName() : std::string();
@@ -362,6 +375,26 @@ bool JPPartsTableModel::setText(int row, int c, const std::string& text, std::st
         case kValue:
             p->value = text;
             break;
+        case kSupplierPn: {
+            // The first supplier part number changed (its supplier kept), taken out when emptied, else one added;
+            // an LCSC C number's supplier is LCSC.
+            std::string code = text;
+            while (!code.empty() && std::isspace(uint8_t(code.front()))) code.erase(code.begin());
+            while (!code.empty() && std::isspace(uint8_t(code.back()))) code.pop_back();
+            const std::string lcsc = JPEasyEdaPart::partNumber(code);
+            if (!lcsc.empty()) code = lcsc;
+            auto it = std::find_if(p->identifiers.begin(), p->identifiers.end(),
+                                   [](const JPPart::Identifier& i) { return i.kind == kSupplierPnKind; });
+            if (code.empty()) {
+                if (it != p->identifiers.end()) p->identifiers.erase(it);
+            } else if (it != p->identifiers.end()) {
+                it->code = code;
+                if (it->org.empty() && !lcsc.empty()) it->org = kLcsc;
+            } else {
+                p->identifiers.push_back({ kSupplierPnKind, lcsc.empty() ? std::string() : std::string(kLcsc), code });
+            }
+            break;
+        }
         case kHeight:
         case kDepth: {
             JPLength& l = c == kHeight ? p->height : p->throughBoardDepth;

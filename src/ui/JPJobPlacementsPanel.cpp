@@ -49,7 +49,30 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
                 JPPlacementsTableModel::kSide, JPPlacementsTableModel::kX, JPPlacementsTableModel::kY,
                 JPPlacementsTableModel::kRotation, JPPlacementsTableModel::kType, JPPlacementsTableModel::kPlaced,
                 JPPlacementsTableModel::kStatus, JPPlacementsTableModel::kErrorHandling, JPPlacementsTableModel::kRank,
-                JPPlacementsTableModel::kComments, JPPlacementsTableModel::kVerified }) {
+                JPPlacementsTableModel::kComments, JPPlacementsTableModel::kVerified })
+    , m_parts(config)
+    , m_partFields(m_parts, config.fields(), JPFieldSet::Of::Parts)
+    , m_packages(config)
+    , m_packageFields(m_packages, config.fields(), JPFieldSet::Of::Packages)
+    , m_linked(m_model,
+               { { "Part", "part", &m_partFields, { "source", "id" }, [this](int row) { return partRowOf(row); },
+                   [this](const std::set<int>& rows) {
+                       for (const int r : rows)
+                           if (const JPPart* part = m_parts.part(r)) {
+                               int here = 0;
+                               for (int row = 0; row < m_model.rowCount(); ++row) here += partRowOf(row) == r;
+                               libraryEdited("part", part->shownName(), here);
+                           }
+                   } },
+                 { "Package", "package", &m_packageFields, { "source", "id" }, [this](int row) { return packageRowOf(row); },
+                   [this](const std::set<int>& rows) {
+                       for (const int r : rows)
+                           if (const JPPackage* k = m_packages.package(r)) {
+                               int here = 0;
+                               for (int row = 0; row < m_model.rowCount(); ++row) here += packageRowOf(row) == r;
+                               libraryEdited("package", k->shownName(), here);
+                           }
+                   } } }) {
     setAlignItems(JAlignItems::Stretch);
     setVSizePolicy(JSizePolicyMode::Expanding, 1);
     const JStyle& st = JStyle::current();
@@ -58,6 +81,10 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
         changed();
     };
     m_model.hasFeeder = [&config](const std::string& partId) { return config.hasFeeder(partId); };
+    m_parts.onChanged = [this] {
+        if (onLibraryChanged) onLibraryChanged();
+    };
+    m_packages.onChanged = m_parts.onChanged;
 
     auto bar = JPUiParts::row(graph);
     auto tool = [&](const char* name, const char* icon, const char* tip) {
@@ -113,7 +140,7 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
 
     m_table = add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("job.placements");
-    m_table->setModel(&m_model);
+    m_table->setModel(&m_linked);
     tools->attach(*m_table);
     m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
@@ -212,9 +239,30 @@ void JPJobPlacementsPanel::selectPlacement(const std::string& placementId) {
 
 void JPJobPlacementsPanel::refresh() {
     m_model.reload();
+    m_parts.reload();
+    m_packages.reload();
     m_table->refresh();
     updateActions();
     updateActivePlacements();
+}
+
+int JPJobPlacementsPanel::partRowOf(int row) const {
+    const JPPlacement* p = m_model.placement(row);
+    const JPPart* part = p ? m_config.part(p->partId) : nullptr;
+    return part ? m_parts.rowOf(part) : -1;
+}
+
+int JPJobPlacementsPanel::packageRowOf(int row) const {
+    const JPPlacement* p = m_model.placement(row);
+    const JPPart* part = p ? m_config.part(p->partId) : nullptr;
+    const JPPackage* k = part ? m_config.package(part->packageId) : nullptr;
+    return k ? m_packages.rowOf(k) : -1;
+}
+
+void JPJobPlacementsPanel::libraryEdited(const std::string& what, const std::string& name, int placementsHere) {
+    if (!JPTable::s_status) return;
+    JPTable::s_status("The library's " + what + " " + name + " changed: " + std::to_string(placementsHere) + " placement"
+                      + (placementsHere == 1 ? "" : "s") + " here, and every other use of it");
 }
 
 void JPJobPlacementsPanel::updateActivePlacements() {

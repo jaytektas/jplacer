@@ -109,6 +109,15 @@ a new feeder is made for it. Right-click for **Set Type**,
 **Set Side**, **Set Placed**, **Set Enabled** and **Set Error Handling**; **Space** turns the chosen
 placement on or off.
 
+**Columns** also offers each placement's part's columns and its part's package's, headed **Part ▸** and
+**Package ▸** (**Part ▸ Value**, **Part ▸ MPN**, **Package ▸ Name**…, the fields you added to parts and
+packages too), hidden until you tick them. They are the Parts and Packages tabs' own and are changed here
+as there: the library's part (or package) is changed, so every placement of it shows the change, and the
+status line says how many placements here are of it. **Edit ▸ Undo** takes it back as a change to the
+library. A placement with no part shows nothing there.
+
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (m_linked, libraryEdited); src/ui/JPLinkedColumnsModel.cpp; src/ui/JPTable.cpp (setCells) -->
+
 ### Verifying placements
 
 The chosen placement's footprint (a fiducial's too) is drawn over the cameras' pictures: its part's

@@ -216,6 +216,9 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         m_table->refresh();
         changed();
     };
+    m_placements->onLibraryChanged = [this] {
+        if (onLibraryChanged) onLibraryChanged();
+    };
 
     // The instructions of a process under way, across the top; nothing while none is.
     m_instructionsHolder = add(std::make_unique<JContainer>(graph, 0.f, 0.f));

@@ -52,6 +52,8 @@ public:
 
     // The job changed (to be shown as changed, other views told).
     std::function<void()> onChanged;
+    // A library part or package changed in the Placements' Part ▸ or Package ▸ columns.
+    std::function<void()> onLibraryChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
     std::function<std::optional<JPLocation>(Tool)> toolLocation;
     // Where a board or panel added starts (the machine's Default Board Location).
