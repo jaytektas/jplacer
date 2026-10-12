@@ -71,7 +71,7 @@ public:
 
     // What the composite is worked out from.
     struct Input {
-        std::string         packageId;
+        std::string         packageId;   // its Name, as said
         JPFootprint         footprint;            // in mm
         JPVisionCompositing compositing;
         double              toleranceMm = 0;      // the nozzle tip's max pick tolerance (the package's own when set)

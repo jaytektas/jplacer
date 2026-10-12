@@ -15,7 +15,7 @@ constexpr const char* kVersion = "1.1";
 
 JPPackage JPPackage::fromXml(const JPXmlElement& e) {
     JPPackage p;
-    p.id = e.attr("id");
+    p.id = e.attr("id");   // OpenPnP's file's: its name (the caller makes it the label)
     if (V::has(e, "description")) p.description = e.attr("description");
     if (V::has(e, "tape-specification")) p.tapeSpecification = e.attr("tape-specification");
     p.pickVacuumLevel = V::number(e, "pick-vacuum-level");

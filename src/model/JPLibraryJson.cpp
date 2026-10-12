@@ -116,7 +116,7 @@ JPPart JPLibraryJson::part(const JJson& j) {
 JJson JPLibraryJson::package(const JPPackage& k) {
     JJson o = JJson::object();
     o["id"] = k.id;
-    o["uuid"] = k.uuid;
+    o["label"] = k.label;
     o["openpnp"] = JPXmlJson::from(k.toXml());
     JPFieldValues::write(o, k.custom);
     // Its pads' values, in its footprint's order (none: none has any).
@@ -162,7 +162,7 @@ JPLibraryFootprint JPLibraryJson::footprint(const JJson& j) {
 JPPackage JPLibraryJson::package(const JJson& j) {
     JPPackage k = JPPackage::fromXml(JPXmlJson::element("package", j["openpnp"]));
     if (j["id"].isString()) k.id = j["id"].str();
-    if (j["uuid"].isString()) k.uuid = j["uuid"].str();
+    if (j["label"].isString()) k.label = j["label"].str();
     k.custom = JPFieldValues::read(j);
     const JJson& pads = j["padsCustom"];
     for (size_t i = 0; i < k.footprint.pads.size() && i < pads.size(); ++i) k.footprint.pads[i].custom = JPFieldValues::fromJson(pads[i]);

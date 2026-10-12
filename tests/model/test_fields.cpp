@@ -183,7 +183,8 @@ int main() {
         assert(job->root().children().front()->custom.get("u1").str() == "Panel A");
     }
 
-    // A library of schema 5 (no columns for the fields added): brought up to 6, its parts kept.
+    // A library of schema 5 (no columns for the fields added, packages known by name): brought up to 7, its parts
+    // kept, naming their packages by GUID.
     {
         const fs::path old = dir / "old";
         fs::create_directories(old);
@@ -195,11 +196,16 @@ int main() {
                            "CREATE TABLE parts(id TEXT PRIMARY KEY, label TEXT NOT NULL UNIQUE COLLATE NOCASE, name TEXT, value TEXT, "
                            "datasheet TEXT, package_id TEXT, last_packaging INTEGER, data TEXT NOT NULL);"
                            "INSERT INTO meta VALUES('schema', '5');"
-                           "INSERT INTO parts VALUES('p-1', 'R1k', '', '1k', '', '', -1, '{\"id\":\"p-1\"}');"));
+                           "INSERT INTO packages VALUES('9f1c2a3b-0000-4000-8000-000000000001', 'R0603', '{\"id\":\"R0603\"}');"
+                           "INSERT INTO parts VALUES('p-1', 'R1k', '', '1k', '', 'R0603', -1, "
+                           "'{\"id\":\"p-1\",\"package-id\":\"R0603\"}');"));
         }
         JPConfiguration c(old.string());
         loaded(c);
         assert(c.parts().size() == 1 && c.parts().front()->label == "R1k" && c.parts().front()->value == "1k");
+        // Its packages known by GUIDs now (named as they were), its part naming its package so.
+        const JPPackage* k = c.packageNamed("R0603");
+        assert(k && k->id == "9f1c2a3b-0000-4000-8000-000000000001" && c.parts().front()->packageId == k->id);
         c.parts().front()->custom.set("u1", JJson("kept"));
         std::string error;
         assert(c.save(error));

@@ -241,7 +241,7 @@ std::unique_ptr<JContainer> JPPackagesPanel::visionTab(JPPackage& p, JPVisionSet
         used += (used.empty() ? "" : ", ") + u;
     JPSetupProperties::Form form;
     JPFormBuilder add(form);
-    JPVisionForms::addPage(add, m_config, v->id, used, { JPVisionForms::Holder::Kind::Package, p.id }, tests());
+    JPVisionForms::addPage(add, m_config, v->id, used, { JPVisionForms::Holder::Kind::Package, p.id, p.shownName() }, tests());
     auto page = std::make_unique<JContainer>(m_graph, 0.f, 0.f);
     page->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     page->setVSizePolicy(JSizePolicyMode::Expanding, 1);
@@ -299,7 +299,7 @@ void JPPackagesPanel::visionAct(const std::string& action) {
     if (!v) v = m_config.visionSettings(bottom ? defaults.first : defaults.second);
     if (!v) return;
     const std::string id = v->id;
-    const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Package, p->id };
+    const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Package, p->id, p->shownName() };
     if (pipelineAct(id, holder, what)) return;
     auto run = [this, id, what, holder, machineDefault = bottom ? defaults.first : defaults.second] {
         std::string why;
@@ -325,7 +325,7 @@ void JPPackagesPanel::visionAct(const std::string& action) {
         const auto list = JPVisionForms::specializedIn(m_config, holder,
                                                        bottom ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial);
         if (list.empty()) {
-            JDialog::message("Error", "There are no specializations on Parts with the Package " + p->id + ".");
+            JDialog::message("Error", "There are no specializations on Parts with the Package " + p->shownName() + ".");
             return;
         }
         std::string names;
@@ -826,16 +826,16 @@ std::unique_ptr<JContainer> JPPackagesPanel::compositingTab(JPPackage& p) {
 }
 
 void JPPackagesPanel::newPackage() {
-    JDialog::input("New Package", "Please enter an ID for the new package.", [this](std::string text) {
-        const std::string id = trimmed(text);
-        if (id.empty()) return;
-        if (m_config.package(id)) {
-            JDialog::message("Error", "Package ID " + id + " already exists.");
+    JDialog::input("New Package", "A name for the new package (known for good by an id of its own):", [this](std::string text) {
+        const std::string name = trimmed(text);
+        if (name.empty()) return;
+        if (m_config.packageNamed(name)) {
+            JDialog::message("Error", "A package named " + name + " already exists.");
             newPackage();
             return;
         }
         auto k = std::make_shared<JPPackage>();
-        k->id = id;
+        k->label = name;
         m_config.addPackage(k);
         m_table->refresh();
         selectPackage(k.get());
@@ -850,18 +850,18 @@ void JPPackagesPanel::deletePackages() {
     for (const JPPackage* k : chosen)
         for (const auto& part : m_config.parts())
             if (part->packageId == k->id) {
-                JDialog::message("Error", k->id + " cannot be deleted. It is used by " + part->shownName());
+                JDialog::message("Error", k->shownName() + " cannot be deleted. It is used by " + part->shownName());
                 return;
             }
-    std::string ids;
-    for (size_t i = 0; i < chosen.size() && i < 3; ++i) ids += (i ? ", " : "") + chosen[i]->id;
-    if (chosen.size() > 3) ids += ", and " + std::to_string(chosen.size() - 3) + " others";
+    std::string names;
+    for (size_t i = 0; i < chosen.size() && i < 3; ++i) names += (i ? ", " : "") + chosen[i]->shownName();
+    if (chosen.size() > 3) names += ", and " + std::to_string(chosen.size() - 3) + " others";
     std::vector<std::string> doomed;
     for (const JPPackage* k : chosen) doomed.push_back(k->id);
     JDialogOptions opts;
     opts.okLabel = "Yes";
     opts.cancelLabel = "No";
-    JDialog::confirm("Delete " + std::to_string(chosen.size()) + " packages?", "Are you sure you want to delete " + ids + "?",
+    JDialog::confirm("Delete " + std::to_string(chosen.size()) + " packages?", "Are you sure you want to delete " + names + "?",
         [this, doomed] {
             for (const std::string& id : doomed) m_config.removePackage(id);
             refresh();
@@ -873,17 +873,20 @@ void JPPackagesPanel::deletePackages() {
 void JPPackagesPanel::copyPackage() {
     const JPPackage* k = selectedPackage();
     if (!k) return;
-    std::string text = JPXmlWriter::text(k->toXml());
+    // As OpenPnP keeps a package: its id its name.
+    JPPackage asOpenPnp = *k;
+    asOpenPnp.id = k->shownName();
+    std::string text = JPXmlWriter::text(asOpenPnp.toXml());
     if (!text.empty() && text.back() == '\n') text.pop_back();
     JWidget::clipboardSet(text);
 }
 
 void JPPackagesPanel::pastePackage() {
-    JDialog::input("Create Package from Clipboard", "Please enter an ID for the pasted package.", [this](std::string text) {
-        const std::string id = trimmed(text);
-        if (id.empty()) return;
-        if (m_config.package(id)) {
-            JDialog::message("Error", "Package ID " + id + " already exists.");
+    JDialog::input("Create Package from Clipboard", "A name for the pasted package:", [this](std::string text) {
+        const std::string name = trimmed(text);
+        if (name.empty()) return;
+        if (m_config.packageNamed(name)) {
+            JDialog::message("Error", "A package named " + name + " already exists.");
             pastePackage();
             return;
         }
@@ -894,7 +897,8 @@ void JPPackagesPanel::pastePackage() {
             return;
         }
         auto k = std::make_shared<JPPackage>(JPPackage::fromXml(root));
-        k->id = id;
+        k->id.clear();   // one of its own, made as it is added
+        k->label = name;
         m_config.addPackage(k);
         m_table->refresh();
         selectPackage(k.get());

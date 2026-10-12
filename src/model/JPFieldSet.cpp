@@ -85,7 +85,8 @@ std::vector<JPField> builtIns(JPFieldSet::Of of) {
         case O::Packages:
             return {
                 builtIn("source", "Source", false, "", {}, "Where it lives: the library, or the open board named (its icon)"),
-                builtIn("id", "ID", true),
+                builtIn("id", "ID", true, "", {}, "What parts know it by"),
+                builtIn("name", "Name", false, "", {}, "What it is called where it is shown"),
                 builtIn("description", "Description", false),
                 builtIn("tape", "Tape Specification", false),
                 builtIn("bottomVision", "BottomVision", false),

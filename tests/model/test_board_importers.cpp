@@ -104,7 +104,10 @@ int main() {
         b = importWith(k, { top, bottom }, { true, true, false }, config);
         // Named SOIC-8-LM358 (and known so: its AKA), known for good by a GUID, which the placements are linked by.
         const auto madeSoic = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "SOIC-8-LM358"; });
-        assert(madeSoic != b.madeParts.end() && (*madeSoic)->packageId == "SOIC-8" && (*madeSoic)->id.size() == 36);
+        // Its package made too: named SOIC-8, known by a GUID the part names it by.
+        const auto soic8 = std::find_if(b.madePackages.begin(), b.madePackages.end(), [](const auto& k) { return k->label == "SOIC-8"; });
+        assert(madeSoic != b.madeParts.end() && soic8 != b.madePackages.end() && (*madeSoic)->packageId == (*soic8)->id
+               && (*soic8)->id.size() == 36 && (*madeSoic)->id.size() == 36);
         assert(b.placements[2].partId == (*madeSoic)->id && b.placements[3].boardPart == b.placements[2].boardPart);
         const JPBoardPart* soic = b.part(b.placements[2].boardPart);
         assert(soic->state == JPBoardPart::State::Matched && soic->libraryPartId == (*madeSoic)->id);
@@ -270,7 +273,7 @@ int main() {
         assert(near(b.placements[1].location.rotation(), 90));
         // The footprint the board's library draws, on the package made for the library (not added to yet).
         const JPPackage* k = b.madePackages.empty() ? nullptr : b.madePackages.front().get();
-        assert(config.packages().empty() && k && k->id == "R0603");
+        assert(config.packages().empty() && k && k->label == "R0603");
         assert(k->footprint.pads.size() == 2 && near(k->footprint.pads[1].rotation, 90) && near(k->footprint.pads[1].roundness, 20));
         assert(b.solderPastePads.size() == 4 && *b.solderPastePads[0].name == "R1-1");
         assert(near(b.solderPastePads[0].location.x(), 9.15) && near(b.solderPastePads[0].location.y(), 5));

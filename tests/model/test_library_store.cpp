@@ -48,7 +48,9 @@ int main() {
         assert(fs::exists(dir / JPLibraryStore::kFile) && c.parts().size() == 1 && c.packages().size() == 1);
         // OpenPnP's part: known by a GUID, named by OpenPnP's id.
         JPPart* p = c.partNamed("C0603-100n");
-        assert(p && p->id.size() == 36 && c.package("C0603")->uuid.size() == 36 && p->packageId == "C0603");
+        // Its package too: known by a GUID, named by OpenPnP's id, the part naming it by its GUID.
+        const JPPackage* k = c.packageNamed("C0603");
+        assert(p && p->id.size() == 36 && k && k->id.size() == 36 && k->shownName() == "C0603" && p->packageId == k->id);
         uuid = p->id;
         p->lastPackaging = 0;
         p->value = "100n";
@@ -57,7 +59,7 @@ int main() {
         p->identifiers.push_back({ "mpn", "Samsung", "CL10B104KB8NNNC" });
         p->identifiers.push_back({ "supplierPn", "LCSC", "C14663" });
         p->akas.push_back({ "valueFootprint", "100n|C_0603_1608Metric", "Ctrl.jpboard", "2026-10-08T12:00:00" });
-        c.defaultFootprint("C0603", true)->cadNames.push_back("C_0603_1608Metric");
+        c.defaultFootprint(c.packageNamed("C0603")->id, true)->cadNames.push_back("C_0603_1608Metric");
         p->packagings.push_back({ "Reel", 8, 4, "Paper", 90, 4000, "7 inch" });
         p->offers.push_back({ "LCSC", "C14663", "Reel", 4000, "1: 0.0016, 4000: 0.0011", "https://lcsc.com/C14663", "0.0011", "2026-10-08" });
         c.manufacturers().push_back({ "Texas Instruments", { "TI", "Texas Instruments Inc." } });
@@ -74,8 +76,8 @@ int main() {
         assert(p->value == "100n" && p->name == "Capacitor, X7R" && p->identifiers.size() == 2);
         assert(p->identifiers[0].org == "Samsung" && p->identifiers[1].code == "C14663");
         assert(p->akas.size() == 1 && p->akas[0].text == "100n|C_0603_1608Metric" && p->akas[0].learnedFrom == "Ctrl.jpboard");
-        assert(c.footprints().size() == 1 && c.footprints()[0]->cadNames.size() == 1 && c.footprints()[0]->packageId == "C0603");
-        assert(c.packageNamed("c_0603_1608metric") == c.package("C0603") && std::abs(p->height.value() - 0.8) < 1e-9);
+        assert(c.footprints().size() == 1 && c.footprints()[0]->cadNames.size() == 1 && c.footprints()[0]->packageId == c.packageNamed("C0603")->id);
+        assert(c.packageNamed("c_0603_1608metric") == c.packageNamed("C0603") && std::abs(p->height.value() - 0.8) < 1e-9);
         assert(p->packagings.size() == 1 && p->packagings[0].kind == "Reel" && p->packagings[0].rotationDeg == 90
                && p->packagings[0].quantity == 4000 && p->packagings[0].note == "7 inch");
         assert(p->offers.size() == 1 && p->offers[0].sku == "C14663" && p->offers[0].moq == 4000 && p->offers[0].lastPrice == "0.0011");
@@ -90,7 +92,7 @@ int main() {
         std::vector<std::string> problems;
         std::string error;
         assert(c.load(problems, error) && problems.size() == 1 && c.parts().size() == 2);
-        assert(c.partNamed("C0603-100n")->packageId == "C0603" && c.partNamed("C0603-100n")->value == "100n" && c.partNamed("R0603-10k"));
+        assert(c.partNamed("C0603-100n")->packageId == c.packageNamed("C0603")->id && c.partNamed("C0603-100n")->value == "100n" && c.partNamed("R0603-10k"));
     }
     {
         // Not looked at again while unchanged.
@@ -119,7 +121,7 @@ int main() {
         std::vector<std::string> problems;
         std::string error;
         assert(c.load(problems, error) && problems.size() == 1 && problems[0].find("3 vision settings link") == 0);
-        assert(c.package("C0603")->fiducialVisionId == "FVS_Fid" && c.package("C0603")->bottomVisionId == "BVS_C");
+        assert(c.packageNamed("C0603")->fiducialVisionId == "FVS_Fid" && c.packageNamed("C0603")->bottomVisionId == "BVS_C");
         assert(c.partNamed("C0603-100n")->bottomVisionId == "BVS_P" && c.partNamed("R0603-10k")->fiducialVisionId == "FVS_Mine");
     }
     // Renamed, a part keeps its GUID, and the name is kept.

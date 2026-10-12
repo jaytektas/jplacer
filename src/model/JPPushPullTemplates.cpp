@@ -178,7 +178,7 @@ std::string JPPushPullTemplates::cloneTemplateStatus(const JPConfiguration& conf
             if (pkg->tapeSpecification && !pkg->tapeSpecification->empty())
                 status += " selected by common tape & reel specification " + *pkg->tapeSpecification;
             else
-                status += " selected by common package " + pkg->id;
+                status += " selected by common package " + pkg->shownName();
         }
     } else {
         status += " selected as partial match.\nTape & reel specifications/packages are incompatible, settings must be reviewed.";

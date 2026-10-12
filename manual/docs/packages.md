@@ -16,22 +16,31 @@ open boards, or one board's.
 
 | Button | |
 |---|---|
-| **New Package...** (plus) | Asks for the new package's ID and makes it. An ID already used is refused, and asked for again. |
+| **New Package...** (plus) | Asks for the new package's name and makes it, with an ID of its own. A name another package has is refused, and asked for again. |
 | **Delete Package** (cross) | Deletes the chosen packages, after asking. A package a part uses is not deleted: it says which part. |
-| **Copy Package to Clipboard** | Puts the chosen package on the clipboard as text. |
-| **Create Package from Clipboard** | Asks for an ID and makes a package from what the clipboard holds. |
+| **Copy Package to Clipboard** | Puts the chosen package on the clipboard as text, as OpenPnP keeps a package (its name its ID). |
+| **Create Package from Clipboard** | Asks for a name and makes a package from what the clipboard holds, with an ID of its own. |
 
 **Search** works as on the [Parts](parts.md) tab, and the table sorts, chooses and edits the same way.
 
 | Column | |
 |---|---|
 | **Source** (an icon) | Whether an open board uses it, and which (its tooltip). |
-| **ID** | The package's ID. |
+| **ID** | What parts know it by, for good: a GUID, made for it, so its name can be changed freely. |
+| **Name** | What it is called wherever it is shown (a part's **Package**, the import, OpenPnP's files), unique in the library, changed in place. A new package starts with the name it came with: a board's footprint, OpenPnP's ID, or the name given it. |
 | **Description** | What it is. |
 | **Tape Specification** | Text some feeders read; see the feeder's own notes. |
 | **BottomVision**, **FiducialVision** | The vision settings it uses, chosen from a list. |
 
-<!-- src: src/ui/JPPackagesPanel.cpp (newPackage, deletePackages, copyPackage, pastePackage); src/ui/JPPackagesTableModel.cpp -->
+<!-- src: src/ui/JPPackagesPanel.cpp (newPackage, deletePackages, copyPackage, pastePackage); src/ui/JPPackagesTableModel.cpp (text, setText); src/model/JPConfiguration.cpp (addPackage, packageNamed, load) -->
+
+A package is found by its name wherever a name is all there is: a CAD file's footprint or package column, OpenPnP's
+`packages.xml` and `parts.xml`, a package typed. It is found by its **Name**, else by a name one of its
+footprints is known by (their **CAD Names**, under **Footprints**): what boards' files have called it. Those are
+learned as parts are linked: a board's part linked to a library part teaches that part's package the board's
+footprint name, so the next board with that footprint finds the package.
+
+<!-- src: src/model/JPConfiguration.cpp (packageNamed, footprintNamed); src/model/JPLibraryLearning.cpp (learn) -->
 
 ## The package's tabs
 

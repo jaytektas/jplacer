@@ -219,7 +219,7 @@ int main() {
         const JPPackage* r0603 = nullptr;
         for (const auto& k : b.madePackages) {
             assert(k->id != lib->id);
-            if (k->id == "R_0603_1608Metric") r0603 = k.get();
+            if (k->label == "R_0603_1608Metric") r0603 = k.get();
         }
         assert(r0603 && r0603->footprint.pads.size() == 2 && int(b.madePackages.size()) == report.footprints);
         // Placed as the .pos of the same board would place it.

@@ -41,11 +41,14 @@ JPPipelineValue::Footprint footprintOf(const JPFootprint& f, const JPPipeline::C
     return out;
 }
 
-JPPipelineValue::Part partOf(const std::string& partId, const JPPackage* pkg) {
+// The part as the pipeline knows it: by its Name and its package's (what template images are named after, as
+// OpenPnP's are by its ids), its package's body.
+JPPipelineValue::Part partOf(const JPConfiguration& config, const std::string& partId, const JPPackage* pkg) {
     JPPipelineValue::Part p;
-    p.id = partId;
+    const JPPart* part = config.part(partId);
+    p.id = part ? part->shownName() : partId;
     if (pkg) {
-        p.packageId = pkg->id;
+        p.packageId = pkg->shownName();
         p.hasFootprint = true;
         const double mm = JPLength(1, pkg->footprint.units).convertToUnits(JPLengthUnit::Millimeters).value();
         p.bodyWidthMm = pkg->footprint.bodyWidth * mm;
@@ -92,7 +95,7 @@ void JPVisionPipelinePrep::fiducial(JPPipeline& pipeline, const JPConfiguration&
         stand.pads.push_back(pad);
         footprint = footprintOf(stand, pipeline.context());
     }
-    pipeline.setProperty("part", JPPipelineValue { partOf(partId, pkg) });
+    pipeline.setProperty("part", JPPipelineValue { partOf(config, partId, pkg) });
     pipeline.setProperty("footprint", JPPipelineValue { footprint });
     pipeline.setProperty("footprint.rotation", JPPipelineValue { pipeline.context().pictureAngle(rotation) });
     double w = 0, h = 0;
@@ -108,7 +111,7 @@ std::shared_ptr<JPVisionComposite> JPVisionPipelinePrep::composite(const JPPacka
                                                                    double cameraHeightMm, const JPNozzleTipConfig* tip) {
     const JPNozzleTipConfig defaults;
     JPVisionComposite::Input in;
-    in.packageId = pkg.id;
+    in.packageId = pkg.shownName();
     in.footprint = pkg.footprint.inUnits(JPLengthUnit::Millimeters);
     in.compositing = pkg.visionCompositing.value_or(JPVisionCompositing {});
     in.toleranceMm = (tip ? *tip : defaults).maxPickToleranceMm;
@@ -139,14 +142,14 @@ bool JPVisionPipelinePrep::bottom(JPPipeline& pipeline, const JPConfiguration& c
     auto c = composite(*pkg, settings, camera, cameraWidthMm, cameraHeightMm, tip);
     if (JPVisionCompositing::isEnforced(pkg->visionCompositing.value_or(JPVisionCompositing {}).compositingMethod)
         && JPVisionComposite::isInvalid(c->solution())) {
-        why = "Vision Compositing has not found a valid solution for package " + pkg->id + ". Status: "
+        why = "Vision Compositing has not found a valid solution for package " + pkg->shownName() + ". Status: "
             + JPVisionComposite::solutionName(c->solution()) + ", " + c->diagnostics()
-            + ". For more diagnostic information go to the Vision Compositing tab on package " + pkg->id + ". ";
+            + ". For more diagnostic information go to the Vision Compositing tab on package " + pkg->shownName() + ". ";
         return false;
     }
     const JPNozzleTipConfig defaults;
     const double tipTolerance = (tip ? *tip : defaults).maxPickToleranceMm;
-    pipeline.setProperty("part", JPPipelineValue { partOf(partId, pkg) });
+    pipeline.setProperty("part", JPPipelineValue { partOf(config, partId, pkg) });
     pipeline.setProperty("footprint", JPPipelineValue { footprintOf(pkg->footprint, ctx) });
     pipeline.setProperty("footprint.rotation", JPPipelineValue { ctx.pictureAngle(rotation) });
     // The part where it should be: over the camera's centre.

@@ -36,7 +36,7 @@ namespace {
 
 // What each kind is known by for good: a part by its id, a package and a footprint by their uuid.
 const std::string& keyOf(const JPPart& p) { return p.id; }
-const std::string& keyOf(const JPPackage& k) { return k.uuid; }
+const std::string& keyOf(const JPPackage& k) { return k.id; }
 const std::string& keyOf(const JPLibraryFootprint& f) { return f.uuid; }
 
 
@@ -251,12 +251,16 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
         };
         for (const JPXmlElement& e : packages.children) {
             if (e.name != "package") continue;
-            if (JPPackage* k = libraryPackage(e.attr("id"))) {
+            // OpenPnP's id is the name: the library's package of that name, else one made (a GUID its id).
+            if (JPPackage* k = packageNamed(e.attr("id"))) {
                 link(k->bottomVisionId, e.attr("bottom-vision-id"));
                 link(k->fiducialVisionId, e.attr("fiducial-vision-id"));
                 continue;
             }
-            addPackage(std::make_shared<JPPackage>(JPPackage::fromXml(e)));
+            auto made = std::make_shared<JPPackage>(JPPackage::fromXml(e));
+            made->label = made->id;
+            made->id = JPUuid::make();
+            addPackage(std::move(made));
             ++added;
         }
         for (const JPXmlElement& e : parts.children) {
@@ -270,6 +274,8 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
             auto made = std::make_shared<JPPart>(JPPart::fromXml(e));
             made->label = made->id;
             made->id = JPUuid::make();
+            // Its package by OpenPnP's id for it, the library's package's name.
+            if (const JPPackage* k = packageNamed(made->packageId)) made->packageId = k->id;
             addPart(std::move(made));
             ++added;
         }
@@ -513,9 +519,9 @@ std::vector<std::string> JPConfiguration::visionUsedIn(const JPVisionSettings& v
     const bool bottom = v.kind == JPVisionSettings::Kind::Bottom;
     std::vector<std::string> packages, parts;
     for (const auto& p : m_packages)
-        if ((bottom ? p->bottomVisionId : p->fiducialVisionId) == v.id) packages.push_back(p->id);
+        if ((bottom ? p->bottomVisionId : p->fiducialVisionId) == v.id) packages.push_back(p->shownName());
     for (const auto& p : m_parts)
-        if ((bottom ? p->bottomVisionId : p->fiducialVisionId) == v.id) parts.push_back(p->id);
+        if ((bottom ? p->bottomVisionId : p->fiducialVisionId) == v.id) parts.push_back(p->shownName());
     std::sort(packages.begin(), packages.end());
     std::sort(parts.begin(), parts.end());
     out.insert(out.end(), packages.begin(), packages.end());
@@ -618,7 +624,13 @@ int JPConfiguration::takeMade(const JPBoard& imported, int& packagesAdded) {
     packagesAdded = 0;
     for (const auto& k : imported.madePackages)
         if (!libraryPackage(k->id)) {
-            addPackage(std::make_shared<JPPackage>(*k));
+            auto package = std::make_shared<JPPackage>(*k);
+            // Names stay unique: one the library has by now numbered.
+            if (!package->label.empty() && packageNamed(package->label)) {
+                const std::string base = package->label;
+                for (int n = 2; packageNamed(package->label); ++n) package->label = base + " (" + std::to_string(n) + ")";
+            }
+            addPackage(std::move(package));
             ++packagesAdded;
         }
     int parts = 0;
@@ -664,10 +676,13 @@ bool JPConfiguration::sameManufacturer(const std::string& a, const std::string& 
     return upper(manufacturerName(a)) == upper(manufacturerName(b));
 }
 
-JPPackage* JPConfiguration::packageNamed(const std::string& footprint) const {
-    if (footprint.empty()) return nullptr;
-    if (JPPackage* k = libraryPackage(footprint)) return k;
-    const JPLibraryFootprint* f = footprintNamed(footprint);
+JPPackage* JPConfiguration::packageNamed(const std::string& name) const {
+    if (name.empty()) return nullptr;
+    // By its Name, else by a name its footprints are known by (what CAD files have called it).
+    const std::string wanted = upper(name);
+    for (const auto& k : m_packages)
+        if (upper(k->label) == wanted) return k.get();
+    const JPLibraryFootprint* f = footprintNamed(name);
     return f ? libraryPackage(f->packageId) : nullptr;
 }
 
@@ -700,7 +715,7 @@ JPLibraryFootprint* JPConfiguration::defaultFootprint(const std::string& package
     const JPPackage* k = libraryPackage(packageId);
     if (!make || !k) return nullptr;
     auto f = std::make_shared<JPLibraryFootprint>();
-    f->name = k->id;
+    f->name = k->label;
     f->packageId = k->id;
     f->geometry = k->footprint;
     f->source = "the package's own footprint";
@@ -786,7 +801,9 @@ JPPackage* JPConfiguration::package(const std::string& id) const {
 }
 
 void JPConfiguration::addPackage(std::shared_ptr<JPPackage> p) {
-    if (p->uuid.empty()) p->uuid = JPUuid::make();
+    // Known for good by a GUID, and named (its id, until it is given another name, when it comes with none).
+    if (p->id.empty()) p->id = JPUuid::make();
+    if (p->label.empty()) p->label = p->id;
     const std::string k = upper(p->id);
     if (const auto it = m_packagesById.find(k); it != m_packagesById.end())
         *std::find(m_packages.begin(), m_packages.end(), it->second) = p;

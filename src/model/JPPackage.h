@@ -21,8 +21,8 @@ inline namespace jf {
 // it, and the vision settings it uses (by id; empty: inherited).
 class JPPackage {
 public:
-    std::string                id;
-    std::string                uuid;   // the library's for good (JPUuid); empty until it is in the library
+    std::string                id;      // a GUID (JPUuid), for good: what parts know it by; empty until it is in the library
+    std::string                label;       // what it is called where it is shown (its Name), unique in the library
     std::optional<std::string> description;
     std::optional<std::string> tapeSpecification;
     double                     pickVacuumLevel = 0;
@@ -34,6 +34,9 @@ public:
     JPFieldValues              custom;   // its values of the fields added to packages
     // Made when first wanted, as OpenPnP makes it (and written from then on).
     std::optional<JPVisionCompositing> visionCompositing;
+
+    // What it is called where it is shown: its Name.
+    const std::string& shownName() const { return label; }
 
     static JPPackage fromXml(const JPXmlElement& e);
     JPXmlNode toXml() const;

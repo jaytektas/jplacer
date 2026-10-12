@@ -355,7 +355,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             if (!tip && std::find(pkg.compatibleNozzleTipIds.begin(), pkg.compatibleNozzleTipIds.end(), t.id) != pkg.compatibleNozzleTipIds.end())
                 tip = &t;
         if (!tip) {
-            why = "No compatible nozzle tip found for " + pkg.id + ".";
+            why = "No compatible nozzle tip found for " + pkg.shownName() + ".";
             return false;
         }
         // What the camera sees: by its calibration, else its pixel size and picture size.
@@ -375,7 +375,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         const JPVisionSettings* settings = m_job.configuration().visionSettings(pkg.bottomVisionId);
         if (!settings) settings = m_job.configuration().visionSettings(machineVisionDefaults().first);
         if (!settings) {
-            why = "no bottom vision settings for " + pkg.id;
+            why = "no bottom vision settings for " + pkg.shownName();
             return false;
         }
         auto composite = JPVisionPipelinePrep::composite(pkg, *settings, camera, out.cameraWidthMm, out.cameraHeightMm, tip);
@@ -475,7 +475,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                         if (const JPPart* p = m_job.configuration().part(f->partId()))
                             if (const JPPackage* k = m_job.configuration().package(p->packageId)) {
                                 fit = k->compatibleNozzleTipIds;
-                                packageId = k->id;
+                                packageId = k->shownName();   // as said
                             }
                 });
                 const auto nozzles = machine.nozzles();

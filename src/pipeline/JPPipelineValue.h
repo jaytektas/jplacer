@@ -39,7 +39,7 @@ struct JPPipelineValue {
         Outline              body;
     };
     // The part the pipeline looks at (or the feeder's): what its template
-    // files are named after, and its package's body.
+    // files are named after (its Name and its package's), and its package's body.
     struct Part {
         std::string id, packageId;
         bool        hasFootprint = false;

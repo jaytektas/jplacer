@@ -224,7 +224,7 @@ JPSetupProperties::Form JPPartsPanel::formFor(const JPPart* p) {
                 "part is discarded) after a failed attempt. Each retry is consecutive.");
         // The vision settings it uses (its own, its package's, the machine's).
         const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};
-        const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, partId };
+        const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, partId, p->shownName() };
         for (const auto kind : { JPVisionSettings::Kind::Bottom, JPVisionSettings::Kind::Fiducial }) {
             const bool bottom = kind == JPVisionSettings::Kind::Bottom;
             if (const JPVisionSettings* v = m_config.inheritedVision(*p, kind, bottom ? defaults.first : defaults.second)) {
@@ -603,7 +603,7 @@ void JPPartsPanel::act(const std::string& action) {
                                                          bottom ? defaults.first : defaults.second);
     if (!v) return;
     const std::string id = v->id;
-    const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, p->id };
+    const JPVisionForms::Holder holder { JPVisionForms::Holder::Kind::Part, p->id, p->shownName() };
     if (pipelineAct(id, holder, what)) return;
     auto run = [this, id, what, holder, machineDefault = bottom ? defaults.first : defaults.second] {
         std::string why;

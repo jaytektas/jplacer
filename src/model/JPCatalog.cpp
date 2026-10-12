@@ -29,7 +29,7 @@ std::vector<JPCatalog::Part> JPCatalog::parts(const JPConfiguration& config) {
 
 std::vector<JPCatalog::Package> JPCatalog::packages(const JPConfiguration& config) {
     std::vector<Package> out;
-    std::map<std::string, size_t> at;   // by id, upper case
+    std::map<std::string, size_t> at;   // by id (a GUID), upper case
     auto upper = [](std::string s) {
         for (char& c : s) c = char(std::toupper(uint8_t(c)));
         return s;

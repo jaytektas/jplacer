@@ -180,7 +180,7 @@ void JPEagleBoardImporter::parse(const std::vector<std::string>& files, const st
                     if (madePackage) madePackage->footprint = fp;
                 } else if (part && update) {
                     // Asked for (Update Existing Parts): the library's part and package from the board.
-                    if (JPPackage* pkg = config.libraryPackage(pkgId)) {
+                    if (JPPackage* pkg = config.packageNamed(pkgId)) {
                         pkg->footprint = fp;
                         part->packageId = pkg->id;
                     }

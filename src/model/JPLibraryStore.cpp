@@ -6,13 +6,20 @@
 #include "openpnp/JPXmlJson.h"
 
 #include <functional>
+#include <cctype>
 #include <map>
+#include <set>
 
 inline namespace jf {
 
 namespace {
 
 using B = JDatabase::JBind;
+
+std::string upperOf(std::string s) {
+    for (char& c : s) c = char(std::toupper(uint8_t(c)));
+    return s;
+}
 
 // A package's values of the fields added, and its pads' (in its footprint's order), as its row keeps them.
 JJson packageCustom(const JPPackage& k) {
@@ -62,13 +69,18 @@ bool JPLibraryStore::open(const std::string& path, std::string& error) {
         return false;
     }
     std::string schema = meta("schema");
+    // Schema 6's packages known by their names: by their GUIDs once read (load).
+    if (schema == "6") {
+        m_namesToIds = true;
+        schema = std::to_string(kSchema);
+    }
     // Schema 5's library given its parts' and packages' values of the fields added (the columns 6 has more).
     if (schema == "5") {
-        if (!m_db.exec("ALTER TABLE parts ADD COLUMN custom TEXT") || !m_db.exec("ALTER TABLE packages ADD COLUMN custom TEXT")
-            || !setMeta("schema", std::to_string(kSchema))) {
+        if (!m_db.exec("ALTER TABLE parts ADD COLUMN custom TEXT") || !m_db.exec("ALTER TABLE packages ADD COLUMN custom TEXT")) {
             error = "Cannot bring the library " + path + " up to date: " + m_db.lastError();
             return false;
         }
+        m_namesToIds = true;   // and on to 7 as it is read
         schema = std::to_string(kSchema);
     }
     if (!schema.empty() && std::stoi(schema) != kSchema) {
@@ -99,12 +111,13 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
     std::map<std::string, JPPart*> partById;
     auto query = [this](const char* sql, std::function<void(const JDatabase::JRow&)> row) { return m_db.query(sql, {}, row) >= 0; };
     const bool ok =
-        query("SELECT uuid, data, custom FROM packages ORDER BY rowid", [&](const JDatabase::JRow& r) {
-            const std::optional<JJson> j = JJson::tryParse(r.text(1));
+        query("SELECT uuid, id, data, custom FROM packages ORDER BY rowid", [&](const JDatabase::JRow& r) {
+            const std::optional<JJson> j = JJson::tryParse(r.text(2));
             if (!j) return;
             auto k = std::make_shared<JPPackage>(JPPackage::fromXml(JPXmlJson::element("package", *j)));
-            k->uuid = r.text(0);
-            readPackageCustom(*k, r.text(2));
+            k->id = r.text(0);   // its GUID; its Name the other column
+            k->label = r.text(1);
+            readPackageCustom(*k, r.text(3));
             packages.push_back(k);
         })
         && query("SELECT uuid, name, package_id, data, zero_rotation, source FROM footprints ORDER BY rowid",
@@ -171,6 +184,23 @@ bool JPLibraryStore::load(Contents& out, std::string& error) {
         error = "Reading the library: " + m_db.lastError();
         return false;
     }
+    if (m_namesToIds) {
+        // Schema 6's parts and footprints named their package by its name: by its GUID now, kept so at once.
+        std::map<std::string, std::string> byName;
+        std::set<std::string> ids;
+        for (const auto& k : packages) {
+            byName[upperOf(k->label)] = k->id;
+            ids.insert(k->id);
+        }
+        auto toId = [&](std::string& packageId) {
+            if (packageId.empty() || ids.count(packageId)) return;
+            if (const auto it = byName.find(upperOf(packageId)); it != byName.end()) packageId = it->second;
+        };
+        for (auto& p : parts) toId(p->packageId);
+        for (auto& f : out.footprints) toId(f->packageId);
+        if (!save(out, error) || !setMeta("schema", std::to_string(kSchema))) return false;
+        m_namesToIds = false;
+    }
     return true;
 }
 
@@ -200,7 +230,7 @@ bool JPLibraryStore::save(const Contents& in, std::string& error) {
     for (const auto& k : packages) {
         if (!ok) break;
         ok = m_db.exec("INSERT INTO packages(uuid, id, data, custom) VALUES(?, ?, ?, ?)",
-                       { B::from(k->uuid), B::from(k->id), B::from(JPXmlJson::from(k->toXml()).dump()),
+                       { B::from(k->id), B::from(k->label), B::from(JPXmlJson::from(k->toXml()).dump()),
                          B::from(packageCustom(*k).dump()) });
     }
     for (const auto& p : parts) {

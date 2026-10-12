@@ -256,7 +256,7 @@ std::string JPPartsTableModel::text(int row, int c) const {
             return "";
         case kHeight:      return JPLengthCell::text(p->height, true);
         case kDepth:       return JPLengthCell::text(p->throughBoardDepth, true);
-        case kPackage:     return m_config.package(p->packageId) ? m_config.package(p->packageId)->id : std::string();
+        case kPackage:     return m_config.package(p->packageId) ? m_config.package(p->packageId)->shownName() : std::string();
         case kSpeed:       return percent(p->speed);
         case kBottomVision: {
             const JPVisionSettings* v = m_config.visionSettings(p->bottomVisionId);
@@ -297,7 +297,7 @@ bool JPPartsTableModel::editable(int, int c) const {
 std::vector<const JPPackage*> JPPartsTableModel::packageChoices() const {
     std::vector<const JPPackage*> out;
     for (const auto& k : m_config.packages()) out.push_back(k.get());
-    std::sort(out.begin(), out.end(), [](const JPPackage* a, const JPPackage* b) { return a->id < b->id; });
+    std::sort(out.begin(), out.end(), [](const JPPackage* a, const JPPackage* b) { return a->shownName() < b->shownName(); });
     return out;
 }
 
@@ -313,8 +313,11 @@ std::vector<const JPVisionSettings*> JPPartsTableModel::visionChoices(JPVisionSe
 std::optional<JComboBox::Search> JPPartsTableModel::choiceSearch(int row, int c) const {
     // Its packages as the library's are wherever one is chosen (JPLibrarySearch).
     if (c == kPackage) {
-        JComboBox::Search s = JPLibrarySearch::packages(m_config, choices(row, c));
-        s.table = JPChooserTable::packages(m_config, choices(row, c));
+        // The choices by their ids (GUIDs), as the search and the Packages tab's table know them.
+        std::vector<std::string> ids;
+        for (const JPPackage* k : packageChoices()) ids.push_back(k->id);
+        JComboBox::Search s = JPLibrarySearch::packages(m_config, ids);
+        s.table = JPChooserTable::packages(m_config, ids);
         return s;
     }
     return std::nullopt;
@@ -323,7 +326,7 @@ std::optional<JComboBox::Search> JPPartsTableModel::choiceSearch(int row, int c)
 std::vector<std::string> JPPartsTableModel::choices(int, int c) const {
     std::vector<std::string> out;
     if (c == kPackage)
-        for (const JPPackage* k : packageChoices()) out.push_back(k->id);
+        for (const JPPackage* k : packageChoices()) out.push_back(k->shownName());
     if (c == kBottomVision || c == kFiducialVision)
         for (const JPVisionSettings* v :
              visionChoices(c == kBottomVision ? JPVisionSettings::Kind::Bottom : JPVisionSettings::Kind::Fiducial))

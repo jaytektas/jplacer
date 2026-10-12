@@ -14,9 +14,9 @@ inline namespace jf {
 
 namespace {
 
-// What each kind is known by for good: a part by its id, a package and a footprint by their uuid.
+// What each kind is known by for good: a part and a package by their ids (GUIDs), a footprint by its uuid.
 const std::string& keyOf(const JPPart& p) { return p.id; }
-const std::string& keyOf(const JPPackage& k) { return k.uuid; }
+const std::string& keyOf(const JPPackage& k) { return k.id; }
 const std::string& keyOf(const JPLibraryFootprint& f) { return f.uuid; }
 
 // What happened to one kind of thing (parts, packages, footprints): those added, taken away and changed, by what
@@ -106,11 +106,11 @@ void JPLibraryHistory::redo() {
 
 std::string JPLibraryHistory::describe(const JPLibraryStore::Contents& before, const JPLibraryStore::Contents& after) {
     std::vector<std::string> said;
-    kindChanges(before.parts, after.parts, "Part", "Parts", [](const JPPart& p) { return p.id; },
+    kindChanges(before.parts, after.parts, "Part", "Parts", [](const JPPart& p) { return p.shownName(); },
                 [](const JPPart& a, const JPPart& b) {
                     return JPLibraryJson::part(a).dump() == JPLibraryJson::part(b).dump();
                 }, said);
-    kindChanges(before.packages, after.packages, "Package", "Packages", [](const JPPackage& k) { return k.id; },
+    kindChanges(before.packages, after.packages, "Package", "Packages", [](const JPPackage& k) { return k.shownName(); },
                 [](const JPPackage& a, const JPPackage& b) {
                     return JPLibraryJson::package(a).dump() == JPLibraryJson::package(b).dump();
                 }, said);

@@ -6,11 +6,17 @@
 #include "JPSourceColumn.h"
 
 #include <algorithm>
+#include <cctype>
 
 inline namespace jf {
 
 namespace {
-enum Col { kSource, kId, kDescription, kTape, kBottomVision, kFiducialVision };
+enum Col { kSource, kId, kName, kDescription, kTape, kBottomVision, kFiducialVision, kColumns };
+
+std::string upperOf(std::string s) {
+    for (char& c : s) c = char(std::toupper(uint8_t(c)));
+    return s;
+}
 }
 
 JPPackagesTableModel::JPPackagesTableModel(JPConfiguration& config) : m_config(config) { reload(); }
@@ -61,7 +67,11 @@ JPTableModel::Column JPPackagesTableModel::column(int c) const {
 JPTableModel::Column JPPackagesTableModel::heading(int c) const {
     switch (c) {
         case kSource:         return JPSourceColumn::column();
-        case kId:          return { "ID", "", Kind::Text };
+        case kId:          return { "ID", "What parts know it by, for good (a GUID)", Kind::Text };
+        case kName:
+            return { "Name", "What it is called where it is shown, unique in the library; a new package's from where it "
+                             "came (a board's footprint, OpenPnP's id, or the name it was given), and yours to change",
+                     Kind::Text };
         case kDescription: return { "Description", "", Kind::Text };
         case kTape:
             return { "Tape Specification",
@@ -98,6 +108,7 @@ std::string JPPackagesTableModel::text(int row, int c) const {
             return boards.empty() ? std::string("Library") : boards;
         }
         case kId:          return p->id;
+        case kName:        return p->shownName();
         case kDescription: return p->description.value_or("");
         case kTape:        return p->tapeSpecification.value_or("");
         case kBottomVision: {
@@ -130,10 +141,25 @@ std::vector<std::string> JPPackagesTableModel::choices(int, int c) const {
     return out;
 }
 
-bool JPPackagesTableModel::setText(int row, int c, const std::string& text, std::string&) {
+bool JPPackagesTableModel::setText(int row, int c, const std::string& text, std::string& error) {
     JPPackage* p = package(row);
     if (!p) return false;
-    if (c == kDescription) p->description = text;
+    if (c == kName) {
+        // Unique, and never none: what the package is told apart by, and what CAD files are matched to.
+        std::string name = text;
+        while (!name.empty() && std::isspace(uint8_t(name.front()))) name.erase(name.begin());
+        while (!name.empty() && std::isspace(uint8_t(name.back()))) name.pop_back();
+        if (name.empty()) {
+            error = "A package needs a name.";
+            return false;
+        }
+        for (const auto& k : m_config.packages())
+            if (k.get() != p && upperOf(k->shownName()) == upperOf(name)) {
+                error = "A package named " + name + " already exists.";
+                return false;
+            }
+        p->label = name;
+    } else if (c == kDescription) p->description = text;
     else if (c == kTape) p->tapeSpecification = text;
     else return false;
     m_said.changed(onChanged);
@@ -154,8 +180,8 @@ void JPPackagesTableModel::setChoice(int row, int c, int index) {
 inline namespace jf {
 
 std::string JPPackagesTableModel::keyAt(int c) const {
-    static const char* const keys[] = { "source", "id", "description", "tape", "bottomVision", "fiducialVision" };
-    return c >= 0 && c < 6 ? keys[c] : std::string();
+    static const char* const keys[kColumns] = { "source", "id", "name", "description", "tape", "bottomVision", "fiducialVision" };
+    return c >= 0 && c < kColumns ? keys[c] : std::string();
 }
 
 const JPFieldValues* JPPackagesTableModel::custom(int row) const {

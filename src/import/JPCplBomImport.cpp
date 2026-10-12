@@ -361,7 +361,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                     }
                 };
                 differs(JPFieldSet::Of::Parts, found->custom, found->shownName());
-                if (const JPPackage* k = config.package(found->packageId)) differs(JPFieldSet::Of::Packages, k->custom, k->id);
+                if (const JPPackage* k = config.package(found->packageId)) differs(JPFieldSet::Of::Packages, k->custom, k->shownName());
             } else if (createMissing && !bp.fields["part"].empty()) {
                 // A part made for the library (put there as the import is taken), from what the files said.
                 // Named as the files name it, known for good by a GUID; one made already for that name, that one.
@@ -380,22 +380,27 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                         double mm = 0;
                         if (JPImportSource::length(h->second, cpl.units, mm)) made->height = JPLength(mm, JPLengthUnit::Millimeters);
                     }
-                    // Its package: the library's of that name; else one made, with the pads the board file draws
-                    // where it does (a KiCad board).
-                    made->packageId = footprint;
-                    bool madePackage = false;
-                    for (const auto& k : out.madePackages) madePackage = madePackage || k->id == footprint;
-                    if (!footprint.empty() && !config.libraryPackage(footprint) && !madePackage) {
-                        auto k = std::make_shared<JPPackage>();
-                        k->id = footprint;
-                        k->custom = bp.added(defs, JPFieldSet::Of::Packages);
-                        if (const JPFootprint* pads = drawn(at)) {
-                            k->footprint = *pads;
-                            drawnUsed.insert(footprint);
+                    // Its package: the library's of that name (or a name its footprints are known by); else one
+                    // made (named so, known by a GUID), with the pads the board file draws where it does (a KiCad
+                    // board); one made already for that name, that one.
+                    if (const JPPackage* k = config.packageNamed(footprint)) {
+                        made->packageId = k->id;
+                    } else if (!footprint.empty()) {
+                        for (const auto& k : out.madePackages)
+                            if (upper(k->label) == upper(footprint)) made->packageId = k->id;
+                        if (made->packageId.empty()) {
+                            auto k = std::make_shared<JPPackage>();
+                            k->id = JPUuid::make();
+                            k->label = footprint;
+                            k->custom = bp.added(defs, JPFieldSet::Of::Packages);
+                            if (const JPFootprint* pads = drawn(at)) {
+                                k->footprint = *pads;
+                                drawnUsed.insert(footprint);
+                            }
+                            made->packageId = k->id;
+                            out.madePackages.push_back(std::move(k));
                         }
-                        out.madePackages.push_back(std::move(k));
                     }
-                    if (const JPPackage* k = config.libraryPackage(footprint)) made->packageId = k->id;
                     out.madeParts.push_back(std::move(made));
                 }
                 bp.state = JPBoardPart::State::Matched;

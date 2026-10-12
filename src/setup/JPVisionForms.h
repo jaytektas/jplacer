@@ -29,7 +29,8 @@ public:
     // (Specialize and Generalize act for it).
     struct Holder {
         enum class Kind { None, Part, Package } kind = Kind::None;
-        std::string id;
+        std::string id;     // its id (a GUID)
+        std::string name;   // what it is called (its Name), as said and as its settings are named
     };
 
     // Which of Manage Settings' buttons a page shows (Reset to Default always): Specialize, while the part or

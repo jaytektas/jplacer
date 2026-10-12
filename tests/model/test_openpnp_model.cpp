@@ -70,7 +70,9 @@ int main() {
     assert(config.load(problems, error) && problems.empty());
     assert(config.parts().size() == 6 && config.packages().size() == 6);
     const JPPart* r = config.partNamed("r0805-1k");
-    assert(r && r->packageId == "R0805" && r->height.value() == 1.0 && r->speed == 1.0);
+    // Its package by OpenPnP's id for it, its Name: the part names it by its GUID.
+    assert(r && config.packageNamed("R0805") && r->packageId == config.packageNamed("R0805")->id && r->height.value() == 1.0
+           && r->speed == 1.0);
     const JPPackage* k = config.package(r->packageId);
     assert(k && k->footprint.pads.size() == 2 && k->footprint.bodyWidth == 2.0 && k->compatibleNozzleTipIds.size() == 1);
     assert(k->footprint.pads[1].x == 0.825 && k->footprint.pads[0].roundness == 0.0);
@@ -78,7 +80,8 @@ int main() {
     assert(config.save(error));
     JPConfiguration again((dir / "config").string());
     assert(again.load(problems, error) && again.parts().size() == 6 && again.packages().size() == 6);
-    assert(again.package("R0805")->footprint.pads[1].x == 0.825 && again.partNamed("FIDUCIAL-HOME")->packageId == "FIDUCIAL-1X2");
+    assert(again.packageNamed("R0805")->footprint.pads[1].x == 0.825
+           && again.partNamed("FIDUCIAL-HOME")->packageId == again.packageNamed("FIDUCIAL-1X2")->id);
     // A part of the same id replaces it where it was.
     {
         auto p = std::make_shared<JPPart>(*again.partNamed("R0603-1K"));

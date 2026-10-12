@@ -98,7 +98,7 @@ public:
     void removePart(const std::string& id);
 
     const std::vector<std::shared_ptr<JPPackage>>& packages() const { return m_packages; }
-    // A package by id (the library's: there are no others).
+    // A package by its id, a GUID (the library's: there are no others).
     JPPackage* package(const std::string& id) const;
     // The library's package of that id only, or null.
     JPPackage* libraryPackage(const std::string& id) const;
@@ -114,9 +114,10 @@ public:
     std::string manufacturerName(const std::string& name) const;
     // Whether two names name one manufacturer (either unknown: when they are the same name).
     bool sameManufacturer(const std::string& a, const std::string& b) const;
-    // The library's package a CAD footprint names: by its id, else by a footprint of it that name names
-    // (footprintNamed); null when none.
-    JPPackage* packageNamed(const std::string& footprint) const;
+    // The library's package a name names (a CAD footprint's, OpenPnP's id for it, one typed): by its Name, else
+    // by a name one of its footprints is known by (footprintNamed: its CAD names, learned as boards are linked),
+    // without regard to case; null when none.
+    JPPackage* packageNamed(const std::string& name) const;
 
     // The library's footprints (land patterns of its packages: JPLibraryFootprint).
     const std::vector<std::shared_ptr<JPLibraryFootprint>>& footprints() const { return m_footprints; }

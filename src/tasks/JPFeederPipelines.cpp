@@ -108,10 +108,12 @@ void JPFeederPipelines::configureForEditing(const JPConfiguration& config, const
     if (kind == "ReferenceLoosePartFeeder" || kind == "AdvancedLoosePartFeeder" || kind == "ReferenceHeapFeeder") {
         // Its part: what its template is named after, and its package's body.
         JPPipelineValue::Part part;
+        // By their Names, what template images are named after (as OpenPnP's by its ids).
         part.id = feeder.partId();
-        if (const JPPart* p = config.part(part.id))
+        if (const JPPart* p = config.part(feeder.partId())) part.id = p->shownName();
+        if (const JPPart* p = config.part(feeder.partId()))
             if (const JPPackage* pkg = config.package(p->packageId)) {
-                part.packageId = pkg->id;
+                part.packageId = pkg->shownName();
                 part.hasFootprint = true;
                 const double mm = JPLength(1, pkg->footprint.units).convertToUnits(JPLengthUnit::Millimeters).value();
                 part.bodyWidthMm = pkg->footprint.bodyWidth * mm;

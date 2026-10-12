@@ -10,6 +10,15 @@ notes.
 
 ## Unreleased
 
+- A package is known for good by a GUID, as a part is, and has a **Name**, shown wherever it is (a part's
+  **Package**, the import) and changed in place on the Packages tab. **New Package…** asks for a name. A library
+  of 0.1.56 or before is brought up to this as it opens, keeping every part's package.
+- A package's name learned from boards (its footprints' **CAD Names**) finds it in an import too, not only
+  when choosing a part.
+- The library's **Undo** names parts and packages by their names ("Undo Delete Part R0603-10k"), and a vision
+  setting's **Assigned To** lists parts by their names (they had shown GUIDs). Template images for vision are
+  found by the part's and the package's names, as OpenPnP names them.
+
 - A table with no view buttons (the one a Part or Package cell drops, those in a window of their own) is a plain
   table again: it offers no views and no fields to add or edit, only its columns to show and hide.
 

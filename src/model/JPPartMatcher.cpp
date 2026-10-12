@@ -259,9 +259,11 @@ int rankOf(const std::string& id, const std::string& text, double value, const s
 } // namespace
 
 int JPPartMatcher::searchRank(const JPConfiguration& config, const JPPart& part, const std::string& typed) {
-    const std::string id = upper(part.shownName()), package = upper(part.packageId);
+    // Its package by its Name (its id is a GUID).
+    const JPPackage* k = config.package(part.packageId);
+    const std::string id = upper(part.shownName()), package = k ? upper(k->shownName()) : std::string();
     std::string text = id + " " + upper(part.id) + " " + upper(part.name.value_or("")) + " " + upper(part.value) + " " + package;
-    if (const JPPackage* k = config.package(part.packageId)) text += " " + upper(k->description.value_or(""));
+    if (k) text += " " + upper(k->description.value_or(""));
     for (const JPPart::Identifier& i : part.identifiers) text += " " + upper(i.code);
     for (const JPPart::Aka& a : part.akas) text += " " + upper(a.text);
     double value = 0;
@@ -270,7 +272,8 @@ int JPPartMatcher::searchRank(const JPConfiguration& config, const JPPart& part,
 }
 
 int JPPartMatcher::packageSearchRank(const JPPackage& package, const std::string& typed) {
-    const std::string id = upper(package.id);
+    // By its Name (what it is shown and searched by), and its description.
+    const std::string id = upper(package.shownName());
     return rankOf(id, id + " " + upper(package.description.value_or("")), std::nan(""), { id }, typed);
 }
 

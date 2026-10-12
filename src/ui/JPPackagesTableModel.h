@@ -16,22 +16,23 @@
 
 inline namespace jf {
 
-// The Packages tab's table, as OpenPnP's PackagesTableModel: ID,
-// Description, Tape Specification, BottomVision, FiducialVision), after
-// Source (JPSourceColumn: the library's icon, or a board's for a package an
-// open board's part is of); all but Source and the ID edited in place.
+// The Packages tab's table, as OpenPnP's PackagesTableModel: ID (a GUID),
+// its Name (what it is shown as, edited in place and unique), Description,
+// Tape Specification, BottomVision, FiducialVision), after Source
+// (JPSourceColumn: the library's icon, or a board's for a package an open
+// board's part is of); all but Source and the ID edited in place.
 class JPPackagesTableModel : public JPTableModel {
 public:
     explicit JPPackagesTableModel(JPConfiguration& config);
 
     std::function<void()> onChanged;
 
-    int    columnCount() const override { return 6; }
+    int    columnCount() const override { return 7; }
     Column column(int c) const override;
     int    rowCount() const override { return int(m_config.packages().size()); }
     std::string text(int row, int c) const override;
     std::string rowKey(int row) const override;
-    bool   editable(int, int c) const override { return c > 1; }   // not Source nor ID
+    bool   editable(int, int c) const override { return c > 1; }   // not Source nor ID (its Name is)
     std::vector<std::string> choices(int row, int c) const override;
     bool   setText(int row, int c, const std::string& text, std::string& error) override;
     void   setChoice(int row, int c, int index) override;

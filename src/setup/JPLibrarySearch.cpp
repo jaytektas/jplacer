@@ -33,12 +33,16 @@ void scopes(JComboBox::Search& s, const JPConfiguration& config, const std::vect
     };
 }
 
+// What a catalogue entry's thing is known by for good (a part's and a package's id, a GUID).
+const std::string& keyOfHeld(const JPPart& p) { return p.id; }
+const std::string& keyOfHeld(const JPPackage& k) { return k.id; }
+
 // Each entry's boards' names, from the catalogue's (JPCatalog) uses by id.
 template <class Entries>
 std::vector<std::vector<std::string>> boardsOf(const Entries& entries, const std::vector<std::string>& ids) {
     std::map<std::string, std::vector<std::string>> by;
     for (const auto& e : entries)
-        for (const auto& b : e.usedBy) by[e.held->id].push_back(b->scopeName());
+        for (const auto& b : e.usedBy) by[keyOfHeld(*e.held)].push_back(b->scopeName());
     std::vector<std::vector<std::string>> out;
     for (const std::string& id : ids) {
         const auto at = by.find(id);
@@ -74,7 +78,7 @@ JComboBox::Search JPLibrarySearch::parts(const JPConfiguration& config, const st
 
 JComboBox::Search JPLibrarySearch::packages(const JPConfiguration& config, const std::vector<std::string>& ids) {
     JComboBox::Search s;
-    s.placeholder = "Filter: id, description (\"0603\", \"qfp\", \"cap\")";
+    s.placeholder = "Filter: name, description (\"0603\", \"qfp\", \"cap\")";
     scopes(s, config, ids, boardsOf(JPCatalog::packages(config), ids));
     s.rank = [&config, ids](int i, const std::string& typed) {
         if (size_t(i) >= ids.size()) return 0;

@@ -50,8 +50,8 @@ void JPLibraryLearning::learn(JPConfiguration& config, JPPart& part, const JPBoa
     addIdentifier(part, "mpn", bp.field("manufacturer"), bp.field("mpn"));
     addIdentifier(part, "supplierPn", bp.field("supplier"), bp.field("supplierPn"));
     // Its package's footprint known by this name too (unless a footprint, of any package, has it already).
-    if (!footprint.empty() && config.libraryPackage(part.packageId) && !same(part.packageId, footprint)
-        && !config.footprintNamed(footprint))
+    const JPPackage* package = config.libraryPackage(part.packageId);
+    if (!footprint.empty() && package && !same(package->shownName(), footprint) && !config.footprintNamed(footprint))
         if (JPLibraryFootprint* f = config.defaultFootprint(part.packageId, true)) f->cadNames.push_back(footprint);
 }
 
@@ -79,10 +79,11 @@ JPPart* JPLibraryLearning::addFrom(JPConfiguration& config, const JPBoardPart& b
     if (JPPackage* k = config.packageNamed(footprint)) {
         p->packageId = k->id;
     } else if (!footprint.empty()) {
+        // A package made, named so (its GUID made as it is added).
         auto k = std::make_shared<JPPackage>();
-        k->id = footprint;
+        k->label = footprint;
         config.addPackage(k);
-        p->packageId = footprint;
+        p->packageId = k->id;
     }
     config.addPart(p);
     JPPart* made = config.libraryPart(id);

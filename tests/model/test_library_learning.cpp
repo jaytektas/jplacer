@@ -81,8 +81,9 @@ int main() {
     JPBoardPart again = other;
     again.fields["footprint"] = "SOT-23";
     JPPart* second = JPLibraryLearning::addFrom(config, again, "Ctrl", "now");
-    assert(second->label == "CL10B103KB8NNNC (2)" && second->id != made->id && second->packageId == "SOT-23"
-           && config.libraryPackage("SOT-23"));
+    const JPPackage* sot = config.packageNamed("SOT-23");   // named so, known by a GUID
+    assert(second->label == "CL10B103KB8NNNC (2)" && second->id != made->id && sot && sot->id.size() == 36
+           && second->packageId == sot->id);
     // The name a board gives a part learned once, whoever links it.
     JPBoardPart named;
     named.fields = { { "value", "4k7" }, { "footprint", "R_0603" } };

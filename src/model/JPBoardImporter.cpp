@@ -253,15 +253,17 @@ std::string JPBoardImporter::boardPart(JPConfiguration& config, JPBoard& out, co
         p->id = JPUuid::make();
         p->label = partId;
         p->value = value;   // its value as the file wrote it
-        if (const JPPackage* k = config.libraryPackage(packageId)) {
+        if (const JPPackage* k = config.packageNamed(packageId)) {
             p->packageId = k->id;
         } else {
-            p->packageId = packageId;
-            bool have = false;
-            for (const auto& k : out.madePackages) have = have || k->id == packageId;
-            if (!have) {
+            // One made for that name (named so, known by a GUID), or the one made already.
+            for (const auto& k : out.madePackages)
+                if (k->label == packageId) p->packageId = k->id;
+            if (p->packageId.empty()) {
                 auto k = std::make_shared<JPPackage>();
-                k->id = packageId;
+                k->id = JPUuid::make();
+                k->label = packageId;
+                p->packageId = k->id;
                 out.madePackages.push_back(k);
                 if (madePackage) *madePackage = k.get();
             }

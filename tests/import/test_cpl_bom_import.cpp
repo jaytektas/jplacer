@@ -303,7 +303,7 @@ int main() {
         // The part made: the first placement's value, the other's noted; its package made with its pitch.
         const auto made = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "MPN1"; });
         assert(made != b.madeParts.end() && (*made)->custom.get(volts).str() == "50V" && noted("25V"));
-        const auto pkg = std::find_if(b.madePackages.begin(), b.madePackages.end(), [](const auto& k) { return k->id == "R0603X"; });
+        const auto pkg = std::find_if(b.madePackages.begin(), b.madePackages.end(), [](const auto& k) { return k->label == "R0603X"; });
         assert(pkg != b.madePackages.end() && (*pkg)->custom.get(pitch).number() == 0.5);
         // The library's part keeps its own (the files' differing said); its package's pitch is filled as it is taken.
         assert(noted("the library has \"100V\""));

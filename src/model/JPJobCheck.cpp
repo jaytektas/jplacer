@@ -98,7 +98,7 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
                        != package->compatibleNozzleTipIds.end();
             });
             if (!tip)
-                g.add(L::Stop, "No nozzle tip on the machine fits its package", part->shownName() + " (" + package->id + ")",
+                g.add(L::Stop, "No nozzle tip on the machine fits its package", part->shownName() + " (" + package->shownName() + ")",
                       "Packages tab: the package's Nozzle Tips");
             if (!config.findFeeder(part->id, std::nullopt))
                 g.add(L::Note, "No feeder holds it yet (the run asks for it to be loaded when it gets to it)", part->id,
@@ -108,7 +108,7 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
             const JPLibraryFootprint* cad = bp ? config.footprintFor(*bp, *part) : nullptr;
             const bool footprint = (cad && !cad->geometry.pads.empty()) || !package->footprint.pads.empty();
             if (!footprint)
-                g.add(L::Check, "No footprint to draw or check against", part->shownName() + " (" + package->id + ")",
+                g.add(L::Check, "No footprint to draw or check against", part->shownName() + " (" + package->shownName() + ")",
                       "Packages tab: the package's Footprint, or a library footprint");
         }
     }
