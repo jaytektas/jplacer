@@ -109,7 +109,7 @@ int main() {
     files.push_back(source("Comment,Designator,Footprint,LCSC Part #,MPN,Provider,Voltage,DNP,Description\n"
                            "100n,\"C1,C2\",C0603,C14663,CL10B104KB8NNNC,Samsung,50V,,100nF 50V X7R\n"
                            "10k,R1-R2,R0603,C25804,0603WAF1002T5E,UniOhm,,,\n"
-                           "LM358,U1,SOIC-8,C7950,LM358DR,TI,,,\n"
+                           "LM358,U1,SOIC-8,C7950,LM358DR,TI,,,Dual op-amp\n"
                            "22u,C9,C0805,C45783,CL21A226MAQNNNE,Samsung,,,\n"
                            "NC,J1,Conn,,,,,DNP,\n",
                            JPImportSource::Role::Bom, "bom.csv"));
@@ -187,6 +187,39 @@ int main() {
         assert(imp.build(config, "t", turned, rt, error));
         const JPPlacement* u1 = turned.find("U1");
         assert(u1->cadRotation && *u1->cadRotation == 180 && std::abs(u1->location.rotation() - 90) < 1e-9);
+    }
+    // The sides imported: the top alone leaves U1 (the bottom's) out, counted; the bottom alone, U1 only.
+    {
+        JPCplBomImport top = imp;
+        top.sides = JPCplBomImport::Sides::Top;
+        JPBoard bt;
+        JPCplBomImport::Report rt;
+        assert(top.build(config, "t", bt, rt, error));
+        assert(rt.placements == 6 && rt.otherSide == 1 && !bt.find("U1") && bt.find("C1") && top.check().otherSide == 1);
+        JPCplBomImport under = imp;
+        under.sides = JPCplBomImport::Sides::Bottom;
+        JPBoard bb;
+        JPCplBomImport::Report rb;
+        assert(under.build(config, "t", bb, rb, error));
+        assert(rb.placements == 1 && rb.otherSide == 6 && bb.find("U1") && bb.placements.size() == 1);
+    }
+    // The library's part it is matched to, as the import is taken: what it has none of filled (its description,
+    // MPN, supplier's part number), once; what it has kept, the files' differing said.
+    {
+        JPPart* op = config.libraryPart("LM358DR");
+        assert(!op->name && op->identifiers.empty());
+        int packages = 0;
+        config.takeMade(board, packages);
+        assert(op->name == std::optional<std::string>("Dual op-amp") && op->identifiers.size() == 2);
+        assert(op->identifiers[0].kind == "mpn" && op->identifiers[0].org == "TI" && op->identifiers[1].code == "C7950");
+        op->name = "My op-amp";
+        JPBoard again;
+        JPCplBomImport::Report ra;
+        assert(imp.build(config, "t", again, ra, error));
+        assert(std::any_of(ra.fieldNotes.begin(), ra.fieldNotes.end(),
+                           [](const std::string& n) { return n.find("the library has \"My op-amp\"") != std::string::npos; }));
+        config.takeMade(again, packages);
+        assert(op->name == std::optional<std::string>("My op-amp") && op->identifiers.size() == 2);
     }
     // Create Missing Parts: a library part made for it (not in the library until the import is taken), the
     // board part matched to it; put in the library, it is the library's.

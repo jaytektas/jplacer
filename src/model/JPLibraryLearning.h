@@ -23,8 +23,10 @@ inline namespace jf {
 //    its package the library's of that footprint (by name or AKA), else one
 //    made; its value, description, datasheet, height, identifiers, AKA.
 //  * describe: what a board part says of the part itself (its description,
-//    datasheet, MPN and supplier's part number) given to a part made from it
-//    (addFrom, an import's parts made for the library).
+//    datasheet, MPN and supplier's part number) given to a part where it has
+//    none: one made from it (addFrom, an import's parts made for the
+//    library), and the library's part an import is matched to, as the import
+//    is taken (what the part has kept).
 class JPLibraryLearning {
 public:
     // The name a board gives a part (its value and footprint) kept as the library part's AKA, when it has it not
@@ -34,7 +36,8 @@ public:
     // `from`: where it was learned (the board), `when` as text.
     static void learn(JPConfiguration& config, JPPart& part, const JPBoardPart& bp, const std::string& from,
                       const std::string& when);
-    // Its description and datasheet (where the board part gives them and the part has none) and its identifiers.
+    // Its description, datasheet, MPN and supplier's part number, each where the board part gives it and the part
+    // has none (no identifier of that kind).
     static void describe(JPPart& part, const JPBoardPart& bp);
     static JPPart* addFrom(JPConfiguration& config, const JPBoardPart& bp, const std::string& from, const std::string& when);
 };

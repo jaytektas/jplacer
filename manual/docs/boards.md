@@ -187,6 +187,9 @@ the library has is left as it is.
   used (the placement file for a placement's position, a KiCad board for the footprint; else the first
   other file that has the field). From a KiCad board, it also says how many footprints the new packages
   take from it.
+- **Sides**: **Top and Bottom** (to begin with), **Top Only** or **Bottom Only**: the placement file's rows
+  of the other side are left out, and **What it makes** says how many. On a **Merge** the board's
+  placements on that side stay as they are; a **Replace** takes them off with the rest.
 
 A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
 grouped by manufacturer and MPN where the files give them, else by value and footprint, and each keeps
@@ -194,7 +197,8 @@ every field the files gave it (a supplier part number column that names its supp
 the supplier). A placement's fields of yours are its own row's; a part's and its package's are its first
 placement's row's, and a part made for the library (and a package made with it) has them. A library part,
 or its package, already in the library keeps its own value where it has one, and gets the files' where it
-has none, when the import is taken. **What it makes** says each value its field's type cannot read (not
+has none, when the import is taken; so does its **Description**, its datasheet, and its MPN and supplier's
+part number (where it has none of that kind): importing again never changes what you have set. **What it makes** says each value its field's type cannot read (not
 taken), each part whose placements' rows disagree (the first taken), each library part whose value the files
 differ from (the library's kept), and a board's or job's column whose rows disagree (the first taken). On a
 **Merge**, a placement keeps the values of yours it has, and takes the files' where it has none. A part is the library's when one is named by its MPN, by OpenPnP's *footprint*-*value*,
@@ -206,7 +210,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 

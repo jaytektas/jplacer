@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- The CSV/BOM import has a **Sides** choice: Top and Bottom, Top Only or Bottom Only. Rows of the side left
+  out are skipped and counted in What it makes; on a Merge, the board's placements on that side stay as they are.
+- Importing again fills in a library part's description, datasheet, MPN and supplier's part number only where
+  it has none; what you have set is kept, and a different description in the files is noted in What it makes.
+
 - A part made by a CSV/BOM import (Create Missing Parts) now takes the files' description (the Parts table's
   **Description**), datasheet, MPN and supplier's part number, not only its value and height.
 

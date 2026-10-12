@@ -157,6 +157,19 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
     makes->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_summary = makes->add(std::make_unique<JScrollArea>(g, 0.f, 0.f));
     m_summary->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    auto sidesRow = JPUiParts::row(g);
+    JLabel* sidesLabel = sidesRow->add(std::make_unique<JLabel>(g, "Sides", 0.f));
+    sidesLabel->setFixedSize(JTextHelper::measureWidth("Sides") + st.spacing, st.controlHeight);
+    JComboBox* sides = sidesRow->add(std::make_unique<JComboBox>(g, std::vector<std::string> { "Top and Bottom", "Top Only", "Bottom Only" }));
+    sides->setCurrentIndex(0);
+    sides->setHSizePolicy(JSizePolicyMode::Expanding, 1);
+    sides->setTooltip("The sides whose placements are imported: the other side's rows are left out (on a Merge, the "
+                      "board's placements on that side stay as they are)");
+    sides->onIndexChanged.connect([this](int i) {
+        m_import.sides = i == 1 ? JPCplBomImport::Sides::Top : i == 2 ? JPCplBomImport::Sides::Bottom : JPCplBomImport::Sides::Both;
+        m_refillSummary = true;
+    });
+    makes->add(std::move(sidesRow));
     m_create = makes->add(std::make_unique<JCheckBox>(g, "Create Missing Parts", 0.f));
     m_create->setTooltip("A part the library does not have is made in the library (with its package, where the library "
                          "has none of that name) when you Import; else it is left for you to choose");
@@ -444,6 +457,9 @@ void JPlacerCplBomImportDialog::fillSummary() {
     if (report.made) parts += ", " + std::to_string(report.made) + " new, to be added to the library on Import";
     if (report.unmatched) parts += ", " + std::to_string(report.unmatched) + " to be chosen";
     line(parts);
+    if (report.otherSide)
+        line(std::to_string(report.otherSide) + " placement(s) on the " +
+             (m_import.sides == JPCplBomImport::Sides::Top ? "bottom" : "top") + " left out");
     if (report.footprints)
         line(std::to_string(report.footprints) + " footprint(s) from the board file: the pads of the new packages");
     if (report.noPart)

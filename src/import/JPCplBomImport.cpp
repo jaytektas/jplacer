@@ -163,7 +163,7 @@ std::map<std::string, std::vector<int>> JPCplBomImport::join(Report& report) con
     for (const auto& [d, at] : rows) {
         const bool inOther = std::any_of(at.begin() + 1, at.end(), [](int r) { return r >= 0; });
         if (at[0] < 0) report.otherOnly.push_back(d);
-        else if (others && !inOther && !fiducial(d)) report.cplOnly.push_back(d);
+        else if (others && !inOther && !fiducial(d) && !leftOut(cpl.table.rows[size_t(at[0])])) report.cplOnly.push_back(d);
     }
     return rows;
 }
@@ -190,12 +190,21 @@ std::string JPCplBomImport::value(const std::map<std::string, std::vector<int>>&
     return said.front().second;
 }
 
+bool JPCplBomImport::leftOut(const std::vector<std::string>& cplRow) const {
+    if (sides == Sides::Both) return false;
+    return bottom(sources.front().cell(cplRow, I::Side)) != (sides == Sides::Bottom);
+}
+
 JPCplBomImport::Report JPCplBomImport::check() const {
     Report report;
     for (const JPImportSource& s : sources) report.problems.insert(report.problems.end(), s.notes.begin(), s.notes.end());
     const auto rows = join(report);
     for (const auto& [d, at] : rows) {
         if (at.empty() || at[0] < 0) continue;
+        if (leftOut(sources.front().table.rows[size_t(at[0])])) {
+            ++report.otherSide;
+            continue;
+        }
         ++report.placements;
         for (const I f : kPartFields) value(rows, d, f, &report);
         for (const JPImportSource& s : sources)
@@ -258,6 +267,10 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
     for (const auto& [d, at] : rows) {
         if (at.empty() || at[0] < 0) continue;
         const auto& row = cpl.table.rows[size_t(at[0])];
+        if (leftOut(row)) {
+            ++report.otherSide;
+            continue;
+        }
         double x = 0, y = 0, rotation = 0;
         if (!JPImportSource::length(cpl.cell(row, I::X), cpl.units, x) || !JPImportSource::length(cpl.cell(row, I::Y), cpl.units, y)) {
             report.problems.push_back(d + ": its X or Y is not a number; passed over");
@@ -361,6 +374,10 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                     }
                 };
                 differs(JPFieldSet::Of::Parts, found->custom, found->shownName());
+                // Its description likewise.
+                if (const std::string& said = bp.field("description"); !said.empty() && found->name && !same(*found->name, said))
+                    report.fieldNotes.push_back(found->shownName() + "'s Description: the library has \"" + *found->name +
+                                                "\", the files say \"" + said + "\"; the library's is kept");
                 if (const JPPackage* k = config.package(found->packageId)) differs(JPFieldSet::Of::Packages, k->custom, k->shownName());
             } else if (createMissing && !bp.fields["part"].empty()) {
                 // A part made for the library (put there as the import is taken), from what the files said.

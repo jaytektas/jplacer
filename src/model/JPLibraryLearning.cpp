@@ -46,8 +46,9 @@ bool JPLibraryLearning::learnName(JPPart& part, const JPBoardPart& bp, const std
 void JPLibraryLearning::describe(JPPart& part, const JPBoardPart& bp) {
     if (!part.name && !bp.field("description").empty()) part.name = bp.field("description");   // OpenPnP's part name is its description
     if (part.datasheet.empty()) part.datasheet = bp.field("datasheet");
-    addIdentifier(part, "mpn", bp.field("manufacturer"), bp.field("mpn"));
-    addIdentifier(part, "supplierPn", bp.field("supplier"), bp.field("supplierPn"));
+    for (const char* kind : { "mpn", "supplierPn" })
+        if (std::none_of(part.identifiers.begin(), part.identifiers.end(), [kind](const JPPart::Identifier& i) { return i.kind == kind; }))
+            addIdentifier(part, kind, bp.field(kind == std::string("mpn") ? "manufacturer" : "supplier"), bp.field(kind));
 }
 
 void JPLibraryLearning::learn(JPConfiguration& config, JPPart& part, const JPBoardPart& bp, const std::string& from,

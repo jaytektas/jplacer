@@ -35,7 +35,8 @@ inline namespace jf {
 // part disagree on noted; the board's and the job's one value for the whole
 // import: a column's (the first row's, what the others disagree on noted),
 // else what a file says of itself (about) by the field's name or matches,
-// else what is typed for it (typed, over either).
+// else what is typed for it (typed, over either). The sides imported: both,
+// or one alone (the other side's placement rows left out, counted).
 class JPCplBomImport {
 public:
     struct Conflict {
@@ -49,6 +50,7 @@ public:
         std::vector<Conflict>    conflicts;
         std::vector<std::string> problems;   // rows passed over and why; files that cannot be joined
         int placements = 0, doNotPlace = 0, fiducials = 0, noPart = 0, parts = 0, matched = 0, made = 0, unmatched = 0;
+        int otherSide = 0;    // placement rows of the side not imported, left out
         int footprints = 0;   // the board file's footprints the packages made for the library take
         // What the fields added were not given as they are: a value its type cannot read, a part's rows or the
         // import's that disagree (the first taken), a library part's or package's value the files differ from
@@ -61,6 +63,9 @@ public:
     std::vector<JPImportSource>          sources;   // [0]: the placement file
     std::map<std::string, int>           winners;   // a field's (Target::text) source, where chosen; else the default
     bool                                 createMissing = false;
+    // The sides whose placements are imported.
+    enum class Sides { Both, Top, Bottom };
+    Sides                                sides = Sides::Both;
     // A board's or the job's field's value as typed (by its key, the text as typed), over what the files say.
     std::map<std::string, std::string>   typedBoard, typedJob;
 
@@ -84,6 +89,8 @@ public:
     static bool bottom(const std::string& cell);
 
 private:
+    // Whether a placement file row is of the side not imported.
+    bool leftOut(const std::vector<std::string>& cplRow) const;
     // Each designator's row in each source (-1: none), the CPL's first.
     std::map<std::string, std::vector<int>> join(Report& report) const;
     // A field of a designator: the winner's, else any other source's; every source's differing value noted.

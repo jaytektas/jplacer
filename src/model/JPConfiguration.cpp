@@ -667,11 +667,13 @@ int JPConfiguration::takeMade(const JPBoard& imported, int& packagesAdded) {
             ++parts;
         }
     // What the board calls each part it is linked to, known by the library's part from now on (its AKA); and what
-    // the files said of the fields added to parts and packages, where the part (or its package) has no value yet.
+    // the files said of it (its description, datasheet, MPN, supplier's part number: JPLibraryLearning::describe) and
+    // of the fields added to parts and packages, where the part (or its package) has no value yet.
     for (const JPBoardPart& bp : imported.parts())
         if (bp.state == JPBoardPart::State::Matched)
             if (JPPart* part = libraryPartFor(bp)) {
                 JPLibraryLearning::learnName(*part, bp, imported.scopeName(), JPWhen::now());
+                JPLibraryLearning::describe(*part, bp);
                 const JPFieldValues partValues = bp.added(m_fields, JPFieldSet::Of::Parts);
                 for (const auto& [key, v] : partValues.all())
                     if (!part->custom.has(key)) part->custom.set(key, v);
