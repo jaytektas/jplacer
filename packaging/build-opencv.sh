@@ -4,8 +4,10 @@
 # outside libraries (its own zlib), so the AppImage needs nothing more.
 #
 #   packaging/build-opencv.sh            -> $HOME/opencv-jplacer
+#   packaging/build-opencv.sh --windows  -> $HOME/opencv-jplacer-win (MinGW-w64, the Windows SDK's toolchain)
 #
-# Then configure jplacer with -DCMAKE_PREFIX_PATH="$HOME/jframework-sdk;$HOME/opencv-jplacer".
+# Then configure jplacer with -DCMAKE_PREFIX_PATH="$HOME/jframework-sdk;$HOME/opencv-jplacer"
+# (for Windows, see packaging/build-windows.sh).
 
 set -euo pipefail
 
@@ -13,13 +15,19 @@ VERSION=4.10.0
 SRC="${OPENCV_SRC:-$HOME/src/opencv-$VERSION}"
 PREFIX="${OPENCV_PREFIX:-$HOME/opencv-jplacer}"
 BUILD="$SRC/build-jplacer"
+CROSS=()
+if [ "${1:-}" = "--windows" ]; then
+    PREFIX="${OPENCV_PREFIX:-$HOME/opencv-jplacer-win}"
+    BUILD="$SRC/build-jplacer-win"
+    CROSS=(-DCMAKE_TOOLCHAIN_FILE="${JFRAMEWORK_SDK_WIN:-$HOME/jframework-sdk-win}/mingw-w64.cmake" -DWITH_MSMF=OFF -DWITH_DSHOW=OFF -DWITH_WIN32UI=OFF -DWITH_DIRECTX=OFF)
+fi
 
 if [ ! -d "$SRC" ]; then
     mkdir -p "$(dirname "$SRC")"
     curl -sSL "https://github.com/opencv/opencv/archive/refs/tags/$VERSION.tar.gz" | tar xz -C "$(dirname "$SRC")"
 fi
 
-cmake -S "$SRC" -B "$BUILD" -G Ninja \
+cmake -S "$SRC" -B "$BUILD" -G Ninja "${CROSS[@]}" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$PREFIX" \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
