@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A placement whose library part was deleted shows what the files called its part (and *not in the library*),
+  not a long id; pointing at it shows everything the files said of it.
+
 ## 0.1.65
 
 - The Parts table shows each part's **Supplier PN**: where an LCSC number from an import is kept (and what its

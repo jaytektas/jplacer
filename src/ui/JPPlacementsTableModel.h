@@ -122,6 +122,10 @@ private:
     JPBoard* editedBoard() const;
 
     std::vector<const JPPart*> partChoices() const;
+    // The board part a placement names, on the board shown; null: none (a panel's placement, none named).
+    const JPBoardPart* boardPartOf(const JPPlacement& p) const;
+    // What the files called a board part: its part's name, else its value and footprint.
+    static std::string filesName(const JPBoardPart& bp);
 
     JPConfiguration&              m_config;
     std::function<const JPJob*()> m_job;

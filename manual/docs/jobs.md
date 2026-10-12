@@ -109,6 +109,13 @@ a new feeder is made for it. Right-click for **Set Type**,
 **Set Side**, **Set Placed**, **Set Enabled** and **Set Error Handling**; **Space** turns the chosen
 placement on or off.
 
+A placement whose part is not in the library shows in **Part** what the files called it: its part's name
+(else its value and footprint) and *(to be chosen)*, or *(not in the library)* when its library part was
+deleted. What the files said is kept with the board, whatever happens in the library; point at the cell for
+all of it, and click it to choose the part again.
+
+<!-- src: src/ui/JPPlacementsTableModel.cpp (text, cellTooltip, filesName); src/model/JPBoardPart.h -->
+
 **Columns** also offers each placement's part's columns and its part's package's, headed **Part ▸** and
 **Package ▸** (**Part ▸ Value**, **Part ▸ MPN**, **Package ▸ Name**…, the fields you added to parts and
 packages too), hidden until you tick them. They are the Parts and Packages tabs' own and are changed here

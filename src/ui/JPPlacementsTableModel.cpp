@@ -194,8 +194,11 @@ std::string JPPlacementsTableModel::text(int row, int c) const {
     switch (m_shown[size_t(c)]) {
         case kId:   return p->id;
         case kPart:
-            // A part to place with, else (a board part not chosen yet) what the files call it.
+            // A part to place with, else what the files called it: a board part not chosen yet, or one whose
+            // library part was deleted (its id names nothing now).
             if (const JPPart* part = m_config.part(p->partId)) return part->shownName();
+            if (const JPBoardPart* bp = boardPartOf(*p))
+                return filesName(*bp) + (bp->state == JPBoardPart::State::Matched ? " (not in the library)" : " (to be chosen)");
             return p->partId.empty() ? std::string() : p->partId + " (to be chosen)";
         case kSide: return JPSides::name(p->side);
         case kX:    return JPLengthCell::text(p->location.lengthX(), true);
@@ -256,8 +259,30 @@ std::optional<int> JPPlacementsTableModel::compare(int a, int b, int c) const {
     }
 }
 
-std::string JPPlacementsTableModel::cellTooltip(int, int c) const {
-    return m_shown[size_t(c)] == kRank ? kRankTooltip : std::string();
+std::string JPPlacementsTableModel::cellTooltip(int row, int c) const {
+    if (m_shown[size_t(c)] == kRank) return kRankTooltip;
+    if (m_shown[size_t(c)] != kPart) return {};
+    // A part not in the library: everything the files said of it.
+    const JPPlacement* p = placement(row);
+    const JPBoardPart* bp = p && !m_config.part(p->partId) ? boardPartOf(*p) : nullptr;
+    if (!bp) return {};
+    std::string said;
+    for (const auto& [name, value] : bp->fields)
+        if (!value.empty()) said += (said.empty() ? "" : ", ") + name + " " + value;
+    return std::string(bp->state == JPBoardPart::State::Matched ? "Its library part was deleted" : "No library part chosen for it yet")
+           + (said.empty() ? std::string() : "; the files said: " + said) + ". Click to choose its part.";
+}
+
+const JPBoardPart* JPPlacementsTableModel::boardPartOf(const JPPlacement& p) const {
+    if (p.boardPart.empty() || !m_holder || m_holder->kind() != JPPlacementsHolder::Kind::Board) return nullptr;
+    return static_cast<const JPBoard*>(m_holder)->part(p.boardPart);
+}
+
+std::string JPPlacementsTableModel::filesName(const JPBoardPart& bp) {
+    if (const std::string& part = bp.field("part"); !part.empty()) return part;
+    std::string s = bp.field("value");
+    if (const std::string& footprint = bp.footprintName(); !footprint.empty()) s += (s.empty() ? "" : " ") + footprint;
+    return s.empty() ? bp.key : s;
 }
 
 const uint8_t* JPPlacementsTableModel::cellTint(int row, int c) const {
