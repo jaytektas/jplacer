@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.58
+
 - The CSV/BOM import has a **Sides** choice: Top and Bottom, Top Only or Bottom Only. Rows of the side left
   out are skipped and counted in What it makes; on a Merge, the board's placements on that side stay as they are.
 - Importing again fills in a library part's description, datasheet, MPN and supplier's part number only where
