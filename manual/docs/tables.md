@@ -176,7 +176,7 @@ The fields jplacer cannot work without have no **Delete…**:
 | Placements | ID, Part, Side, X, Y, Rot. |
 | Boards and panels where they lie | Board/Panel Id, Side, X, Y, Z, Rot., Enabled? |
 | Boards, Panels | Board Name, Panel Name |
-| Feeders | Name, Part, Type, Enabled |
+| Feeders | ID, Name, Part, Type, Enabled |
 | Vision settings | Name |
 
 <!-- src: src/model/JPFieldSet.cpp (builtIns: required; remove; restore); src/app/JPlacerFieldDialog.cpp (remove); src/app/JPlacerFieldsDialog.cpp (Restore) -->

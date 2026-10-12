@@ -87,7 +87,7 @@ int main() {
     if (!ok) std::fprintf(stderr, "%s\n", error.c_str());
     assert(ok);
     // The feeder brought down to Z -10.
-    JPFeeder& feeder = *config.feeder("F1");
+    JPFeeder& feeder = config.feeders().front();   // the machine's one (OpenPnP's F1, known by a GUID now)
     feeder.setLocation(feeder.location().derive(std::nullopt, std::nullopt, -10.0, std::nullopt));
 
     // The vacuum switched by outputs the controller is sent (OpenPnP's test driver records each actuation).

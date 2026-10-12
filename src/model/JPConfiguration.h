@@ -262,6 +262,10 @@ private:
     void repoint(JPPlacementsHolderLocation::Kind kind, const std::string& from, const std::string& to);
     // OpenPnP's files name a part by its id, which is the part's Name here: each placement naming one so linked to
     // that part's id.
+    // Every feeder known by a GUID: one known by another id (OpenPnP's "FDR…") given one, any stock lot on it
+    // following; whether any was.
+    bool feederIds();
+    JJson feedersJson() const;
     void linkPartsByName(std::vector<JPPlacement>& placements) const;
 
     std::string                                          m_directory;

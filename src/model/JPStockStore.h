@@ -51,6 +51,8 @@ public:
     JPStockLot lotOnFeeder(const std::string& feederId) const;
     // A lot loaded on a feeder (any other lot on it taken off); `feederId` empty: taken off its feeder.
     bool loadLot(const std::string& lotUuid, const std::string& feederId, std::string& error);
+    // The lot on the feeder `from` (by its old id) on `to` now, the same feeder known by another id.
+    bool renameFeeder(const std::string& from, const std::string& to);
     // A lot's own fields (label, where kept, codes, note, closed); not its on hand. Closed, it is taken off its feeder.
     bool updateLot(const JPStockLot& lot, std::string& error);
     // An entry added to its lot's ledger (given its id and, when it has none, the time); the lot's on hand

@@ -3,6 +3,8 @@
 
 #include "JPFeeder.h"
 
+#include "common/JPUuid.h"
+
 #include "JPBlindsFeeders.h"
 #include "JPFeederTape.h"
 
@@ -33,12 +35,12 @@ const char* const kFeedOptionsKinds[] = { "ReferenceStripFeeder", "ReferenceTray
 
 JPFeeder JPFeeder::create(const std::string& className, const std::string& partId) {
     JPFeeder f;
-    // A slot feeder: a "SLOT-" id and named by it, holding no part of its own (OpenPnP's).
+    // Known for good by a GUID. A slot feeder named "SLOT-…" as OpenPnP names it, holding no part of its own.
     const std::string simple = simpleName(className);
     const bool slot = simple == "ReferenceSlotAutoFeeder" || simple == "SlotSchultzFeeder";
     f.m_className = className;
-    f.m_id = JPOpenPnpIds::create(slot ? "SLOT-" : "FDR");
-    f.m_name = slot ? f.m_id : simple;
+    f.m_id = JPUuid::make();
+    f.m_name = slot ? JPOpenPnpIds::create("SLOT-") : simple;
     f.m_partId = slot ? std::string() : partId;
     // As a new OpenPnP feeder ends up: made at version 1.0, it is migrated as soon as it is made, its feed retries
     // from its retry count (3), its pick retries 0.

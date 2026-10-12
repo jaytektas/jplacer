@@ -41,7 +41,8 @@ does (see [Search](tables.md#search)).
 
 | Column | |
 |---|---|
-| **Name** | The feeder's name, changed in place. |
+| **ID** | What the machine, the stock and the runs know it by, for good: a GUID, made for it (OpenPnP's ID for it, such as `FDR1`, is not kept). |
+| **Name** | The feeder's name, changed in place. A new slot feeder is named `SLOT-…`, as OpenPnP names one. |
 | **Part** | The part it holds. |
 | **Type** | Its kind. |
 | **Priority** | **High**, **Normal** or **Low**: of the feeders holding a part, those of the highest priority are used. Chosen from a list. |
@@ -52,7 +53,7 @@ does (see [Search](tables.md#search)).
 Columns sort as on the other tabs; Priority and Feed sort in the order listed above. Right-click a row
 for **Set Enabled** (**Enabled**, **Disabled**) and **Set Feed option**, for every chosen feeder at once.
 
-<!-- src: src/ui/JPFeedersTableModel.cpp; src/ui/JPFeedersPanel.cpp (buildMenu); src/model/JPFeeder.cpp (summariseJobFaults, supportsFeedOptions, feedOptionsName) -->
+<!-- src: src/ui/JPFeedersTableModel.cpp; src/model/JPConfiguration.cpp (feederIds); src/ui/JPFeedersPanel.cpp (buildMenu); src/model/JPFeeder.cpp (summariseJobFaults, supportsFeedOptions, feedOptionsName) -->
 
 ## The feeder's setup
 
@@ -104,9 +105,10 @@ boards**, and each open board by name. It starts on **Used by open boards** when
 that includes the feeder's part; otherwise it starts on **All**.
 
 The table is the Parts tab's own (see [Parts](parts.md#the-table)), every column of it, sorted, moved and
-widened there as on the tab, but it only chooses: a click on a row takes that part. **Columns** at the very
-right of the filter's row chooses which columns it shows. It keeps its layout (its columns, their order,
-widths and sort) as a table of its own, the same for every feeder and apart from the Parts tab's.
+widened there as on the tab, but it only chooses: a click on a row takes that part. **Columns** and the view
+buttons at the very right of the filter's row choose which columns it shows and its view (see
+[Views](tables.md#views)). It keeps its layout and its views (its columns, their order, widths and sort) as a
+table of its own, the same for every feeder and apart from the Parts tab's.
 
 The filter keeps the parts that have every word you type, in any case, and each word must start a word in
 the part. That can be in its ID, name, value, package, the package's description, its MPN or supplier's

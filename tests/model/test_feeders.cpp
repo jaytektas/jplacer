@@ -10,6 +10,7 @@
 #undef NDEBUG
 #include <cassert>
 
+#include "common/JPUuid.h"
 #include "model/JPConfiguration.h"
 #include "model/JPFeederTape.h"
 #include "openpnp/JPXmlReader.h"
@@ -153,7 +154,7 @@ int main() {
 
     // A new feeder, as OpenPnP makes one.
     const JPFeeder made = JPFeeder::create("org.openpnp.machine.reference.feeder.ReferenceTrayFeeder", "C1");
-    assert(made.id().rfind("FDR", 0) == 0 && made.name() == "ReferenceTrayFeeder" && !made.enabled());
+    assert(JPUuid::is(made.id()) && made.name() == "ReferenceTrayFeeder" && !made.enabled());   // known by a GUID
     assert(made.partId() == "C1" && made.priority() == JPFeeder::Priority::Normal && made.feedRetryCount() == 3);
     assert(JPFeeder::create(made.className(), "C1").id() != made.id());
     assert(JPFeeder::classNames().size() == 19 && JPFeeder::simpleName(JPFeeder::classNames().front()) == "ReferenceStripFeeder");

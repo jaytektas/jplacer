@@ -3,6 +3,7 @@
 
 #include "JPUuid.h"
 
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <mutex>
@@ -25,6 +26,15 @@ std::string JPUuid::make() {
     std::snprintf(buf, sizeof buf, "%08x-%04x-%04x-%04x-%012llx", unsigned(hi >> 32), unsigned((hi >> 16) & 0xFFFF),
                   unsigned(hi & 0xFFFF), unsigned(lo >> 48), static_cast<unsigned long long>(lo & 0xFFFFFFFFFFFFull));
     return buf;
+}
+
+bool JPUuid::is(const std::string& t) {
+    if (t.size() != 36) return false;
+    for (size_t i = 0; i < t.size(); ++i) {
+        const bool dash = i == 8 || i == 13 || i == 18 || i == 23;
+        if (dash ? t[i] != '-' : !std::isxdigit(static_cast<unsigned char>(t[i]))) return false;
+    }
+    return true;
 }
 
 } // inline namespace jf

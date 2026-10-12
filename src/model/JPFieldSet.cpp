@@ -136,6 +136,7 @@ std::vector<JPField> builtIns(JPFieldSet::Of of) {
             return { builtIn("name", "Panel Name", true), builtIn("width", "Width", false), builtIn("length", "Length", false) };
         case O::Feeders:
             return {
+                builtIn("id", "ID", true, "", {}, "What the machine, the stock and the runs know it by"),
                 builtIn("name", "Name", true), builtIn("part", "Part", true), builtIn("type", "Type", true),
                 builtIn("priority", "Priority", false), builtIn("faults", "Faults", false), builtIn("enabled", "Enabled", true),
                 builtIn("feed", "Feed", false),

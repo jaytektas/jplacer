@@ -219,6 +219,8 @@ bool JPConfiguration::load(std::vector<std::string>& problems, std::string& erro
     if (!m_library.open(libraryFile.string(), error) || !m_stock.open(libraryFile.string(), error)
         || !m_runs.open((dir / JPRunStore::kFile).string(), error))
         return false;
+    // Feeders known by OpenPnP's ids (an older file's): by GUIDs now, kept so.
+    if (feederIds() && !writeJson(dir / kFeedersFile, kFeedersFormat, "feeders", feedersJson(), error)) return false;
     // Runs whose parts are not in the ledger yet (jplacer closed or stopped while one ran): written now.
     {
         const size_t open = m_runs.unledgered().size();
@@ -301,8 +303,7 @@ bool JPConfiguration::save(std::string& error) const {
     // The library's parts and packages, to library.db (OpenPnP's parts.xml and packages.xml are not written).
     if (!m_library.isOpen() && !m_library.open((dir / JPLibraryStore::kFile).string(), error)) return false;
     if (!m_library.save(contents(), error)) return false;
-    JJson feeders = JJson::array();
-    for (const JPFeeder& f : m_feeders) feeders.push(f.toJson());
+    const JJson feeders = feedersJson();
     std::vector<JPXmlNode> entries;
     for (const JPSlotBanks& b : m_slotBanks) entries.push_back(b.toXml());
     for (JPXmlNode& e : m_photon.toXml()) entries.push_back(std::move(e));
@@ -357,7 +358,27 @@ int JPConfiguration::importFeeders(const std::string& machineXml, std::string& e
         if (!b.dummyPartId.empty()) m_dropBoxes.setDummyPart(b.id, linked(b.dummyPartId));
     resolveSlots();
     resolvePhoton();
+    feederIds();
     return int(m_feeders.size());
+}
+
+JJson JPConfiguration::feedersJson() const {
+    JJson feeders = JJson::array();
+    for (const JPFeeder& f : m_feeders) feeders.push(f.toJson());
+    return feeders;
+}
+
+bool JPConfiguration::feederIds() {
+    bool any = false;
+    for (JPFeeder& f : m_feeders) {
+        if (JPUuid::is(f.id())) continue;
+        // OpenPnP's id ("FDR…"), or one of an older jplacer's: a GUID for good, any lot on it following it.
+        const std::string was = f.id();
+        f.setId(JPUuid::make());
+        m_stock.renameFeeder(was, f.id());
+        any = true;
+    }
+    return any;
 }
 
 JPSlotBanks& JPConfiguration::slotBanks(const std::string& typeName) {

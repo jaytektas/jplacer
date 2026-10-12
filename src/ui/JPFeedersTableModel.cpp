@@ -7,7 +7,7 @@ inline namespace jf {
 
 namespace {
 
-enum Col { kName, kPart, kType, kPriority, kFaults, kEnabled, kFeed, kColumns };
+enum Col { kId, kName, kPart, kType, kPriority, kFaults, kEnabled, kFeed, kColumns };
 
 constexpr JPFeeder::Priority kPriorities[] = { JPFeeder::Priority::High, JPFeeder::Priority::Normal, JPFeeder::Priority::Low };
 constexpr JPFeeder::FeedOptions kFeedOptions[] = { JPFeeder::FeedOptions::Normal, JPFeeder::FeedOptions::SkipNext,
@@ -27,6 +27,7 @@ JPTableModel::Column JPFeedersTableModel::column(int c) const {
 
 JPTableModel::Column JPFeedersTableModel::heading(int c) const {
     switch (c) {
+        case kId:       return { "ID", "What the machine, the stock and the runs know it by, for good (a GUID)", Kind::Text };
         case kName:     return { "Name", "", Kind::Text };
         case kPart:     return { "Part", "", Kind::Text };
         case kType:     return { "Type", "", Kind::Text };
@@ -61,6 +62,7 @@ std::string JPFeedersTableModel::text(int row, int c) const {
     const JPFeeder* f = feeder(row);
     if (!f) return {};
     switch (c) {
+        case kId:       return f->id();
         case kName:     return f->name();
         case kPart: {
             // Its part by its Name; an id the library has not (a part since removed), as it is.
@@ -137,8 +139,8 @@ void JPFeedersTableModel::setChecked(int row, int c, bool on) {
 inline namespace jf {
 
 std::string JPFeedersTableModel::keyAt(int c) const {
-    static const char* const keys[] = { "name", "part", "type", "priority", "faults", "enabled", "feed" };
-    return c >= 0 && c < 7 ? keys[c] : std::string();
+    static const char* const keys[kColumns] = { "id", "name", "part", "type", "priority", "faults", "enabled", "feed" };
+    return c >= 0 && c < kColumns ? keys[c] : std::string();
 }
 
 const JPFieldValues* JPFeedersTableModel::custom(int row) const {

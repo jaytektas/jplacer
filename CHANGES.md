@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A feeder is known for good by a GUID, shown in the Feeders table's new **ID** column. Feeders brought in from
+  an OpenPnP machine get one (OpenPnP's `FDR…` is not kept), as do those of an older `feeders.json` as it is
+  read, any stock lot on one following it.
+
 - A package is known for good by a GUID, as a part is, and has a **Name**, shown wherever it is (a part's
   **Package**, the import) and changed in place on the Packages tab. **New Package…** asks for a name. A library
   of 0.1.56 or before is brought up to this as it opens, keeping every part's package.

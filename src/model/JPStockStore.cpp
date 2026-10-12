@@ -166,6 +166,10 @@ JPStockLot JPStockStore::lotOnFeeder(const std::string& feederId) const {
     return out;
 }
 
+bool JPStockStore::renameFeeder(const std::string& from, const std::string& to) {
+    return isOpen() && m_db.exec("UPDATE stock_lots SET feeder_id = ? WHERE feeder_id = ?", { B::from(to), B::from(from) });
+}
+
 bool JPStockStore::loadLot(const std::string& lotUuid, const std::string& feederId, std::string& error) {
     const bool ok = isOpen() && m_db.transaction([&] {
         return (feederId.empty() || m_db.exec("UPDATE stock_lots SET feeder_id = NULL WHERE feeder_id = ?", { B::from(feederId) }))

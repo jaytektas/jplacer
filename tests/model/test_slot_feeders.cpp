@@ -71,17 +71,19 @@ int main() {
     std::string error;
     assert(config.importFeeders((dir / "machine.xml").string(), error) == 3);
 
+    // OpenPnP's feeders, in its order, each known by a GUID now (SLOT-1 the first).
+    for (const JPFeeder& f : config.feeders()) assert(f.id().size() == 36);
     // Slot 1: F1 loaded, holding R1: its name, part and enabled; its pick is
     // the offsets turned by the slot's rotation, from the slot.
-    JPFeeder* s1 = config.feeder("SLOT-1");
+    JPFeeder* s1 = (&config.feeders()[0]);
     assert(s1->isSlot() && s1->feedsAs() == "ReferenceAutoFeeder");
     assert(s1->name() == "Slot 1 (F1)" && s1->partId() == "R1" && s1->enabled());
     const auto at = s1->pickLocation();
     assert(at && near(at->x(), 100 - 2) && near(at->y(), 50 + 1) && near(at->rotation(), 90));
 
     // F2 named by slots 2 and 3: the later keeps it; 2 is empty, so not enabled.
-    JPFeeder* s2 = config.feeder("SLOT-2");
-    JPFeeder* s3 = config.feeder("SLOT-3");
+    JPFeeder* s2 = (&config.feeders()[1]);
+    JPFeeder* s3 = (&config.feeders()[2]);
     assert(s2->name() == "Slot 2 (None)" && !s2->slotLoad && !s2->enabled());
     assert(s3->name() == "Slot 3 (F2)");
     // F2 holds no part: not enabled.
@@ -94,18 +96,18 @@ int main() {
     assert(s1->plainName() == "Left" && s1->name() == "Left (F1)");
 
     // Loading F1 into slot 2 takes it out of slot 1.
-    config.loadSlot("SLOT-2", "SLOTFDR-1");
-    assert(config.feeder("SLOT-2")->name() == "Slot 2 (F1)" && config.feeder("SLOT-1")->name() == "Left (None)");
+    config.loadSlot(config.feeders()[1].id(), "SLOTFDR-1");
+    assert((&config.feeders()[1])->name() == "Slot 2 (F1)" && (&config.feeders()[0])->name() == "Left (None)");
 
     // A new bank: the slot moves to it, empty; the only bank cannot go, another can.
     JPSlotBanks& banks = config.slotBanks("ReferenceSlotAutoFeeder");
     const std::string back = banks.addBank();
-    config.setSlotBank("SLOT-2", back);
-    assert(!config.feeder("SLOT-2")->slotLoad && config.slotBankId(*config.feeder("SLOT-2")) == back);
+    config.setSlotBank(config.feeders()[1].id(), back);
+    assert(!(&config.feeders()[1])->slotLoad && config.slotBankId(*(&config.feeders()[1])) == back);
     assert(config.slotBanks("ReferenceSlotAutoFeeder").removeBank(back, why));
     config.resolveSlots();
     // Its bank gone: in the last bank.
-    assert(config.slotBankId(*config.feeder("SLOT-2")) == "BANK-A");
+    assert(config.slotBankId(*(&config.feeders()[1])) == "BANK-A");
     assert(!config.slotBanks("ReferenceSlotAutoFeeder").removeBank("BANK-A", why));
     assert(why == "Can't delete the only bank. There must always be one bank defined.");
 
@@ -114,14 +116,14 @@ int main() {
     assert(schultzBanks.size() == 1 && schultzBanks[0].name == "Default");
 
     // Written and read back.
-    config.loadSlot("SLOT-3", "SLOTFDR-1");
+    config.loadSlot(config.feeders()[2].id(), "SLOTFDR-1");
     config.slotBanks("ReferenceSlotAutoFeeder").setFeederPart("BANK-A", "SLOTFDR-1", "C7");
     config.resolveSlots();
     assert(config.save(error));
     JPConfiguration again(dir.string());
     std::vector<std::string> problems;
     assert(again.load(problems, error));
-    assert(again.feeder("SLOT-3")->name() == "Slot 3 (F1)" && again.feeder("SLOT-3")->partId() == "C7");
+    assert((&again.feeders()[2])->name() == "Slot 3 (F1)" && (&again.feeders()[2])->partId() == "C7");
     assert(again.slotBanks("ReferenceSlotAutoFeeder").banks()[0].name == "Front");
     fs::remove_all(dir);
     return 0;

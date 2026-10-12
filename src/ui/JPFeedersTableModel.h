@@ -15,8 +15,8 @@
 inline namespace jf {
 
 // The Feeders tab's table, as OpenPnP's FeedersTableModel shown with its
-// Type column moved after Part: Name, Part, Type, Priority, Faults,
-// Enabled, Feed. Name, Priority, Enabled and Feed are edited in place (Feed
+// Type column moved after Part, after its ID (a GUID): ID, Name, Part, Type,
+// Priority, Faults, Enabled, Feed. Name, Priority, Enabled and Feed are edited in place (Feed
 // where the feeder's kind offers feed options). Priority and Feed sort in
 // their enums' order, as Swing sorts an enum.
 class JPFeedersTableModel : public JPTableModel {
