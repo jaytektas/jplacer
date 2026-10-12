@@ -84,6 +84,15 @@ void JPIcons::eye(JVectorCanvas& vg, float cx, float cy, float size, const JColo
     vg.fillCircle(cx, cy, size * 0.14f, JPaint::solid(ink));
 }
 
+void JPIcons::photograph(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    const float w = size * 0.44f, h = size * 0.3f, top = cy - h + size * 0.06f, line = size * kLine;
+    vg.strokeRoundedRect(cx - w, top, 2 * w, 2 * h, size * 0.06f, line, JPaint::solid(ink));
+    // The bump the shutter sits on, the lens, and the flash.
+    vg.fillRect(cx - w * 0.4f, top - size * 0.1f, w * 0.8f, size * 0.1f, JPaint::solid(ink));
+    vg.strokeCircle(cx, top + h, size * 0.17f, line, JPaint::solid(ink));
+    vg.fillCircle(cx + w * 0.7f, top + h * 0.45f, size * 0.04f, JPaint::solid(ink));
+}
+
 void JPIcons::save(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     const float half = size * 0.38f, line = size * kLine;
     vg.strokeRoundedRect(cx - half, cy - half, 2 * half, 2 * half, size * 0.06f, line, JPaint::solid(ink));

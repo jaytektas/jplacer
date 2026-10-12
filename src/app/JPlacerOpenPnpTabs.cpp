@@ -139,7 +139,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_window.openModal<JPlacerChoiceDialog>(title, question, std::move(options), cancelIndex, std::move(chosen));
     };
     // The board viewer: a placement turned on or off there is turned so on the board.
-    m_boardViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Board");
+    m_boardViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Board", &m_window.hal());
     m_boardViewer->canvas().onPlacementEnabled = [this, currentJob](JPPlacementsHolderLocation* where,
                                                                     const std::string& id, bool on) {
         if (!where || !where->holder) return;
@@ -189,7 +189,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobPanel->toolLocation = [this, setupTool](JPJobPanel::Tool t) { return m_machine.toolLocation(setupTool(t)); };
     m_jobPanel->moveTool = [this, setupTool](JPJobPanel::Tool t, const JPLocation& at) { m_machine.moveToolTo(setupTool(t), at); };
     m_jobPanel->chooseExisting = chooseExisting;
-    m_jobViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Job");
+    m_jobViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Job", &m_window.hal());
     auto jobName = [this] {
         return m_job.job().file.empty() ? std::string(JPlacerJob::kUntitled)
                                         : std::filesystem::path(m_job.job().file).filename().string();
@@ -234,7 +234,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     definition.chooseChildFiducials = [this](JPPanelLocation& panel, std::function<void(std::vector<std::string>)> chosen) {
         m_window.openModal<JPlacerChildFiducialsDialog>(m_job.configuration(), panel, std::move(chosen));
     };
-    m_panelViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Panel");
+    m_panelViewer = std::make_unique<JPlacerViewerDock>(graph, m_layout, "Panel", &m_window.hal());
     auto panelOf = [this](const JPPanel* panel) {
         std::shared_ptr<JPPlacementsHolder> found;
         for (const auto& p : m_job.configuration().panels())
@@ -1028,6 +1028,10 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobRun->onPlaced = [this] {
         m_jobPanel->placements().refresh();
         if (m_jobViewer) m_jobViewer->regenerate();
+    };
+    // A board's photo kept: the Board Viewer's list of them made again.
+    m_jobRun->onPhotographed = [this](const JPBoardPhoto&) {
+        if (m_boardViewer) m_boardViewer->photosChanged();
     };
     // The viewers' right-click menus name a placement's part by its Name.
     for (JPlacerViewerDock* v : { m_jobViewer.get(), m_boardViewer.get(), m_panelViewer.get() })

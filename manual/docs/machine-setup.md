@@ -52,6 +52,7 @@ machine):
 | **Optimize Multiple Nozzles** | With several nozzles, picks and places in the shortest way rather than in nozzle order. |
 | **Pre-Rotate All Nozzles** | Turns every nozzle for its pick (and its place) on the way: as OpenPnP's, not a move of its own, the turn goes with the next move made with every Z on the head in its safe zone (both nozzles turned for their placements as the head sets off for the first). |
 | **Feeder fault limit**, **Feeder fault window size** | With deferred errors, a feeder is turned off when this many of its last so many feeds and picks failed. |
+| **Photograph boards as the job starts?**, **Photograph boards as the job ends?** (Board Photos) | Each board the job places photographed with the head camera once its fiducials are checked, before a part is placed, and once every placement is done, before the head parks (see [Board photos](jobs.md#board-photos)). Off to begin with. |
 
 The fiducial check's tolerances (5 % scale, 5 % shear, 5 mm of movement) and how many levels of panels
 are checked first are taken from an imported OpenPnP machine too.

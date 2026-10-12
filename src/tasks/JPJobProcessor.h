@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPBoardPhotographer.h"
 #include "JPJobMachine.h"
 
 #include "machine/JPJobProcessorConfig.h"
@@ -15,6 +16,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -38,6 +40,11 @@ inline namespace jf {
 // then for those: the nozzle tips changed, the nozzles turned ready, Pick
 // (feed, pick, each retried as the feeder and part say), Align, Place, and
 // the next cycle, until all are placed; then Cleanup (safe Z, discard, park).
+// With the Job Processor's photos asked for, each enabled board is
+// photographed (JPBoardPhotographer) once the fiducials are checked, before a
+// part is placed, and once every placement is done, before Cleanup: a
+// picture a step, a photo that cannot be made said (status and log) without
+// stopping the job.
 //
 // A step's failure on a placement is shown (Alert), or, when the placement's
 // error handling defers it, put off: the feeder's fault counted, the
@@ -76,6 +83,10 @@ public:
         std::function<void(bool placed, const std::string& feederId, const JobPlacement& j)> material;
         // Each plan made (OpenPnP's PlannerStepResults): what each nozzle is to place, in turn.
         std::function<void(const std::vector<PlannedPlacement>&)> planned;
+        // The run under way (JPRunStore), for its photos; none: not recorded.
+        std::function<std::string()> runId;
+        // A board's photo kept (to be shown).
+        std::function<void(const JPBoardPhoto&)> photographed;
     };
 
     // What went wrong, and on what (OpenPnP's JobProcessorException and its source).
@@ -137,7 +148,7 @@ private:
         std::optional<JPJobMachine::AlignResult> alignment;   // what bottom vision found
     };
     enum class Step {
-        PreFlight, FiducialCheck, Plan, ChangeNozzleTips, CalibrateNozzleTips, OptimizeForPick, PrerotateForPick,
+        PreFlight, FiducialCheck, Photograph, Plan, ChangeNozzleTips, CalibrateNozzleTips, OptimizeForPick, PrerotateForPick,
         Pick, OptimizeForAlign, PrerotateForAlign, Align, OptimizeForPlace, PrerotateForPlace, Place, FinishCycle,
         Finish
     };
@@ -179,6 +190,10 @@ private:
     void prepareArticulation(const std::string& nozzleId, double pickAngle, double placeAngle);
     void cleanup();
     Step finish();
+    // The boards' photos begun (as the job starts or ends; `then` once they are made): the first to take, else `then`.
+    Step startPhotos(JPBoardPhoto::Kind kind, Step then);
+    // A picture of the board being photographed; its photo made once all are taken, then the next board's begun.
+    Step photograph();
     void discardAll();
 
     // OpenPnP's getOpenPendingWorkableJobPlacements and its rank blocking.
@@ -215,6 +230,12 @@ private:
     std::optional<JPLocation>          m_previousPickStart, m_previousPlaceStart;
     int                                m_totalPartsPlaced = 0;
     double                             m_startSeconds = 0;
+    // The boards' photos under way: those still to begin, the one being taken, why, and the step after them.
+    std::vector<JPPlacementsHolderLocation*> m_toPhotograph;
+    std::unique_ptr<JPBoardPhotographer>     m_photographer;
+    JPBoardPhoto::Kind                       m_photoKind = JPBoardPhoto::Kind::JobStart;
+    Step                                     m_afterPhotos = Step::Plan;
+    bool                                     m_startPhotosTaken = false, m_endPhotosTaken = false;
 };
 
 } // inline namespace jf

@@ -144,8 +144,19 @@ void JPJobProcessor::abort() {
 JPJobProcessor::Step JPJobProcessor::run(Step step) {
     switch (step) {
         case Step::PreFlight:           return preFlight();
-        case Step::FiducialCheck:       return fiducialCheck();
-        case Step::Plan:                return plan();
+        case Step::FiducialCheck: {
+            const Step next = fiducialCheck();
+            if (next != Step::Plan || !m_settings.photographAtStart || m_startPhotosTaken) return next;
+            m_startPhotosTaken = true;
+            return startPhotos(JPBoardPhoto::Kind::JobStart, Step::Plan);
+        }
+        case Step::Photograph:          return photograph();
+        case Step::Plan: {
+            const Step next = plan();
+            if (next != Step::Finish || !m_settings.photographAtEnd || m_endPhotosTaken) return next;
+            m_endPhotosTaken = true;
+            return startPhotos(JPBoardPhoto::Kind::JobEnd, Step::Finish);
+        }
         case Step::ChangeNozzleTips:    return plannedStep(step, Step::CalibrateNozzleTips);
         case Step::CalibrateNozzleTips: return plannedStep(step, Step::OptimizeForPick);
         case Step::OptimizeForPick:     optimize(true); return Step::PrerotateForPick;
@@ -1287,6 +1298,57 @@ void JPJobProcessor::discardAll() {
         m_machine.holding(it->first, "");
         it = m_partOn.erase(it);
     }
+}
+
+// ---- Photos -----------------------------------------------------------------
+
+JPJobProcessor::Step JPJobProcessor::startPhotos(JPBoardPhoto::Kind kind, Step then) {
+    m_photoKind = kind;
+    m_afterPhotos = then;
+    m_toPhotograph.clear();
+    m_photographer.reset();
+    main([&] {
+        for (JPBoardLocation* l : m_job.boardLocations())
+            if (l && l->isEnabled()) m_toPhotograph.push_back(l);
+    });
+    return photograph();
+}
+
+JPJobProcessor::Step JPJobProcessor::photograph() {
+    std::string why;
+    while (!m_photographer) {
+        if (m_toPhotograph.empty()) return m_afterPhotos;
+        JPPlacementsHolderLocation* l = m_toPhotograph.front();
+        m_toPhotograph.erase(m_toPhotograph.begin());
+        auto p = std::make_unique<JPBoardPhotographer>(m_machine, [this](const std::function<void()>& fn) { main(fn); });
+        const std::string run = m_hooks.runId ? m_hooks.runId() : std::string();
+        if (p->begin(*l, m_photoKind, m_job.file, run, why)) {
+            m_photographer = std::move(p);
+            break;
+        }
+        // Not taken: said, the job going on.
+        JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "photo of " << l->uniqueId() << " not taken: " << why;
+        status("Photo of " + l->uniqueId() + " not taken: " + why);
+    }
+    JPBoardPhotographer& p = *m_photographer;
+    status(format("Photographing %s: picture %d of %d.", p.boardName().c_str(), p.taken() + 1, p.count()));
+    if (!p.takeNext(why)) {
+        JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "photo of " << p.boardName() << " given up: " << why;
+        status("Photo of " + p.boardName() + " given up: " + why);
+        m_photographer.reset();
+        return Step::Photograph;
+    }
+    if (!p.done()) return Step::Photograph;
+    status("Making the photo of " + p.boardName() + ".");
+    JPBoardPhoto photo;
+    if (p.finish(photo, why)) {
+        if (m_hooks.photographed) m_hooks.photographed(photo);
+    } else {
+        JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "photo of " << p.boardName() << " not made: " << why;
+        status("Photo of " + p.boardName() + " not made: " + why);
+    }
+    m_photographer.reset();
+    return Step::Photograph;
 }
 
 void JPJobProcessor::cleanup() {

@@ -8,9 +8,11 @@
 
 inline namespace jf {
 
-JPlacerViewerDock::JPlacerViewerDock(JSceneGraph& graph, JPlacerLayout& layout, std::string kind)
+JPlacerViewerDock::JPlacerViewerDock(JSceneGraph& graph, JPlacerLayout& layout, std::string kind, JGpuHal* hal)
     : m_layout(layout), m_kind(std::move(kind)),
-      m_viewer(std::make_unique<JPPlacementsViewer>(graph, nullptr, m_kind == "Job")) {}
+      m_viewer(std::make_unique<JPPlacementsViewer>(graph, nullptr, m_kind == "Job")) {
+    m_viewer->setHal(hal);
+}
 
 JPlacerViewerDock::~JPlacerViewerDock() {
     if (m_dock) {

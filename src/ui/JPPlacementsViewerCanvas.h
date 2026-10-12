@@ -3,10 +3,13 @@
 
 #pragma once
 
+#include "camera/JPFrame.h"
+#include "model/JPBoardPhoto.h"
 #include "model/JPPlacementsHolderLocation.h"
 
 #include <j/core/JControl.h>
 #include <j/core/MenuSystem.h>
+#include <j/graphics/GpuHal.h>
 
 #include <deque>
 #include <functional>
@@ -25,11 +28,24 @@ inline namespace jf {
 // and a reticle; millimetre scales along the top and left. The wheel
 // zooms about the pointer, a left drag pans; a right-click on a board,
 // panel, placement or fiducial opens its menu (Enabled?, Check Fids?).
+// A board's photo (JPBoardPhoto) may lie under it all, where it was taken,
+// shown from the side that was up when it was.
 class JPPlacementsViewerCanvas : public JControl {
 public:
     enum class Viewing { All, Children, Selected };
 
     explicit JPPlacementsViewerCanvas(JSceneGraph& graph);
+    ~JPPlacementsViewerCanvas() override;
+
+    // Where its photos' textures are made.
+    void setHal(JGpuHal* hal) { m_hal = hal; }
+    // A photo of the board shown (the root), `picture` its PNG read; none: no photo.
+    void setPhoto(std::shared_ptr<const JPFrame> picture, const JPBoardPhoto& photo);
+    void clearPhoto();
+    // The photo shown is of the side seen.
+    bool photoSeen() const;
+    // A texture's side at most (pixels): a photo is drawn in pieces this size.
+    static constexpr int kPhotoPiecePx = 2048;
 
     // What is shown: `root` and what is under it (its children, or all its
     // descendants). `isJob`: the job's root, whose own outline is not drawn.
@@ -106,6 +122,8 @@ private:
     Vec   toObject(float sx, float sy) const;
     double scale() const;
 
+    void drawPhoto(JPrimitiveBuffer& buf);
+    void dropPhotoTextures();
     void drawOutlines(JPrimitiveBuffer& buf);
     void drawLocationMark(JPrimitiveBuffer& buf, double sizePx, const JPLocation& at);
     void drawOriginMark(JPrimitiveBuffer& buf, const JPPlacementsHolderLocation& l);
@@ -125,6 +143,15 @@ private:
     bool                                           m_pressed = false;
     float                                          m_dragX = 0, m_dragY = 0;
     std::unique_ptr<JMenu>                         m_menu;
+    // The photo: its picture (until made into textures), what it is, and its pieces.
+    struct PhotoPiece {
+        int           x = 0, y = 0, w = 0, h = 0;   // its pixels in the photo
+        TextureHandle tex = kNullTexture;
+    };
+    JGpuHal*                                       m_hal = nullptr;
+    std::shared_ptr<const JPFrame>                 m_picture;
+    std::optional<JPBoardPhoto>                    m_photo;
+    std::vector<PhotoPiece>                        m_pieces;
 };
 
 } // inline namespace jf

@@ -14,6 +14,8 @@ class JPIcons {
 public:
     // An eye: looking at something as it is (a picture as taken).
     static void eye(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // A camera (its body, lens and the bump on top): photograph.
+    static void photograph(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A floppy disk: save.
     static void save(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A target: a ring with a centre and four ticks (calibrate).

@@ -55,6 +55,8 @@ JJson JPJobProcessorConfig::toJson() const {
     j["scalingTolerance"] = scalingTolerance;
     j["shearingTolerance"] = shearingTolerance;
     j["boardLocationTolerance"] = boardLocationToleranceMm;
+    j["photographAtStart"] = photographAtStart;
+    j["photographAtEnd"] = photographAtEnd;
     return j;
 }
 
@@ -76,6 +78,8 @@ JPJobProcessorConfig JPJobProcessorConfig::fromJson(const JJson& j) {
     c.scalingTolerance = num("scalingTolerance", c.scalingTolerance);
     c.shearingTolerance = num("shearingTolerance", c.shearingTolerance);
     c.boardLocationToleranceMm = num("boardLocationTolerance", c.boardLocationToleranceMm);
+    c.photographAtStart = flag("photographAtStart", c.photographAtStart);
+    c.photographAtEnd = flag("photographAtEnd", c.photographAtEnd);
     return c;
 }
 

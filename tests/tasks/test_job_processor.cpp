@@ -6,7 +6,11 @@
 // by its fiducials, each nozzle given a placement (a tip changed where
 // needed), each part fed, picked and placed where the fiducials put the
 // board, then the head parked; a pick that fails deferred and tried again; a part no feeder holds asked
-// for when the run reaches it (load as you go), loaded or skipped.
+// for when the run reaches it (load as you go), loaded or skipped. With the
+// board photos asked for, the board photographed once its fiducials are
+// checked (before a pick) and once it is placed (before the park), each
+// picture a step; on a machine that cannot take pictures, said, the job
+// finishing all the same.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -101,9 +105,33 @@ public:
         why = "no camera";
         return false;
     }
-    bool cameraSight(Sight&, std::string& why) override {
-        why = "no camera";
-        return false;
+    // With `camera`, a head camera of 20 x 15 mm seeing a plain grey board.
+    bool camera = false;
+    bool cameraSight(Sight& sight, std::string& why) override {
+        if (!camera) {
+            why = "no camera";
+            return false;
+        }
+        sight = {};
+        sight.mmPerPixelX = sight.mmPerPixelY = 0.05;
+        sight.width = 400;
+        sight.height = 300;
+        return true;
+    }
+    bool snapshot(const JPLocation& at, double, Snapshot& shot, std::string& why) override {
+        if (!camera) {
+            why = "no camera";
+            return false;
+        }
+        log.push_back("snapshot");
+        shot.bgr = cv::Mat(300, 400, CV_8UC3, cv::Scalar(90, 120, 60));
+        const double x0 = at.x() - 10, y0 = at.y() + 7.5;
+        shot.toMachine = [x0, y0](double px, double py, double& x, double& y) {
+            x = x0 + px * 0.05;
+            y = y0 - py * 0.05;
+            return true;
+        };
+        return true;
     }
     void showOnCamera(const cv::Mat&, int) override {}
     // The QR codes seen at each place looked at, by its X (none: none seen).
@@ -555,6 +583,57 @@ int main() {
         for (const auto& j : run.jobPlacements())
             if (j.placementId == "C1a") skipped = j.status == JPJobProcessor::Status::Errored && j.error == "Skipped: not loaded";
         assert(skipped);
+    }
+    // Board photos as the job starts and ends (each run with full trays).
+    auto freshTrays = [&config] {
+        config.removeFeeder("FR");
+        config.removeFeeder("FC");
+        config.addFeeder(tray("FR", "R1", 10, 10));
+        config.addFeeder(tray("FC", "C1", 10, 30));
+    };
+    settings.photographAtStart = settings.photographAtEnd = true;
+    {
+        freshTrays();
+        // No camera: said, and the job finished.
+        job.removeAllPlacedStatus();
+        statuses.clear();
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 200);
+        assert(r == JPJobProcessor::Result::Finished && run.totalPartsPlaced() == 3);
+        assert(std::count_if(statuses.begin(), statuses.end(), [](const std::string& s) {
+                   return s.find("Photo of Brd1 not taken: no camera") == 0;
+               }) == 2);
+    }
+    {
+        job.removeAllPlacedStatus();
+        freshTrays();
+        machine.camera = true;
+        machine.log.clear();
+        std::vector<JPBoardPhoto> kept;
+        JPJobProcessor::Hooks photoHooks = hooks;
+        photoHooks.runId = [] { return std::string("run-7"); };
+        photoHooks.photographed = [&kept](const JPBoardPhoto& p) { kept.push_back(p); };
+        JPJobProcessor run(config, job, machine, settings, photoHooks);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 400);
+        assert(r == JPJobProcessor::Result::Finished && run.totalPartsPlaced() == 3);
+        assert(kept.size() == 2 && kept[0].kind == JPBoardPhoto::Kind::JobStart && kept[1].kind == JPBoardPhoto::Kind::JobEnd);
+        assert(kept[0].run == "run-7" && kept[0].boardLocation == "Brd1");
+        // The start's pictures after the fiducials and before a pick; the end's after the last place.
+        const auto& log = machine.log;
+        const auto firstSnap = std::find(log.begin(), log.end(), "snapshot");
+        const auto lastSnap = std::find(log.rbegin(), log.rend(), "snapshot").base() - 1;
+        const auto firstPick = std::find_if(log.begin(), log.end(), [](const std::string& s) { return s.rfind("pick", 0) == 0; });
+        const auto lastPlace = std::find_if(log.rbegin(), log.rend(), [](const std::string& s) { return s.rfind("place", 0) == 0; }).base() - 1;
+        assert(std::find(log.begin(), firstSnap, "fiducial") != firstSnap && firstSnap < firstPick && lastSnap > lastPlace);
+        // A plain board: nothing to line its pictures up by, said.
+        assert(!kept[1].notes.empty() && kept[1].notes[0].find("too plain") != std::string::npos);
+        assert(JPBoardPhoto::of(board->file).size() == 2);
     }
     return 0;
 }

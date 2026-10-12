@@ -89,9 +89,10 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 | **Capture Tool Location** | Sets the chosen boards' Z to the nozzle's. |
 | **Fiducial Check** | Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too (and its Z, measured, with the Fiducial Locator's **Measure Board Z?**, as a job's check sets it). The camera is then taken to it. Each fiducial looked for has its package's footprint drawn over the cameras (as a job's check does too), the last chosen footprint until another is. |
 | **Multiple Point Board Location** | Sets where the chosen board lies from placements you jog the camera over (below). |
+| **Photograph Board** (camera) | Photographs the chosen boards (a panel's: every board on it) with the head camera, one after another; **Stop** stops it (see [Board photos](#board-photos)). |
 | **View Job** | Opens the job viewer (see [Panels](panels.md#the-viewer)), following the boards chosen. |
 
-<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel); src/tasks/JPFiducialLocator.cpp (locate); src/tasks/JPCellJobMachine.h (lookingFor); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
+<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel, setPhotographing); src/tasks/JPFiducialLocator.cpp (locate); src/tasks/JPCellJobMachine.h (lookingFor); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
 
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or
@@ -293,6 +294,42 @@ With no lane free, the prompt says so: set a feeder up for the part on the Feede
 **Continue**; or skip it.
 
 <!-- src: src/tasks/JPJobProcessor.cpp (preFlight, openPendingWorkable, skipPart, next); src/model/JPLaneChoice.cpp; src/app/JPlacerLoadDialog.cpp; src/app/JPlacerJobRun.cpp (askToLoad, run); src/model/JPFeeder.h (isLane, tapeWidth) -->
+
+## Board photos
+
+A board's photo is one picture of it made from many taken with the head camera: a record of the bare
+board, or of what was placed and where. The Job tab's **Photograph Board** takes one of each board chosen
+(the machine connected and homed, the job stopped), the status line saying how far it has got
+("Photographing Brd1: picture 10 of 49"); **Stop** stops it, and nothing is kept of the board under way.
+With the Job Processor's **Photograph boards as the job starts?** or **…as the job ends?** ticked
+([Machine Setup](machine-setup.md#job-processors)), the job takes them too: each enabled board once its
+fiducials are checked, before a part is placed, and once every placement is done, before the head parks;
+a picture a step, so **Pause**, **Step** and **Stop** work between them. A photo that cannot be taken is
+said in the status line and the log, and the job goes on.
+
+<!-- src: src/ui/JPJobPanel.cpp (setPhotographing); src/app/JPlacerJobRun.cpp (photograph, stop); src/tasks/JPJobProcessor.cpp (startPhotos, photograph); src/machine/JPJobProcessorConfig.h -->
+
+The pictures cover the board's outline and 1 mm round it (a board with no size: its placements and 2 mm
+round them), a quarter of each overlapping the next, row by row from the top, each row the other way from
+the last, at the height of the board's surface; a picture out of the camera's reach is left out. Each is
+put where the machine says it was taken, then lined up with its neighbours by what they both show, and
+they are blended across their overlaps. The photo is at the camera's own scale, coarser where that would
+make it more than 25 million pixels, square to the board whatever its angle on the machine. A board needs
+its file saved first: its photos are kept beside it, in a folder of its name and `.photos`
+(`grblhal.jpboard.photos`), each a PNG named by when it was taken, the board's id in the job and why
+(`2026-10-12 14-42-45 Brd1 jobEnd.png`), with what it is beside it (its scale, where it lies on the
+board, the job and run). Every photo is kept until you delete it.
+
+<!-- src: src/tasks/JPBoardPhotographer.cpp (begin, centres, finish); src/tasks/JPPhotoStitch.cpp (stitch, shiftBetween); src/model/JPBoardPhoto.cpp (folderOf, fileIn, toJson) -->
+
+What is said of a photo (in the log, and under it in the Board Viewer): a picture moved more than
+0.1 mm to line up with its neighbours (the camera was that far from where the machine said: check the head
+camera's calibration and the axes' backlash compensation); neighbours still disagreeing by more than
+0.05 mm once lined up (the lens not fully straightened, or the board moved); overlaps too plain to line up
+by (the bare spaces between boards: those pictures stay where the machine put them); pictures out of reach,
+and the share of the board's area not in the photo (shown clear).
+
+<!-- src: src/tasks/JPBoardPhotographer.cpp (finish); src/tasks/JPPhotoStitch.h -->
 
 ## Runs
 

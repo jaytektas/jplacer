@@ -5,6 +5,7 @@
 
 #include <j/core/FrameTimer.h>
 
+#include "JPIcons.h"
 #include "JPTableTools.h"
 #include "JPUiParts.h"
 
@@ -143,6 +144,14 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_fiducialCheck->onClicked.connect([this] {
         const auto s = selections();
         if (s.size() == 1 && onFiducialCheck) onFiducialCheck(s.front());
+    });
+    m_photograph = bar->add(std::make_unique<JPIconButton>(graph, "Photograph Board", JPIcons::photograph,
+                                                           "Photograph the selected board(s) with the head camera: kept "
+                                                           "beside the board's file and shown in the Board Viewer. Stop "
+                                                           "stops it."));
+    m_photograph->onClicked.connect([this] {
+        const auto s = selections();
+        if (!s.empty() && onPhotograph) onPhotograph(s);
     });
     bar->add(toolSeparator(graph));
     JPIconButton* view = tool("View Job", "color-true", "Display a graphical representation of the job");
@@ -295,6 +304,7 @@ void JPJobPanel::selectionChanged() {
     m_captureCamera->setEnabled(singleTop);
     for (JPIconButton* b : { m_cameraTo, m_cameraNext, m_toolTo, m_fiducialCheck, m_twoPoint })
         b->setEnabled(single || singleTop);
+    m_photograph->setEnabled(any && !m_photographing);
     for (const auto& item : m_menu->items()) item->setEnabled(any);
     m_placements->setLocation(s.size() == 1 ? s.front() : nullptr);
     if (onSelectionChanged) {
@@ -361,6 +371,12 @@ void JPJobPanel::resetAllPlaced() {
     changed();
 }
 
+void JPJobPanel::setPhotographing(bool on) {
+    m_photographing = on;
+    updateJobActions();
+    m_photograph->setEnabled(!on && !selections().empty());
+}
+
 void JPJobPanel::setMachineEnabled(bool on) {
     m_machineEnabled = on;
     updateJobActions();
@@ -376,7 +392,7 @@ void JPJobPanel::updateJobActions() {
     const bool settled = m_runState == RunState::Stopped || m_runState == RunState::Paused || running;
     m_start->setEnabled(m_machineEnabled && settled);
     m_step->setEnabled(m_machineEnabled && (m_runState == RunState::Stopped || m_runState == RunState::Paused));
-    m_stop->setEnabled(m_machineEnabled && (running || m_runState == RunState::Paused));
+    m_stop->setEnabled(m_machineEnabled && (running || m_runState == RunState::Paused || m_photographing));
     if (m_startItem) {
         m_startItem->setLabel(running ? "Pause" : m_runState == RunState::Paused ? "Resume" : "Start");
         m_startItem->setTooltip(m_start->tooltip());

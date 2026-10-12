@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- **Board photos**: a board can be photographed with the head camera, the pictures stitched into one photo
+  square to the board, kept beside the board's file (every one until you delete it) and shown under the Board
+  Viewer's drawing. Take one any time with the Job tab's new **Photograph Board** button (Stop stops it), or
+  have the job take them as it starts (the bare board) and as it ends (Machine Setup > Job Processor > Board
+  Photos). Pictures the machine put out of place are lined up by what they show, and how far out they were
+  is said, so a photo is also a check on the camera's calibration.
+
 ## 0.1.58
 
 - The CSV/BOM import has a **Sides** choice: Top and Bottom, Top Only or Bottom Only. Rows of the side left

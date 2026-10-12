@@ -24,7 +24,7 @@ inline namespace jf {
 class JPlacerViewerDock {
 public:
     // `kind`: "Board", "Panel" or "Job", for its title.
-    JPlacerViewerDock(JSceneGraph& graph, JPlacerLayout& layout, std::string kind);
+    JPlacerViewerDock(JSceneGraph& graph, JPlacerLayout& layout, std::string kind, JGpuHal* hal);
     ~JPlacerViewerDock();
 
     // Shows `holder` (a definition) and brings the dock forward.
@@ -32,6 +32,8 @@ public:
     // Follows its tab's choice while open (none: left as it is, as OpenPnP's).
     void follow(std::shared_ptr<JPPlacementsHolder> holder);
     void regenerate();
+    // The board's photos listed again (one taken).
+    void photosChanged() { m_viewer->photosChanged(); }
     // The job's viewer: the job (its root, which the job keeps) with the
     // boards and panels chosen in the Job tab; opened, and followed.
     void openJob(JPPanelLocation* root, std::string name, std::vector<const JPPlacementsHolderLocation*> chosen);

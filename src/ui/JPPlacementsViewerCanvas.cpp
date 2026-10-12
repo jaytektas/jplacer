@@ -82,6 +82,69 @@ JPPlacementsViewerCanvas::JPPlacementsViewerCanvas(JSceneGraph& graph) : JContro
     setContextMenu(nullptr);
 }
 
+JPPlacementsViewerCanvas::~JPPlacementsViewerCanvas() { dropPhotoTextures(); }
+
+void JPPlacementsViewerCanvas::dropPhotoTextures() {
+    for (PhotoPiece& p : m_pieces)
+        if (m_hal && p.tex != kNullTexture) m_hal->releaseTexture(p.tex);
+    m_pieces.clear();
+}
+
+void JPPlacementsViewerCanvas::setPhoto(std::shared_ptr<const JPFrame> picture, const JPBoardPhoto& photo) {
+    dropPhotoTextures();
+    m_picture = std::move(picture);
+    m_photo = photo;
+    invalidate();
+}
+
+void JPPlacementsViewerCanvas::clearPhoto() {
+    dropPhotoTextures();
+    m_picture.reset();
+    m_photo.reset();
+    invalidate();
+}
+
+bool JPPlacementsViewerCanvas::photoSeen() const {
+    return m_photo && m_root && JPSides::flip(m_root->globalSide(), !viewFromTop) == m_photo->side;
+}
+
+void JPPlacementsViewerCanvas::drawPhoto(JPrimitiveBuffer& buf) {
+    if (!m_photo || !m_root || !photoSeen()) return;
+    // Made into textures the first time it is drawn, a piece at a time (the picture let go then).
+    if (m_pieces.empty() && m_picture && m_hal && m_picture->width > 0) {
+        const JPFrame& f = *m_picture;
+        std::vector<uint8_t> piece;
+        for (int y = 0; y < f.height; y += kPhotoPiecePx)
+            for (int x = 0; x < f.width; x += kPhotoPiecePx) {
+                PhotoPiece p { x, y, std::min(kPhotoPiecePx, f.width - x), std::min(kPhotoPiecePx, f.height - y) };
+                piece.resize(size_t(p.w) * p.h * 4);
+                for (int r = 0; r < p.h; ++r)
+                    std::copy_n(f.rgba.data() + (size_t(y + r) * f.width + x) * 4, size_t(p.w) * 4, piece.data() + size_t(r) * p.w * 4);
+                p.tex = m_hal->uploadTexture(piece.data(), uint32_t(p.w), uint32_t(p.h), JTextureSampling::Smooth);
+                m_pieces.push_back(p);
+            }
+        m_picture.reset();
+    }
+    // Each piece's corners: the photo's pixel edges, on the board, where the root puts them, on the screen.
+    const JPAffineTransform t = m_root->localToGlobalTransform();
+    const JPBoardPhoto& ph = *m_photo;
+    auto at = [&](double px, double py) {
+        Vec v;
+        t.apply(ph.originX + (px - 0.5) * ph.mmPerPixel, ph.originY - (py - 0.5) * ph.mmPerPixel, v.x, v.y);
+        const Vec sc = toScreen(v);
+        return std::pair { float(sc.x), float(sc.y) };
+    };
+    for (const PhotoPiece& p : m_pieces) {
+        if (p.tex == kNullTexture) continue;
+        const auto [ax, ay] = at(p.x, p.y);
+        const auto [bx, by] = at(p.x + p.w, p.y);
+        const auto [cx, cy] = at(p.x + p.w, p.y + p.h);
+        const auto [dx, dy] = at(p.x, p.y + p.h);
+        buf.pushImageMesh(p.tex, { { ax, ay, 0, 0 }, { bx, by, 1, 0 }, { cx, cy, 1, 1 },
+                                   { ax, ay, 0, 0 }, { cx, cy, 1, 1 }, { dx, dy, 0, 1 } });
+    }
+}
+
 void JPPlacementsViewerCanvas::setRoot(JPPlacementsHolderLocation* root, bool isJob) {
     m_root = root;
     m_isJob = isJob;
@@ -297,6 +360,7 @@ void JPPlacementsViewerCanvas::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     buf.pushRectangle(b.x, b.y, b.width, b.height, Colors::Surface1);
     buf.pushRectangle(a.x, a.y, a.width, a.height, Colors::ChartBg);
     buf.pushClip(a.x, a.y, a.width, a.height);
+    drawPhoto(buf);
     drawOutlines(buf);
     const double gap = edgeGap();
     if (showFiducials) drawPlacementMarks(buf, JPPlacement::Type::Fiducial);

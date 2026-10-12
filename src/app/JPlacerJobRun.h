@@ -65,6 +65,11 @@ public:
     void fiducialCheck(JPPlacementsHolderLocation* location);
     // Job > Check Job…: the job's data checked (JPJobCheck), as Start checks it.
     void checkJob();
+    // The Job tab's Photograph Board: each board chosen (a panel's, every board on it) photographed
+    // (JPBoardPhotographer), one after another, the status line saying how far; the Stop button stops it.
+    void photograph(const std::vector<JPPlacementsHolderLocation*>& chosen);
+    // A board's photo kept (by a job or asked for): to be shown.
+    std::function<void(const JPBoardPhoto&)> onPhotographed;
 
 private:
     // Every camera tune made for a run forgotten (parts', fiducials', feeders'): the camera at its own settings.
@@ -110,6 +115,7 @@ private:
     std::atomic<JPJobPanel::RunState>    m_state { JPJobPanel::RunState::Stopped };
     std::atomic<bool>                    m_quitting { false };
     std::atomic<bool>                    m_taskUnderWay { false };
+    std::atomic<bool>                    m_photographing { false }, m_stopPhotos { false };   // asked for
     bool                                 m_stepToMotion = true;   // Step Next Motion
     JPlacerSignalers                     m_signalers { m_machine };
     bool                                 m_signalSetUp = false;   // a job set up: Stopped to be signalled first

@@ -61,9 +61,13 @@ public:
     // Start (Pause, Resume), Step and Stop; Fiducial Check on the chosen board or panel.
     std::function<void()> onStartPauseResume, onStep, onStop;
     std::function<void(JPPlacementsHolderLocation*)> onFiducialCheck;
+    // The boards chosen photographed (a panel's, all its boards).
+    std::function<void(std::vector<JPPlacementsHolderLocation*>)> onPhotograph;
     // How the job runs now, and whether the machine is connected: the run
     // buttons follow, as OpenPnP's updateJobActions has them.
     void setRunState(RunState s);
+    // A photo being taken (asked for): Stop stops it.
+    void setPhotographing(bool on);
     void setMachineEnabled(bool on);
     // The Job menu's Start, Step and Stop, kept as the buttons are.
     void setMenuItems(JMenuItem* start, JMenuItem* step, JMenuItem* stop);
@@ -135,6 +139,8 @@ private:
     JPIconButton*                       m_captureTool = nullptr;
     JPIconButton*                       m_twoPoint = nullptr;
     JPIconButton*                       m_fiducialCheck = nullptr;
+    JPIconButton*                       m_photograph = nullptr;
+    bool                                m_photographing = false;
     std::unique_ptr<JMenu>              m_addMenu, m_menu;
     JContainer*                         m_instructionsHolder = nullptr;
     std::unique_ptr<JPInstructions>     m_instructions;

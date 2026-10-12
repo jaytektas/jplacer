@@ -290,6 +290,16 @@ public:
         JPLocation  at { JPLengthUnit::Millimeters };
     };
     virtual bool readQrCodes(const JPLocation& at, std::vector<QrCode>& codes, std::string& why) = 0;
+    // A picture the head camera takes over `at` (its light on, settled, straightened as a pipeline's) of what is at
+    // height `z` there: BGR, and a pixel's place on the machine (mm).
+    struct Snapshot {
+        cv::Mat bgr;
+        std::function<bool(double px, double py, double& x, double& y)> toMachine;
+    };
+    virtual bool snapshot(const JPLocation& /*at*/, double /*z*/, Snapshot& /*shot*/, std::string& why) {
+        why = "this machine cannot take pictures";
+        return false;
+    }
     // A picture (BGR, as a pipeline's) on the head camera's view for `ms`.
     virtual void showOnCamera(const cv::Mat& bgr, int ms) = 0;
     virtual bool alignPart(const std::string& nozzleId, const AlignRequest& request, AlignResult& result,

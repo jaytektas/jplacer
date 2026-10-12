@@ -3327,6 +3327,13 @@ void jobProcessorForm(JPCellConfig& cell, JPSetupProperties::Form& f) {
     add.integer("feederFaultWindowSize", "Feeder fault window size", [&j]() -> int& { return j.feederFaultWindowSize; }, 1, 1000);
     add.tip("When using deferred errors, a feeder can be automatically disabled if the parts obtained from that feeder "
             "cause problems. This is the number of recent placements over which it will count the error");
+    add.group("Board Photos");
+    add.flag("photographAtStart", "Photograph boards as the job starts?", [&j]() -> bool& { return j.photographAtStart; });
+    add.tip("Each board the job places is photographed with the head camera once its fiducials are checked, before a part "
+            "is placed: a record of the bare board, kept beside the board's file and shown in the Board Viewer.");
+    add.flag("photographAtEnd", "Photograph boards as the job ends?", [&j]() -> bool& { return j.photographAtEnd; });
+    add.tip("Each board the job placed is photographed with the head camera once every placement is done, before the "
+            "head parks: a record of the finished board, kept beside the board's file and shown in the Board Viewer.");
 }
 
 // The vision settings of a kind, by name (the one set always among them).

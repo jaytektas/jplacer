@@ -32,6 +32,10 @@ struct JPJobProcessorConfig {
     double   scalingTolerance        = 0.05;
     double   shearingTolerance       = 0.05;
     double   boardLocationToleranceMm = 5.0;
+    // A photo of each board the job places (JPBoardPhotographer): as the job starts (its fiducials checked, before a
+    // part is placed) and as it ends (every placement done, before the head parks).
+    bool     photographAtStart       = false;
+    bool     photographAtEnd         = false;
 
     // As OpenPnP's file names them ("PartHeight") and its settings show them ("Height:Part").
     static const std::vector<std::string>& jobOrderKeys();

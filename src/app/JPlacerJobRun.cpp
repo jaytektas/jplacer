@@ -8,10 +8,13 @@
 
 #include "common/JPlacerLog.h"
 #include "model/JPBoardLocation.h"
+#include "model/JPPanel.h"
+#include "model/JPPanelLocation.h"
 #include "model/JPJobCheck.h"
 #include "model/JPLaneChoice.h"
 #include "model/JPRunLedger.h"
 #include "setup/JPFeederForms.h"
+#include "tasks/JPBoardPhotographer.h"
 #include "tasks/JPFiducialLocator.h"
 
 #include <j/core/Dialog.h>
@@ -61,6 +64,7 @@ JPlacerJobRun::JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine
     panel.onStep = [this] { step(); };
     panel.onStop = [this] { stop(); };
     panel.onFiducialCheck = [this](JPPlacementsHolderLocation* l) { fiducialCheck(l); };
+    panel.onPhotograph = [this](std::vector<JPPlacementsHolderLocation*> chosen) { photograph(chosen); };
     machine.jobRunning = [this] { return running(); };
     machine.jobWorking = [this] {
         return m_state == RunState::Running || m_state == RunState::Pausing || m_state == RunState::Stopping;
@@ -203,6 +207,10 @@ void JPlacerJobRun::step() {
 }
 
 void JPlacerJobRun::stop() {
+    if (m_photographing) {
+        m_stopPhotos = true;
+        return;
+    }
     const RunState was = m_state;
     if (was == RunState::Stopped || was == RunState::Stopping) return;
     if (was == RunState::Paused && taskUnderWay()) return;
@@ -281,6 +289,12 @@ void JPlacerJobRun::start(RunState as) {
         // OpenPnP's scripting events, run on the job's thread.
         hooks.event = [this](const std::string& event, const JJson& globals, std::string& why) {
             return m_machine.scripting().on(event, globals, why);
+        };
+        hooks.runId = [this] { return m_runUuid; };
+        hooks.photographed = [this](const JPBoardPhoto& photo) {
+            post([this, photo] {
+                if (onPhotographed) onPhotographed(photo);
+            });
         };
         // As the cell's Machine Setup says (Job Processor).
         JPJobProcessorConfig settings;
@@ -505,6 +519,88 @@ void JPlacerJobRun::fiducialCheck(JPPlacementsHolderLocation* location) {
             }
             m_job.changed();
             m_machine.moveToolTo(JPSetupForm::Tool::Camera, r.location);
+        });
+    });
+}
+
+void JPlacerJobRun::photograph(const std::vector<JPPlacementsHolderLocation*>& chosen) {
+    if (m_state != RunState::Stopped) {
+        m_window.showStatus("The job is running: stop it first", kStatusMs);
+        return;
+    }
+    JPCell* cell = m_machine.cell();
+    if (!cell || !cell->isConnected() || !cell->isHomed()) {
+        m_window.showStatus(!cell || !cell->isConnected() ? "Connect the machine first" : "Home the machine first", kStatusMs);
+        return;
+    }
+    if (taskUnderWay()) return;
+    // The boards: those chosen, and every board on a panel chosen (each once).
+    std::vector<JPPlacementsHolderLocation*> boards;
+    std::function<void(JPPlacementsHolderLocation*)> collect = [&](JPPlacementsHolderLocation* l) {
+        if (!l) return;
+        if (l->kind() == JPPlacementsHolderLocation::Kind::Board) {
+            if (std::find(boards.begin(), boards.end(), l) == boards.end()) boards.push_back(l);
+            return;
+        }
+        if (JPPanel* panel = static_cast<JPPanelLocation*>(l)->panel())
+            for (const auto& c : panel->children) collect(c.get());
+    };
+    for (JPPlacementsHolderLocation* l : chosen) collect(l);
+    if (boards.empty()) return;
+    join();
+    m_stopPhotos = false;
+    m_photographing = true;
+    m_panel.setPhotographing(true);
+    const std::string job = m_job.job().file;
+    std::vector<std::string> names;
+    for (JPPlacementsHolderLocation* b : boards) names.push_back(b->uniqueId());
+    launchTask([this, names, job] {
+        std::vector<std::string> failed;
+        int kept = 0;
+        for (size_t i = 0; i < names.size() && !m_stopPhotos; ++i) {
+            JPBoardPhoto photo;
+            std::string why;
+            const std::string name = names[i];
+            // Still in the job (found again by its id: it may have been taken out meanwhile).
+            JPPlacementsHolderLocation* board = nullptr;
+            onMain([&] {
+                for (JPBoardLocation* l : m_job.job().boardLocations())
+                    if (l && l->uniqueId() == name) board = l;
+            });
+            if (!board) continue;
+            const bool ok = JPBoardPhotographer::photograph(
+                *m_jobMachine, [this](const std::function<void()>& fn) { onMain(fn); }, *board, JPBoardPhoto::Kind::Asked,
+                job, "",
+                [this, name](int taken, int count) {
+                    const std::string s = taken < count ? "Photographing " + name + ": picture " + std::to_string(taken + 1) +
+                                                              " of " + std::to_string(count) + " (Stop stops it)"
+                                                        : "Making the photo of " + name;
+                    post([this, s] { m_window.showStatus(s, kStatusMs); });
+                    return !m_stopPhotos;
+                },
+                photo, why);
+            if (m_quitting) return;
+            if (ok) {
+                ++kept;
+                post([this, photo] {
+                    if (onPhotographed) onPhotographed(photo);
+                });
+            } else if (!m_stopPhotos) {
+                failed.push_back(name + ": " + why);
+            }
+        }
+        if (m_quitting) return;
+        const bool stopped = m_stopPhotos;
+        post([this, failed, kept, stopped] {
+            m_photographing = false;
+            m_panel.setPhotographing(false);
+            m_window.showStatus(stopped ? "Photographing stopped" : std::to_string(kept) + " photo(s) kept", kStatusMs);
+            if (!failed.empty()) {
+                std::string text;
+                for (const std::string& f : failed) text += (text.empty() ? "" : "\n") + f;
+                JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "photos not made: " << text;
+                JDialog::message("Photo Not Made", text);
+            }
         });
     });
 }

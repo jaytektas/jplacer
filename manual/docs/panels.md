@@ -82,6 +82,14 @@ Check on Board Location** (as the Job tab's Fiducial Check: set by its fiducials
 
 <!-- src: src/ui/JPPlacementsViewer.cpp; src/ui/JPPlacementsViewerCanvas.cpp; src/app/JPlacerViewerDock.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerJobRun.cpp (fiducialCheck) -->
 
+A board's viewer lists its photos under **Photo**, the newest first, each by when it was taken, why (**Job
+start**, **Job end**, **Asked for**) and the board's id in the job ([Board photos](jobs.md#board-photos)).
+The one chosen lies under the drawing where it was taken, its placements over it; it shows from the side
+that was up, the viewer turning to that side. What was said of it is below the list. **Delete Photo…**
+deletes it, once you say so (it cannot be brought back); the last one gone, its folder goes too.
+
+<!-- src: src/ui/JPPlacementsViewer.cpp (photosChanged, showPhoto, deletePhoto); src/ui/JPPlacementsViewerCanvas.cpp (drawPhoto, photoSeen); src/model/JPBoardPhoto.cpp (of, label, remove) -->
+
 ## Saving panels
 
 As boards: **File > Save Configuration**, and quitting, ask about each panel with changes. A change to a

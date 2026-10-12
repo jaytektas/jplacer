@@ -919,6 +919,15 @@ bool JPCellJobMachine::lookAt(double x, double y, double z, cv::Mat& bgr, JPCame
     return true;
 }
 
+bool JPCellJobMachine::snapshot(const JPLocation& at, double z, Snapshot& shot, std::string& why) {
+    const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
+    JPCameraCalibration cal;
+    if (!lookAt(m.x(), m.y(), z, shot.bgr, cal, why)) return false;
+    const double vx = m.x(), vy = m.y();
+    shot.toMachine = [cal, vx, vy](double px, double py, double& x, double& y) { return cal.machinePoint(px, py, vx, vy, x, y); };
+    return true;
+}
+
 bool JPCellJobMachine::readQrCodes(const JPLocation& at, std::vector<QrCode>& codes, std::string& why) {
     ++m_motions;
     const JPLocation m = at.convertToUnits(JPLengthUnit::Millimeters);
