@@ -12,8 +12,9 @@ notes.
 
 - The Job tab's **Placements** is the one place for a board: its toolbar has the board's **Import
   Placements**, **Board's Parts**, **View Board** and **Revision**, and a board's placements (their IDs,
-  parts, sides, positions, types) are changed there for every board, wherever it is used. The separate Board
-  tab is gone; a panel chosen still shows its **Panel** tab beside Placements.
+  parts, sides, positions, types) are changed there for every board, wherever it is used. The Board and Panel
+  tabs are gone: under the job's list is the chosen one's detail, a board's Placements or a panel's
+  definition (its boards and fiducials).
 
 ## 0.1.62
 

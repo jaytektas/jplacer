@@ -1,8 +1,8 @@
 # Panels
 
 A panel is the job's, as a board is. On the [Job tab](jobs.md#the-job-tab), choosing one of its panels
-shows, beside its **Placements** in the job, the **Panel** tab: the panel's definition, what every use of it
-shares. A panel holds boards (and other panels), each where it lies on the panel, and the fiducials or
+shows, under the job's boards and panels, the panel's definition, what every use of it shares (its
+boards each have their own Placements: choose one). A panel holds boards (and other panels), each where it lies on the panel, and the fiducials or
 placements the panel is aligned by. It comes into the job by the Job tab's **Add Board/Panel**: **New
 Panel...**, **Existing Panel...** (a `.jppanel`, or OpenPnP's `.panel.xml`), or **Copy of the Chosen
 Panel...** (a copy saved as a new file, and added). Each panel is its own `.jppanel` file. OpenPnP's

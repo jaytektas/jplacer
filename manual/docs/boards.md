@@ -112,7 +112,7 @@ its toolbar has the board's:
 | **View Board** | Opens the board viewer (see [Panels](panels.md#the-viewer)). |
 
 **Revision**, after them, shows which of the board's revisions is shown and switches to another (see
-[Revisions](#revisions)); it says **None yet** until the board has one. With a panel chosen they are greyed.
+[Revisions](#revisions)); it says **None yet** until the board has one.
 
 A change to a board is made to every use of it, in the job and on panels, as OpenPnP does: what a job
 set on its own copy (a placement turned off there) is kept unless the same thing is changed for it.

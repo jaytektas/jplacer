@@ -183,8 +183,7 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_placementsPane->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_lower = m_placementsPane->add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
     m_lower->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_stripThickness = m_lower->stripThickness();
-    m_lower->setStripThickness(0);
+    m_lower->setStripThickness(0);   // a page, not tabs: the chosen one's detail
     m_inJobPage = std::make_unique<JContainer>(graph, 0.f, 0.f);
     m_inJobPage->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_placements = m_inJobPage->add(std::make_unique<JPJobPlacementsPanel>(graph, config, job));
@@ -206,7 +205,7 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         refresh();
         if (onDefinitionChanged) onDefinitionChanged();
     };
-    m_lower->addTab("", m_inJobPage.get());   // named once there is a Panel tab beside it
+    m_lower->addTab("", m_inJobPage.get());
     m_lower->setActiveTab(0);
     m_placements->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_placements->toolLocation = [this](Tool t) { return toolLocation ? toolLocation(t) : std::nullopt; };
@@ -427,13 +426,11 @@ void JPJobPanel::showDefinition() {
     if (panel && l->holder)
         for (const auto& p : m_config.panels())
             if (p.get() == l->holder->definition()) shownPanel = p;
-    // The Panel tab beside Placements while a panel is chosen (Placements in front once it goes).
+    // The detail of what is chosen: a panel's definition, else (a board, or nothing) the Placements.
     if (panel != m_panelShown) {
-        if (panel) m_lower->addTab("Panel", m_panelPage.get());
-        else m_lower->removeTab(1);
+        m_lower->removeTab(0);
+        m_lower->addTab("", panel ? m_panelPage.get() : m_inJobPage.get());
         m_lower->setActiveTab(0);
-        m_lower->setStripThickness(panel ? m_stripThickness : 0);
-        m_lower->setTabLabel(0, panel ? "Placements" : "");
         m_panelShown = panel;
     }
     JPBoard* board = m_placements->boardTools().board();

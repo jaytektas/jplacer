@@ -24,7 +24,7 @@
 
 inline namespace jf {
 
-// OpenPnP's ChildFiducialSelectorDialog (the Job tab's Panel tab, Use Children
+// OpenPnP's ChildFiducialSelectorDialog (a panel chosen on the Job tab, Use Children
 // Fiducials…): every fiducial and placement of the panel's boards and
 // panels, as it lies on the panel; shown are the fiducials, the
 // placements, or both, and with Hull Only those on the outermost edge.

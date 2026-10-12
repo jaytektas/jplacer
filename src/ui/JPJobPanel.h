@@ -32,10 +32,10 @@ inline namespace jf {
 
 // The Job tab, as OpenPnP's JobPanel: the job's Boards (its boards and
 // panels, nested, where each lies, its side, enabled and fiducial check)
-// over the chosen one's Placements (JPJobPlacementsPanel: a board's own
-// placements, and its imports, revisions, parts and viewer) and, a panel
-// chosen, the panel itself beside them (JPPanelDefinitionPanel: its children
-// and fiducials), what every use of it shares. A board or panel is made, or opened, only into the job (Add
+// over the chosen one's detail: a board's Placements (JPJobPlacementsPanel:
+// its own placements, and its imports, revisions, parts and viewer), or a
+// panel itself (JPPanelDefinitionPanel: its children and fiducials), what
+// every use of it shares. A board or panel is made, or opened, only into the job (Add
 // Board/Panel: New, Existing, or a copy of the chosen one). The toolbar:
 // Start, Step, Stop, Defer or Alert Errors, Add Board/Panel (a new or
 // existing board or panel), Remove Board(s)/Panel(s), Move Camera To (and
@@ -95,7 +95,7 @@ public:
     RunState runState() const { return m_runState; }
 
     JPJobPlacementsPanel& placements() { return *m_placements; }
-    // The chosen board's tools (in its Placements), and the chosen panel itself (the Panel tab).
+    // The chosen board's tools (in its Placements), and the chosen panel itself (shown when a panel is chosen).
     JPBoardTools& board() { return m_placements->boardTools(); }
     JPPanelDefinitionPanel& panel() { return *m_panel; }
     // The chosen board or panel itself changed (not the job: it is saved to its own file).
@@ -105,8 +105,6 @@ public:
     std::function<void(JPPanel*)> onPanelShown;
     // Asks whether to save a changed board or panel (its copy is made from it as saved).
     std::function<void(JPPlacementsHolder&, std::function<void()> then)> confirmSave;
-    // The Placements brought forward (File > Import Placements: the chosen board's).
-    void showBoard() { m_lower->setActiveTab(0); }
     // Add Board/Panel's copy: the chosen board or panel saved as a new file (asked for), added to the job.
     void copyChosen();
     // The board or panel of a unique id ("Pnl1⇒Brd2") chosen, and a placement on it.
@@ -128,7 +126,7 @@ public:
 
 private:
     void selectionChanged();
-    // The chosen board's tools, or the chosen panel's tab, shown.
+    // The chosen one's detail shown: a board's Placements and tools, or a panel's definition.
     void showDefinition();
     void updateJobActions();
     void buildMenu();
@@ -146,10 +144,9 @@ private:
     JPJobPlacementsPanel*               m_placements = nullptr;
     JSplitter*                          m_split = nullptr;
     std::unique_ptr<JContainer>         m_boardsPane, m_placementsPane, m_inJobPage, m_panelPage;
-    bool                                m_panelShown = false;   // the Panel tab there
-    // Placements, and Panel beside it while a panel is chosen (no tab strip without it).
+    bool                                m_panelShown = false;   // the panel's page shown, not the Placements
+    // The chosen one's detail, one page at a time (no tab strip): Placements, or a panel's definition.
     JTabWidget*                         m_lower = nullptr;
-    float                               m_stripThickness = 0;   // the tab strip's, while it shows
     JPPanelDefinitionPanel*             m_panel = nullptr;
     JPBoard*                            m_shownBoard = nullptr;   // the board whose tools are shown (the viewer told)
     RunState                            m_runState = RunState::Stopped;

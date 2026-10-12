@@ -19,7 +19,7 @@
 
 inline namespace jf {
 
-// OpenPnP's Panel Array Generator (the Job tab's Panel tab, Create array of
+// OpenPnP's Panel Array Generator (a panel chosen on the Job tab, Create array of
 // children…): copies of a child laid out in rows and columns (alternate
 // rows may have a column more or less, and be offset), or round a centre
 // in angular and radial steps; named "<id>[row,column]", the child itself

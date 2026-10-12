@@ -80,8 +80,7 @@ other tabs:
 
 | Chosen | Also chosen |
 |---|---|
-| A placement on the [Job tab](jobs.md#the-job-tab)'s Placements | Its part (and a panel's fiducial, the same fiducial on its Panel tab). |
-| A fiducial on the Job tab's [Panel](panels.md) tab | The same fiducial on its Placements. |
+| A placement on the [Job tab](jobs.md#the-job-tab)'s Placements | Its part. |
 | A part on the [Parts](parts.md) tab | Its package on the Packages tab, a feeder that holds it on the Feeders tab (an enabled one first), and the vision settings it uses on the Vision tab (of the type that tab shows). |
 | A feeder on the Feeders tab | Its part, and so what goes with the part; again when the chosen feeder's part is changed. |
 

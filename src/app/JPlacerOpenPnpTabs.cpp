@@ -223,7 +223,7 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_jobDock->setContent(m_jobPanel.get());
     m_layout.add(m_jobDock.get(), JPlacerLayout::Home::Work);
 
-    // The chosen panel itself (the Job tab's Panel tab): its dialogs, and the panel viewer.
+    // The chosen panel itself (a panel chosen on the Job tab): its dialogs, and the panel viewer.
     JPPanelDefinitionPanel& definition = m_jobPanel->panel();
     definition.chooseExisting = chooseExisting;
     definition.openArray = [this, currentJob](JPPanelLocation& panel, JPPlacementsHolderLocation& child,
@@ -1196,13 +1196,11 @@ const std::vector<std::unique_ptr<JPBoardImporter>>& JPlacerOpenPnpTabs::importe
 
 void JPlacerOpenPnpTabs::importBoard(const JPBoardImporter& importer) {
     m_layout.show(m_jobDock.get());
-    m_jobPanel->showBoard();
     m_jobPanel->board().importBoard(importer);
 }
 
 void JPlacerOpenPnpTabs::importCplBom() {
     m_layout.show(m_jobDock.get());
-    m_jobPanel->showBoard();
     m_jobPanel->board().importCplBom();
 }
 

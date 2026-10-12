@@ -22,9 +22,6 @@ JPlacerTableLinks::JPlacerTableLinks(Tabs tabs, JPConfiguration& config, std::fu
     m_tabs.job.placements().onPlacementChosen = [this](const JPPlacement* p) {
         if (leads(m_tabs.jobDock)) choose([&] { jobPlacementChosen(p); });
     };
-    m_tabs.job.panel().onFiducialChosen = [this](const JPPlacement* f) {
-        if (f && leads(m_tabs.jobDock)) choose([&] { panelFiducialChosen(*f); });
-    };
     m_tabs.parts.onPartChosen = [this](const JPPart& part) {
         if (leads(m_tabs.partsDock)) choose([&] { partAndLinks(part.id, false); });
     };
@@ -57,15 +54,9 @@ void JPlacerTableLinks::partAndLinks(const std::string& partId, bool choosePart)
 void JPlacerTableLinks::jobPlacementChosen(const JPPlacement* p) {
     const JPPlacementsHolderLocation* l = m_tabs.job.placements().location();
     if (!l || !l->holder) return;
-    if (l->kind() == JPPlacementsHolderLocation::Kind::Panel) m_tabs.job.panel().selectFiducial(p ? p->id : "");
     if (p) partAndLinks(p->partId, true);
 }
 
 
-void JPlacerTableLinks::panelFiducialChosen(const JPPlacement& f) {
-    const JPPlacementsHolderLocation* l = m_tabs.job.placements().location();
-    const JPPanel* panel = m_tabs.job.panel().panel();
-    if (l && l->holder && panel && l->holder->definition() == panel) m_tabs.job.placements().selectPlacement(f.id);
-}
 
 } // inline namespace jf

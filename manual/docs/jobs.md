@@ -69,8 +69,8 @@ then marked as changed, so saving it writes it as jplacer's `.jpjob` (the old fi
 ## The Job tab
 
 The **Job** tab (the first in the work area, as in OpenPnP) shows the job's boards and panels and,
-under them the chosen one's **Placements** (a board's, with its imports, revisions, parts and viewer: see
-[Boards](boards.md#placements)); a panel chosen, its **Panel** tab beside them, the panel itself (see
+under them the chosen one: a board's **Placements**, with its imports, revisions, parts and viewer (see
+[Boards](boards.md#placements)); or a panel's definition, its children and fiducials (see
 [Panels](panels.md)). There is no other place a board or panel is kept: each is the job's.
 
 **Boards**: every board and panel in the job, those on a panel under it and indented, with a board or
