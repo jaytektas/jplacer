@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Changing a setting only a job or a check uses (Machine Setup's Vision settings, the job processor's; the
+  Job tab's **Measure Board Z** toggle) no longer makes the machine's panels again: the Jog panel no longer
+  flickers.
+
 - The camera tab's target is now **Hold Footprint Size**, a toggle: while it is on, the footprint drawn over
   the picture is kept as big on the screen as it was when you pressed it, the picture zooming in or out as
   you go from placement to placement (**Previous** and **Next**), as far as the zoom goes; zoom by hand to

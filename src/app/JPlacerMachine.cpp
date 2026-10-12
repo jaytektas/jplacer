@@ -1126,6 +1126,29 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
             return true;
         }
     }
+    // Only what a job or a check reads as it runs changed (the machine's Vision settings, the job processor's: Measure
+    // Board Z? toggled on the Job tab, say): the cell takes them and they are saved, no panel made again (the Jog
+    // panel would flicker as it was made afresh, for nothing it shows).
+    {
+        auto withoutRunSettings = [](const JPCellConfig& c) {
+            JJson j = c.toJson();
+            j["vision"] = JJson();
+            j["jobProcessor"] = JJson();
+            return j.dump();
+        };
+        if (withoutRunSettings(cell) == withoutRunSettings(m_cell->config())) {
+            if (!m_cell->reconfigure(cell, error)) {
+                m_window.showStatus("Machine Setup's changes are not in use: " + error, kErrorMs);
+                return false;
+            }
+            if (!cell.save(m_cellPath, error)) {
+                m_window.showStatus("Machine Setup's changes are in use but not saved: " + error, kErrorMs);
+                return true;
+            }
+            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: in use and saved to " << m_cellPath << " (run settings only)";
+            return true;
+        }
+    }
     // Kept running, a camera whose device settings changed with something else takes them as it runs.
     if (keep == Keep::SetupAndCameras)
         for (const JPCameraConfig& now : cell.cameras)
