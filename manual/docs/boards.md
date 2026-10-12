@@ -40,7 +40,7 @@ has changes to save.
 A click on a placement's **Part** opens the part picker for its board part, titled with the placement:
 
 - which placements share the part, what the files said about it (value, footprint, MPN, manufacturer,
-  supplier), and what it is now;
+  supplier, and your part and package fields), and what it is now;
 - the library's parts it may be, best first, each with **Why**: an identifier it has (its MPN, its
   supplier's part number), a value and footprint it learned (and from which board), named by its
   footprint and value (OpenPnP's naming), a value it learned in its package, named by its value, or the

@@ -70,8 +70,13 @@ JPlacerPartPickerDialog::JPlacerPartPickerDialog(const JPConfiguration& config, 
     std::string said;
     for (const auto& [key, label] : kShownFields)
         if (!m_part.field(key).empty()) said += (said.empty() ? "" : "  ·  ") + std::string(label) + " " + m_part.field(key);
+    // And what they said in the fields added to parts and packages, each by its name.
     for (const auto& [key, value] : m_part.fields)
-        if (key.rfind("extra:", 0) == 0) said += (said.empty() ? "" : "  ·  ") + key.substr(6) + " " + value;
+        for (const auto& [prefix, of] : { std::pair<std::string, JPFieldSet::Of> { "part:", JPFieldSet::Of::Parts },
+                                          { "package:", JPFieldSet::Of::Packages } })
+            if (key.rfind(prefix, 0) == 0)
+                if (const JPField* f = config.fields().of(of).field(key.substr(prefix.size())); f && !f->removed)
+                    said += (said.empty() ? "" : "  ·  ") + f->name + " " + value;
     note(said.empty() ? "The files said nothing of its part: name " + m_part.field("part") : "The files say: " + said);
     switch (m_part.state) {
         case JPBoardPart::State::Matched: {
