@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -172,7 +173,8 @@ bool JPKicadBoardFile::is(const std::string& path) {
 
 bool JPKicadBoardFile::read(const std::string& path, JPImportSource& out, std::string& error) {
     std::ifstream f(path, std::ios::binary);
-    if (!f) {
+    std::error_code ec;
+    if (!f || !std::filesystem::is_regular_file(path, ec)) {   // a folder opens, but reading it throws
         error = "Cannot read " + path;
         return false;
     }

@@ -5,6 +5,7 @@
 
 #include <expat.h>
 
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 
@@ -47,7 +48,8 @@ void XMLCALL onText(void* data, const XML_Char* s, int len) {
 
 bool JPXmlReader::read(const std::string& path, JPXmlElement& root, std::string& error) {
     std::ifstream f(path, std::ios::binary);
-    if (!f) {
+    std::error_code ec;
+    if (!f || !std::filesystem::is_regular_file(path, ec)) {   // a folder opens, but reading it throws
         error = path + ": cannot be opened";
         return false;
     }

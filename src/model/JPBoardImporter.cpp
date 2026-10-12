@@ -50,7 +50,8 @@ void appendUtf8(std::string& out, uint32_t c) {
 
 std::string fileBytes(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error(path + " (No such file or directory)");
+    std::error_code ec;
+    if (!in || !std::filesystem::is_regular_file(path, ec)) throw std::runtime_error(path + " (No such file or directory)");
     return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 }
 

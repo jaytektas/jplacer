@@ -48,9 +48,10 @@ std::string upper(const std::string& s) {
     return out;
 }
 
+// A file there (a folder is not one: an empty name beside a file is its folder).
 bool exists(const std::string& p) {
     std::error_code ec;
-    return !p.empty() && fs::exists(p, ec);
+    return !p.empty() && fs::is_regular_file(p, ec);
 }
 
 // A board or panel's file, as OpenPnP finds it: as named, beside its
@@ -922,6 +923,20 @@ std::shared_ptr<JPPanel> JPConfiguration::loadPanel(const std::string& file, std
         linkPartsByName(p->placements);
     }
     p->file = file;
+    // A child naming no file (one added in the panel's definition before 0.1.64 was saved so): nothing names
+    // what it was, so it is left out, and the panel saved without it.
+    bool leftOut = false;
+    for (size_t i = 0; i < p->children.size();) {
+        if (!p->children[i]->fileName.empty()) {
+            ++i;
+            continue;
+        }
+        JLOGC(JPlacerLog::kJob, JLogLevel::Warn)
+            << "panel " << file << ": its " << (p->children[i]->kind() == JPPlacementsHolderLocation::Kind::Board ? "board " : "panel ")
+            << p->children[i]->id << " names no file; left out";
+        p->children.erase(p->children.begin() + std::ptrdiff_t(i));
+        leftOut = true;
+    }
     for (auto& c : p->children) {
         std::string childFile = c->fileName;
         if (!exists(childFile)) childFile = (fs::path(file).parent_path() / fs::path(childFile).filename()).string();
@@ -940,7 +955,7 @@ std::shared_ptr<JPPanel> JPConfiguration::loadPanel(const std::string& file, std
             static_cast<JPPanelLocation&>(*c).setParentsOfAllDescendants();
         }
     }
-    p->dirty = false;
+    p->dirty = leftOut;
     return p;
 }
 

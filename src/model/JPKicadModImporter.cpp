@@ -5,6 +5,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <regex>
 
@@ -87,7 +88,8 @@ std::vector<JPFootprint::Pad> JPKicadModImporter::parse(const std::string& text,
 
 bool JPKicadModImporter::read(const std::string& path, std::vector<JPFootprint::Pad>& pads, std::string& error) {
     std::ifstream f(path);
-    if (!f) {
+    std::error_code ec;
+    if (!f || !std::filesystem::is_regular_file(path, ec)) {   // a folder opens, but reading it throws
         error = "Kicad Footprint Load Error" + path + ": cannot be read";
         return false;
     }

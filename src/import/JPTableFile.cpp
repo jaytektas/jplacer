@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -129,7 +130,8 @@ std::vector<std::string> JPTableFile::split(const std::string& line, char separa
 
 bool JPTableFile::read(const std::string& path, JPTableFile& out, std::string& error) {
     std::ifstream f(path, std::ios::binary);
-    if (!f) {
+    std::error_code ec;
+    if (!f || !std::filesystem::is_regular_file(path, ec)) {   // a folder opens, but reading it throws
         error = "Cannot read " + path;
         return false;
     }

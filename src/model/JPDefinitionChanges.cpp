@@ -31,6 +31,7 @@ void JPDefinitionChanges::removed(JPPlacementsHolder& def, const std::string& id
 }
 
 JPPlacementsHolderLocation* JPDefinitionChanges::childAdded(JPPanel& def, std::unique_ptr<JPPlacementsHolderLocation> c) {
+    if (c->holder) c->fileName = c->holder->file;   // saved naming its file
     JPPlacementsHolderLocation* added = def.addChild(std::move(c));
     for (JPPlacementsHolderLocation* l : m_config.instanceLocationsOf(def, m_job)) {
         auto* panel = static_cast<JPPanelLocation*>(l);
@@ -57,6 +58,7 @@ void JPDefinitionChanges::childReplaced(JPPanel& def, const std::string& id, con
     // The panel's own child a definition of its own; each use's an instance of it.
     auto own = replacement.instance();
     own->makeDefinition();
+    if (own->holder) own->fileName = own->holder->file;
     const JPPlacementsHolderLocation* fresh = def.replaceChild(old, std::move(own));
     for (JPPlacementsHolderLocation* l : m_config.instanceLocationsOf(def, m_job)) {
         auto* panel = static_cast<JPPanelLocation*>(l);

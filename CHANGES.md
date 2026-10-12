@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Opening a job with a panel in it could close jplacer at once: a board or panel added to a panel (in the
+  panel's definition) was saved without its file. They are saved with it now; a panel saved before, its
+  boards naming no file, opens without them (the log says which), and is saved without them.
+
 ## 0.1.63
 
 - The Job tab's **Placements** is the one place for a board: its toolbar has the board's **Import
