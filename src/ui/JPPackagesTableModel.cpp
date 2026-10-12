@@ -3,6 +3,7 @@
 
 #include "JPPackagesTableModel.h"
 
+#include "JPLengthCell.h"
 #include "JPSourceColumn.h"
 
 #include <algorithm>
@@ -11,7 +12,7 @@
 inline namespace jf {
 
 namespace {
-enum Col { kSource, kId, kName, kDescription, kTape, kBottomVision, kFiducialVision, kColumns };
+enum Col { kSource, kId, kName, kDescription, kHeight, kTape, kBottomVision, kFiducialVision, kColumns };
 
 std::string upperOf(std::string s) {
     for (char& c : s) c = char(std::toupper(uint8_t(c)));
@@ -20,6 +21,8 @@ std::string upperOf(std::string s) {
 }
 
 JPPackagesTableModel::JPPackagesTableModel(JPConfiguration& config) : m_config(config) { reload(); }
+
+int JPPackagesTableModel::columnCount() const { return kColumns; }
 
 void JPPackagesTableModel::reload() {
     m_usedBy.clear();
@@ -73,6 +76,11 @@ JPTableModel::Column JPPackagesTableModel::heading(int c) const {
                              "came (a board's footprint, OpenPnP's id, or the name it was given), and yours to change",
                      Kind::Text };
         case kDescription: return { "Description", "", Kind::Text };
+        case kHeight:
+            return { "Height",
+                     "How high its parts are (board surface to pick position), for each part with no height of its own; "
+                     "empty: not known",
+                     Kind::Text };
         case kTape:
             return { "Tape Specification",
                      "This is a text field used by some feeder implementations. Check your feeder documentation for "
@@ -110,6 +118,7 @@ std::string JPPackagesTableModel::text(int row, int c) const {
         case kId:          return p->id;
         case kName:        return p->shownName();
         case kDescription: return p->description.value_or("");
+        case kHeight:      return p->height.value() > 0 ? JPLengthCell::text(p->height, true) : std::string();
         case kTape:        return p->tapeSpecification.value_or("");
         case kBottomVision: {
             const JPVisionSettings* v = m_config.visionSettings(p->bottomVisionId);
@@ -160,6 +169,15 @@ bool JPPackagesTableModel::setText(int row, int c, const std::string& text, std:
             }
         p->label = name;
     } else if (c == kDescription) p->description = text;
+    else if (c == kHeight) {
+        // Emptied: not known (each part's own, if it has one).
+        if (std::all_of(text.begin(), text.end(), [](char ch) { return std::isspace(uint8_t(ch)); })) {
+            p->height = JPLength(0, p->height.units());
+        } else if (!JPLengthCell::parse(text, p->height, p->height)) {
+            error = "'" + text + "' is not a length";
+            return false;
+        }
+    }
     else if (c == kTape) p->tapeSpecification = text;
     else return false;
     m_said.changed(onChanged);
@@ -180,7 +198,7 @@ void JPPackagesTableModel::setChoice(int row, int c, int index) {
 inline namespace jf {
 
 std::string JPPackagesTableModel::keyAt(int c) const {
-    static const char* const keys[kColumns] = { "source", "id", "name", "description", "tape", "bottomVision", "fiducialVision" };
+    static const char* const keys[kColumns] = { "source", "id", "name", "description", "height", "tape", "bottomVision", "fiducialVision" };
     return c >= 0 && c < kColumns ? keys[c] : std::string();
 }
 

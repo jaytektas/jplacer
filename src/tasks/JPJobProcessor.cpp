@@ -216,7 +216,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
                         tip = tip || std::find(package->compatibleNozzleTipIds.begin(), package->compatibleNozzleTipIds.end(),
                                                t) != package->compatibleNozzleTipIds.end();
                 if (!tip) {
-                    if (part->isPartHeightUnknown())
+                    if (m_config.isPartHeightUnknown(*part))
                         fail(Source::Part, part->id,
                              format("No part height sensing method found for part %s. Check camera, contact probe nozzle "
                                     "and compatible, loadable nozzle tips for height sensing settings or set part height "
@@ -234,7 +234,7 @@ JPJobProcessor::Step JPJobProcessor::preFlight() {
                 j.partName = part->shownName();
                 j.rank = p.rank;
                 if (const auto g = groups.find(part->id); g != groups.end()) j.group = g->second;
-                j.partHeightMm = part->height.convertToUnits(JPLengthUnit::Millimeters).value();
+                j.partHeightMm = m_config.partHeight(*part).convertToUnits(JPLengthUnit::Millimeters).value();
                 m_jobPlacements.push_back(j);
             }
         }

@@ -636,6 +636,12 @@ std::string JPConfiguration::openPnpStamp() const {
     return s;
 }
 
+JPLength JPConfiguration::partHeight(const JPPart& part) const {
+    if (part.height.value() > 0) return part.height;
+    const JPPackage* k = package(part.packageId);
+    return k && k->height.value() > 0 ? k->height : part.height;
+}
+
 JPPart* JPConfiguration::libraryPartFor(const JPBoardPart& bp) const { return libraryPart(bp.libraryPartId); }
 
 const JPLibraryFootprint* JPConfiguration::footprintFor(const JPBoardPart& bp, const JPPart& p) const {

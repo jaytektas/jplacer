@@ -74,6 +74,7 @@ public:
     int                        lastPackaging = -1;   // the packaging last chosen for a feeder it is loaded on; -1: none
     std::vector<Offer>         offers;
     std::optional<std::string> name;
+    // Its own height; 0: its package's (JPConfiguration::partHeight).
     JPLength                   height { 0, JPLengthUnit::Millimeters };
     JPLength                   throughBoardDepth { 0, JPLengthUnit::Millimeters };
     std::string                packageId;
@@ -83,9 +84,6 @@ public:
     std::string                fiducialVisionId;
     JPFieldValues              custom;   // its values of the fields added to parts
 
-    // Height plus the depth through the board: what hangs below a nozzle.
-    JPLength heightForSafeZ() const { return height.add(throughBoardDepth); }
-    bool     isPartHeightUnknown() const { return height.value() <= 0.0; }
     // What it is called where it is shown: its Name.
     const std::string& shownName() const { return label; }
 

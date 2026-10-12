@@ -62,7 +62,7 @@ void JPLcscLookup::describe(JPPart& part, const JPEasyEdaPart& from) {
     if (!from.mpn.empty() && std::none_of(part.identifiers.begin(), part.identifiers.end(),
                                           [](const JPPart::Identifier& i) { return i.kind == "mpn"; }))
         part.identifiers.push_back({ "mpn", from.manufacturer, from.mpn });
-    if (part.isPartHeightUnknown() && from.heightMm && *from.heightMm > 0)
+    if (part.height.value() <= 0 && from.heightMm && *from.heightMm > 0)
         part.height = JPLength(*from.heightMm, JPLengthUnit::Millimeters);
 }
 

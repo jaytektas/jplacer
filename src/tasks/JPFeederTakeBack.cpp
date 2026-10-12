@@ -56,7 +56,7 @@ bool JPFeederTakeBack::takeBack(JPConfiguration& config, const std::string& nozz
         type = f->feedsAs();
         pick = f->pickLocation();
         heightAbove = f->partHeightAbovePickLocation();
-        if (const JPPart* p = config.part(partId)) partHeight = p->height.convertToUnits(JPLengthUnit::Millimeters).value();
+        if (const JPPart* p = config.part(partId)) partHeight = config.partHeight(*p).convertToUnits(JPLengthUnit::Millimeters).value();
         if (type == "BlindsFeeder") coverOpen = JPBlindsFeeders::coverState(*f, true);
     });
     // None that can take it: as OpenPnP's, nothing is done.

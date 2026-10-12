@@ -103,8 +103,8 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
             if (!config.findFeeder(part->id, std::nullopt))
                 g.add(L::Note, "No feeder holds it yet (the run asks for it to be loaded when it gets to it)", part->id,
                       "Load it when asked, or set a feeder up for it on the Feeders tab");
-            if (part->isPartHeightUnknown())
-                g.add(L::Check, "Height not known", part->id, "Parts tab: the part's Height (or probe it)");
+            if (config.isPartHeightUnknown(*part))
+                g.add(L::Check, "Height not known", part->id, "Parts tab: the part's Height, or its package's (or probe it)");
             const JPLibraryFootprint* cad = bp ? config.footprintFor(*bp, *part) : nullptr;
             const bool footprint = (cad && !cad->geometry.pads.empty()) || !package->footprint.pads.empty();
             if (!footprint)

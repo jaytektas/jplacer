@@ -30,6 +30,7 @@ open boards, or one board's.
 | **ID** | What parts know it by, for good: a GUID, made for it, so its name can be changed freely. |
 | **Name** | What it is called wherever it is shown (a part's **Package**, the import, OpenPnP's files), unique in the library, changed in place. A new package starts with the name it came with: a board's footprint, OpenPnP's ID, or the name given it. |
 | **Description** | What it is. |
+| **Height** | How high its parts are (board surface to pick position), for every part of it with no height of its own: set it once for a package whose parts are all alike (0603 resistors), and give the parts that differ their own on the Parts tab (an 0805 capacitor can be 0.6 mm or 1.45 mm). Empty: not known. |
 | **Tape Specification** | Text some feeders read; see the feeder's own notes. |
 | **BottomVision**, **FiducialVision** | The vision settings it uses, chosen from a list. |
 

@@ -5,6 +5,7 @@
 
 #include "JPFieldValues.h"
 #include "JPFootprint.h"
+#include "JPLength.h"
 #include "JPVisionCompositing.h"
 
 #include "openpnp/JPXmlElement.h"
@@ -25,6 +26,8 @@ public:
     std::string                label;       // what it is called where it is shown (its Name), unique in the library
     std::optional<std::string> description;
     std::optional<std::string> tapeSpecification;
+    // How high its parts are, where a part says nothing of its own (0: not known).
+    JPLength                   height { 0, JPLengthUnit::Millimeters };
     double                     pickVacuumLevel = 0;
     double                     placeBlowOffLevel = 0;
     JPFootprint                footprint;

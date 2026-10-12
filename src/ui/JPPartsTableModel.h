@@ -65,6 +65,7 @@ public:
     std::string    cellIcon(int row, int c) const override;
     std::string    cellTooltip(int row, int c) const override;
     std::string    displayText(int row, int c) const override;
+    const uint8_t* cellInk(int row, int c) const override;
 
     JPPart* part(int row) const;
     int     rowOf(const JPPart* part) const;

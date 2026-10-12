@@ -11,6 +11,8 @@
 #include "model/JPEasyEdaPart.h"
 #include "setup/JPLibrarySearch.h"
 
+#include <j/core/JStyle.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -80,9 +82,22 @@ std::string JPPartsTableModel::cellTooltip(int row, int c) const {
         for (const auto& [shortForm, full] : values(row, c)) all += (all.empty() ? "" : "\n") + full;
         return all;
     }
+    if (c == kHeight) {
+        const JPPart* p = part(row);
+        const JPPackage* k = p ? m_config.package(p->packageId) : nullptr;
+        if (!p || p->height.value() > 0) return {};
+        return k && k->height.value() > 0 ? "Its package's (" + k->shownName() + "): it has no height of its own"
+                                          : "Not known: neither it nor its package has a height";
+    }
     if (c != kSource) return {};
     const std::string boards = JPCatalog::boardNames(usedBy(row));
     return boards.empty() ? "In the library; no open board uses it" : "In the library; used by the open board(s) " + boards;
+}
+
+const uint8_t* JPPartsTableModel::cellInk(int row, int c) const {
+    // A height its package's (or not known): greyed.
+    const JPPart* p = c == kHeight ? part(row) : nullptr;
+    return p && p->height.value() <= 0 ? Colors::MutedText : nullptr;
 }
 
 std::string JPPartsTableModel::displayText(int row, int c) const {
@@ -121,7 +136,11 @@ JPTableModel::Column JPPartsTableModel::heading(int c) const {
                      "Its supplier's part number (an LCSC C number: what its footprint is fetched by), the first of its "
                      "identifiers (the Library page has them all)",
                      Kind::Text };
-        case kHeight:         return { "Height", "Part height; the distance between board surface and pick position.", Kind::Text };
+        case kHeight:
+            return { "Height",
+                     "Part height; the distance between board surface and pick position. Greyed: its package's, as it has "
+                     "none of its own; typed, its own; emptied, its package's again.",
+                     Kind::Text };
         case kDepth:
             return { "Through-Board Depth",
                      "The length of any through-board features on the part. That is, the size any feature which is "
@@ -267,7 +286,7 @@ std::string JPPartsTableModel::text(int row, int c) const {
             for (const auto& i : p->identifiers)
                 if (i.kind == kSupplierPnKind) return i.code;
             return "";
-        case kHeight:      return JPLengthCell::text(p->height, true);
+        case kHeight:      return JPLengthCell::text(m_config.partHeight(*p), true);
         case kDepth:       return JPLengthCell::text(p->throughBoardDepth, true);
         case kPackage:     return m_config.package(p->packageId) ? m_config.package(p->packageId)->shownName() : std::string();
         case kSpeed:       return percent(p->speed);
@@ -398,6 +417,11 @@ bool JPPartsTableModel::setText(int row, int c, const std::string& text, std::st
         case kHeight:
         case kDepth: {
             JPLength& l = c == kHeight ? p->height : p->throughBoardDepth;
+            // A height emptied: none of its own (its package's).
+            if (c == kHeight && std::all_of(text.begin(), text.end(), [](char ch) { return std::isspace(uint8_t(ch)); })) {
+                l = JPLength(0, l.units());
+                break;
+            }
             if (!JPLengthCell::parse(text, l, l)) {
                 error = "'" + text + "' is not a length";
                 return false;

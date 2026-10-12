@@ -76,6 +76,11 @@ public:
     const std::vector<std::shared_ptr<JPPart>>& parts() const { return m_parts; }
     // A part by id (the library's: there are no others).
     JPPart* part(const std::string& id) const;
+    // A part's height as it is placed: its own, else its package's; 0: neither knows it.
+    JPLength partHeight(const JPPart& part) const;
+    // The same with the depth it reaches through the board: what hangs below a nozzle (Dynamic Safe Z).
+    JPLength partHeightForSafeZ(const JPPart& part) const { return partHeight(part).add(part.throughBoardDepth); }
+    bool     isPartHeightUnknown(const JPPart& part) const { return partHeight(part).value() <= 0.0; }
     // The library's part of that id only, or null.
     JPPart* libraryPart(const std::string& id) const;
     // The library's part whose Name (JPPart::shownName) is `name`, whatever its case; null when none.

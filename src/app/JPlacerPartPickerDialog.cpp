@@ -22,10 +22,12 @@ const std::vector<std::pair<const char*, const char*>> kShownFields {
     { "description", "Description" }, { "height", "Height" }, { "datasheet", "Datasheet" },
 };
 
-std::string heightText(const JPPart& p) {
-    if (p.height.value() <= 0) return "";
+// Its height as placed (its own, else its package's).
+std::string heightText(const JPConfiguration& config, const JPPart& p) {
+    const JPLength h = config.partHeight(p);
+    if (h.value() <= 0) return "";
     char buf[32];
-    std::snprintf(buf, sizeof buf, "%.2f %s", p.height.value(), JPLengthUnits::shortName(p.height.units()));
+    std::snprintf(buf, sizeof buf, "%.2f %s", h.value(), JPLengthUnits::shortName(h.units()));
     return buf;
 }
 
@@ -155,7 +157,7 @@ void JPlacerPartPickerDialog::fill() {
         }
     }
     std::vector<std::vector<std::string>> rows;
-    for (size_t i = 0; i < m_shown.size(); ++i) rows.push_back({ m_shown[i]->shownName(), m_shown[i]->packageId, heightText(*m_shown[i]), why[i] });
+    for (size_t i = 0; i < m_shown.size(); ++i) rows.push_back({ m_shown[i]->shownName(), m_shown[i]->packageId, heightText(m_config, *m_shown[i]), why[i] });
     m_list->setRows(rows);
     m_list->scrollToTop();
     // The one it is now, else the best candidate; none when the list holds no candidate (nothing is suggested,

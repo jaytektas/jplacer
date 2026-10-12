@@ -38,10 +38,10 @@ JPPnpChecking::PartOn JPPnpChecking::partOn(const JPConfiguration* configuration
     r.on.partId = partId;
     const JPPart* part = configuration && !partId.empty() ? configuration->part(partId) : nullptr;
     if (!part) return r;
-    r.on.heightMm = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
-    r.held.heightMm = std::abs(part->height.convertToUnits(JPLengthUnit::Millimeters).value());
+    r.on.heightMm = configuration->partHeightForSafeZ(*part).convertToUnits(JPLengthUnit::Millimeters).value();
+    r.held.heightMm = std::abs(configuration->partHeight(*part).convertToUnits(JPLengthUnit::Millimeters).value());
     // A height not known: the nozzle's tip's Max. Part Height (OpenPnP's getSafePartHeight).
-    if (part->height.value() <= 0)
+    if (configuration->isPartHeightUnknown(*part))
         for (const JPNozzleConfig& n : cell.nozzles)
             if (n.id == nozzleId)
                 for (const JPNozzleTipConfig& t : cell.nozzleTips)

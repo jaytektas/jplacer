@@ -745,7 +745,7 @@ std::optional<double> JPlacerMachine::fixedViewingPlaneZ(const JPCameraConfig& c
         double z = *at[2];
         const std::string partId = nozzlePart(n.id);
         if (const JPPart* part = !partId.empty() && m_configuration ? m_configuration->part(partId) : nullptr)
-            z -= part->height.convertToUnits(JPLengthUnit::Millimeters).value();
+            z -= m_configuration->partHeight(*part).convertToUnits(JPLengthUnit::Millimeters).value();
         return z;
     }
     return std::nullopt;
@@ -1357,7 +1357,7 @@ bool JPlacerMachine::jogSafe(const JPMountConfig& tool, const std::map<std::stri
         }
         if (!partId.empty()) {
             if (const JPPart* part = m_configuration ? m_configuration->part(partId) : nullptr)
-                m.partHeight = part->heightForSafeZ().convertToUnits(JPLengthUnit::Millimeters).value();
+                m.partHeight = m_configuration->partHeightForSafeZ(*part).convertToUnits(JPLengthUnit::Millimeters).value();
             m.subject += " holding " + partId;
         }
         on.push_back(m);
@@ -2623,7 +2623,7 @@ JJson JPlacerMachine::scriptRequest(const JJson& request) {
                 for (const auto& p : m_configuration->parts()) {
                     JJson o = named(p->id, p->name.value_or(std::string()));
                     o["package"] = p->packageId;
-                    o["height"] = p->height.convertToUnits(JPLengthUnit::Millimeters).value();
+                    o["height"] = m_configuration->partHeight(*p).convertToUnits(JPLengthUnit::Millimeters).value();
                     parts.push(o);
                 }
             }))

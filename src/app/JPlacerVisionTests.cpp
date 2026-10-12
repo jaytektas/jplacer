@@ -100,7 +100,7 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
             JPConfiguration& config = m_job.configuration();
             const JPPart* part = config.part(partId);
             if (!part) return;
-            heightMm = part->height.convertToUnits(JPLengthUnit::Millimeters).value();
+            heightMm = config.partHeight(*part).convertToUnits(JPLengthUnit::Millimeters).value();
             const JPVisionConfig vision = m_machine.cell() ? m_machine.cell()->config().vision : JPVisionConfig {};
             ok = JPAlignRequests::forPart(config, vision, *part, heightMm, angle, rq);
         });

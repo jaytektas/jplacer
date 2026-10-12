@@ -517,8 +517,10 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
                     at = f->pickLocation();
                     kind = f->typeName();
                     // Picked from on top of the part, as high as it is.
-                    if (const JPPart* p = m_job.configuration().part(f->partId()); at && p && f->partHeightAbovePickLocation())
-                        at = at->add(JPLocation(p->height.units(), 0, 0, p->height.value(), 0));
+                    if (const JPPart* p = m_job.configuration().part(f->partId()); at && p && f->partHeightAbovePickLocation()) {
+                        const JPLength h = m_job.configuration().partHeight(*p);
+                        at = at->add(JPLocation(h.units(), 0, 0, h.value(), 0));
+                    }
                 }
             });
             if (!at) {

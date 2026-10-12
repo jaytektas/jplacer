@@ -1055,6 +1055,7 @@ void JPPackagesPanel::copyPackage() {
     // As OpenPnP keeps a package: its id its name.
     JPPackage asOpenPnp = *k;
     asOpenPnp.id = k->shownName();
+    asOpenPnp.height = JPLength(0, JPLengthUnit::Millimeters);   // jplacer's own: OpenPnP refuses what it does not know
     std::string text = JPXmlWriter::text(asOpenPnp.toXml());
     if (!text.empty() && text.back() == '\n') text.pop_back();
     JWidget::clipboardSet(text);

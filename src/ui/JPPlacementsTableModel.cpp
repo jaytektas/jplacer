@@ -143,7 +143,7 @@ JPPlacementsTableModel::Status JPPlacementsTableModel::status(const JPPlacement&
     if (!p.enabled) return Status::Disabled;
     if (p.type == JPPlacement::Type::Placement) {
         if (!hasFeeder || !hasFeeder(part->id)) return Status::MissingFeeder;
-        if (part->isPartHeightUnknown()) return Status::ZeroPartHeight;
+        if (m_config.isPartHeightUnknown(*part)) return Status::ZeroPartHeight;
     }
     return Status::Ready;
 }

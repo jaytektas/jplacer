@@ -89,6 +89,7 @@ std::vector<JPField> builtIns(JPFieldSet::Of of) {
                 builtIn("id", "ID", true, "", {}, "What parts know it by"),
                 builtIn("name", "Name", false, "", {}, "What it is called where it is shown"),
                 builtIn("description", "Description", false),
+                builtIn("height", "Height", false, "", {}, "How high its parts are, where a part has no height of its own"),
                 builtIn("tape", "Tape Specification", false),
                 builtIn("bottomVision", "BottomVision", false),
                 builtIn("fiducialVision", "FiducialVision", false),
