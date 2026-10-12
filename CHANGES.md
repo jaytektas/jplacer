@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.56
+
 - Every table's things can have fields of your own: **Add Field…** in **Columns** or on a heading's right-click
   menu adds one (text, a number, a length, yes/no or a choice) to parts, packages, pads, placements, boards,
   panels, the job's boards, feeders or vision settings, and **Job ▸ Job Fields…** to jobs. A field is a column
