@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <ctime>
 #include <string>
 
 inline namespace jf {
@@ -18,6 +19,10 @@ public:
     static std::string withAgo(const std::string& when);
     // How long ago `when` was ("3 hours ago"); empty when it cannot be read.
     static std::string ago(const std::string& when);
+    // A moment broken into its parts, here (the computer's time zone) or in UTC, safe from any thread (as
+    // localtime_r and gmtime_r, which Windows names otherwise).
+    static std::tm local(std::time_t t);
+    static std::tm utc(std::time_t t);
 };
 
 } // inline namespace jf

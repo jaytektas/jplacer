@@ -6,14 +6,8 @@
 #include "JPPixels.h"
 
 #include <algorithm>
-#include <cerrno>
 #include <chrono>
-#include <cstring>
-
-#include <netdb.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <unistd.h>
+#include <cstdlib>
 
 inline namespace jf {
 
@@ -39,28 +33,15 @@ bool JPMjpgSource::open(std::string& error) {
     const std::string hostPort = rest.substr(0, slash), path = slash == std::string::npos ? "/" : rest.substr(slash);
     const size_t colon = hostPort.rfind(':');
     const std::string host = colon == std::string::npos ? hostPort : hostPort.substr(0, colon);
-    const std::string port = colon == std::string::npos ? "80" : hostPort.substr(colon + 1);
-    addrinfo hints {};
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    addrinfo* found = nullptr;
-    if (const int r = ::getaddrinfo(host.c_str(), port.c_str(), &hints, &found); r != 0) {
-        error = m_name + ": " + host + ": " + ::gai_strerror(r);
-        return false;
-    }
-    for (addrinfo* a = found; a && m_socket < 0; a = a->ai_next) {
-        const int s = ::socket(a->ai_family, a->ai_socktype | SOCK_CLOEXEC, a->ai_protocol);
-        if (s < 0) continue;
-        if (::connect(s, a->ai_addr, a->ai_addrlen) == 0) m_socket = s;
-        else ::close(s);
-    }
-    ::freeaddrinfo(found);
-    if (m_socket < 0) {
-        error = m_name + ": cannot connect to " + m_url + " (" + std::strerror(errno) + ")";
+    const int port = colon == std::string::npos ? 80 : std::atoi(hostPort.substr(colon + 1).c_str());
+    // Given up after its timeout, as a picture is.
+    std::string why;
+    if (!m_socket.connect(host, port, m_timeoutMs, false, why)) {
+        error = m_name + ": cannot connect to " + m_url + " (" + why + ")";
         return false;
     }
     const std::string request = "GET " + path + " HTTP/1.0\r\nHost: " + host + "\r\nUser-Agent: jplacer\r\n\r\n";
-    if (::send(m_socket, request.data(), request.size(), MSG_NOSIGNAL) != ssize_t(request.size())) {
+    if (!m_socket.sendAll(request)) {
         error = m_name + ": the stream could not be asked for";
         close();
         return false;
@@ -69,10 +50,7 @@ bool JPMjpgSource::open(std::string& error) {
     return true;
 }
 
-void JPMjpgSource::close() {
-    if (m_socket >= 0) ::close(m_socket);
-    m_socket = -1;
-}
+void JPMjpgSource::close() { m_socket.close(); }
 
 std::vector<JPCaptureMode> JPMjpgSource::modes() const {
     JPCaptureMode m;
@@ -108,7 +86,7 @@ bool JPMjpgSource::takeJpeg(std::vector<uint8_t>& buffer, std::vector<uint8_t>& 
 }
 
 bool JPMjpgSource::grab(JPFrame& frame, int timeoutMs, std::string& error) {
-    if (m_socket < 0) {
+    if (!m_socket.isOpen()) {
         error = m_name + ": not connected";
         return false;
     }
@@ -118,24 +96,29 @@ bool JPMjpgSource::grab(JPFrame& frame, int timeoutMs, std::string& error) {
     for (;;) {
         // All that has come, then the newest picture in it.
         for (;;) {
-            pollfd p { m_socket, POLLIN, 0 };
-            if (::poll(&p, 1, 0) <= 0) break;
-            uint8_t chunk[kReadChunk];
-            const ssize_t n = ::recv(m_socket, chunk, sizeof chunk, 0);
-            if (n < 0 && errno == EINTR) continue;
-            if (n <= 0) {
+            char chunk[kReadChunk];
+            const int n = m_socket.receive(chunk, sizeof chunk, 0);
+            if (n == 0) break;
+            if (n < 0) {
                 error = m_name + ": the stream ended";
                 close();
                 return false;
             }
-            m_buffer.insert(m_buffer.end(), chunk, chunk + n);
+            m_buffer.insert(m_buffer.end(), reinterpret_cast<uint8_t*>(chunk), reinterpret_cast<uint8_t*>(chunk) + n);
         }
         if (takeJpeg(m_buffer, jpeg)) break;
         if (m_buffer.size() > kMostBuffered) m_buffer.clear();
         const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - clock::now()).count();
         if (left <= 0) return false;
-        pollfd p { m_socket, POLLIN, 0 };
-        ::poll(&p, 1, int(left));
+        // Waited for more (what came is read on the next round).
+        char chunk[kReadChunk];
+        const int n = m_socket.receive(chunk, sizeof chunk, int(left));
+        if (n < 0) {
+            error = m_name + ": the stream ended";
+            close();
+            return false;
+        }
+        m_buffer.insert(m_buffer.end(), reinterpret_cast<uint8_t*>(chunk), reinterpret_cast<uint8_t*>(chunk) + n);
     }
     if (!JPPixels::jpegToRgba(jpeg.data(), jpeg.size(), frame.width, frame.height, frame.rgba, error)) {
         error = m_name + ": " + error;

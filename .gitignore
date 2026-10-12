@@ -7,3 +7,4 @@ genesis.log.*
 manual/.venv/
 manual/site/
 manual/docs/whats-new.md
+build-win/

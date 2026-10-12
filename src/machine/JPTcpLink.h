@@ -5,6 +5,8 @@
 
 #include "JPLink.h"
 
+#include "common/JPSocket.h"
+
 #include <deque>
 #include <string>
 
@@ -24,7 +26,7 @@ public:
 
     bool open(std::string& error) override;
     void close() override;
-    bool isOpen() const override { return m_socket >= 0; }
+    bool isOpen() const override { return m_socket.isOpen(); }
     bool write(const std::string& bytes) override;
     std::optional<std::string> readLine(int timeoutMs) override;
     std::string describe() const override { return m_host + ":" + std::to_string(m_port); }
@@ -35,7 +37,7 @@ private:
 
     std::string             m_host;
     int                     m_port;
-    int                     m_socket = -1;
+    JPSocket                m_socket;
     std::string             m_partial;
     std::deque<std::string> m_lines;
 };

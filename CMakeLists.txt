@@ -42,6 +42,10 @@ file(GLOB JPLACER_APP_SRC     CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/
 add_library(jplacer_common STATIC ${JPLACER_COMMON_SRC})
 target_include_directories(jplacer_common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(jplacer_common PUBLIC JFramework::platform)
+# Windows' sockets (JPSocket: Winsock), its processes and libraries are the system's own.
+if(WIN32)
+    target_link_libraries(jplacer_common PUBLIC ws2_32)
+endif()
 
 # Controllers, links, firmware profiles. No widget header is included here.
 add_library(jplacer_machine STATIC ${JPLACER_MACHINE_SRC})
@@ -56,6 +60,10 @@ target_link_libraries(jplacer_openpnp PUBLIC jplacer_machine PRIVATE EXPAT::EXPA
 # each, frames as RGBA. libjpeg(-turbo) decodes MJPG.
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
+# A capture device is read through Video4Linux on Linux only (JPCaptureFactory offers it there alone).
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(FILTER JPLACER_CAMERA_SRC EXCLUDE REGEX "JPV4L2Source\\.cpp$")
+endif()
 add_library(jplacer_camera STATIC ${JPLACER_CAMERA_SRC})
 target_link_libraries(jplacer_camera PUBLIC jplacer_machine PRIVATE jplacer_openpnp JPEG::JPEG PNG::PNG)
 
@@ -112,6 +120,10 @@ target_compile_definitions(jplacer PRIVATE JPLACER_VERSION="${JPLACER_FULL_VERSI
 target_link_libraries(jplacer PRIVATE jplacer_ui jplacer_setup jplacer_tasks jplacer_import jplacer_model jplacer_vision jplacer_camera jplacer_openpnp jplacer_machine jplacer_common JFramework::platform
                                       OpenSSL::SSL OpenSSL::Crypto Threads::Threads)
 target_precompile_headers(jplacer PRIVATE ${JPLACER_PCH})
+# Windows plays its sounds itself (JPlacerSound: winmm's PlaySound).
+if(WIN32)
+    target_link_libraries(jplacer PRIVATE winmm)
+endif()
 
 # TESTS: one executable per test file under tests/<module>/, run by ctest.
 option(JPLACER_TESTS "Build jplacer's tests" ON)

@@ -17,12 +17,17 @@
 #include <thread>
 #include <vector>
 
+#if defined(_WIN32)
+#include <windows.h>
+#include <mmsystem.h>
+#else
 #include <fcntl.h>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 extern char** environ;
+#endif
 
 inline namespace jf {
 
@@ -47,6 +52,7 @@ void put32(std::string& out, uint32_t v) {
     for (int i = 0; i < 4; ++i) out += char((v >> (8 * i)) & 0xff);
 }
 
+#if !defined(_WIN32)
 // The first of the desktop's players there is on the PATH.
 std::string player() {
     const char* path = std::getenv("PATH");
@@ -65,6 +71,7 @@ std::string player() {
     }
     return {};
 }
+#endif
 
 } // namespace
 
@@ -120,14 +127,20 @@ std::string JPlacerSound::file(Sound sound) {
 }
 
 void JPlacerSound::play(Sound sound) {
-    static const std::string program = player();
-    if (program.empty()) {
-        JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "no sound played: none of pw-play, paplay, aplay is installed";
-        return;
-    }
     const std::string path = file(sound);
     if (path.empty()) {
         JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "no sound played: its file could not be written";
+        return;
+    }
+#if defined(_WIN32)
+    // Windows plays it itself, not waited for.
+    const std::wstring wide = std::filesystem::path(path).wstring();
+    if (!PlaySoundW(wide.c_str(), nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT))
+        JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "no sound played: Windows could not play " << path;
+#else
+    static const std::string program = player();
+    if (program.empty()) {
+        JLOGC(JPlacerLog::kApp, JLogLevel::Warn) << "no sound played: none of pw-play, paplay, aplay is installed";
         return;
     }
     posix_spawn_file_actions_t actions;
@@ -144,6 +157,7 @@ void JPlacerSound::play(Sound sound) {
     }
     // Reaped when it ends, not waited for.
     std::thread([pid] { ::waitpid(pid, nullptr, 0); }).detach();
+#endif
 }
 
 } // inline namespace jf

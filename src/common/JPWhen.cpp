@@ -21,7 +21,8 @@ std::string count(long n, const char* unit) {
 std::string JPWhen::now() {
     const std::time_t t = std::time(nullptr);
     char buf[32];
-    std::strftime(buf, sizeof buf, "%Y-%m-%d %H:%M:%S", std::localtime(&t));
+    const std::tm tm = local(t);
+    std::strftime(buf, sizeof buf, "%Y-%m-%d %H:%M:%S", &tm);
     return buf;
 }
 
@@ -48,6 +49,26 @@ std::string JPWhen::withAgo(const std::string& when) {
     const std::string a = ago(when);
     // To the minute: the seconds are of no use to whoever reads it.
     return a.empty() ? when : when.substr(0, 16) + " (" + a + ")";
+}
+
+std::tm JPWhen::local(std::time_t t) {
+    std::tm tm {};
+#if defined(_WIN32)
+    localtime_s(&tm, &t);
+#else
+    localtime_r(&t, &tm);
+#endif
+    return tm;
+}
+
+std::tm JPWhen::utc(std::time_t t) {
+    std::tm tm {};
+#if defined(_WIN32)
+    gmtime_s(&tm, &t);
+#else
+    gmtime_r(&t, &tm);
+#endif
+    return tm;
 }
 
 } // inline namespace jf

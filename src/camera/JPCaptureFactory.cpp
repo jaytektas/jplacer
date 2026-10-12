@@ -11,7 +11,9 @@
 #include "JPSimulatedSource.h"
 #include "JPSimulatedUpCamera.h"
 #if defined(__linux__)
+#if defined(__linux__)
 #include "JPV4L2Source.h"
+#endif
 #endif
 
 #include <j/config/Json.h>

@@ -3,6 +3,8 @@
 
 #include "JPOnvif.h"
 
+#include "common/JPWhen.h"
+
 #include "common/JPlacerLog.h"
 #include "openpnp/JPXmlReader.h"
 
@@ -130,8 +132,7 @@ bool JPOnvif::call(const std::string& url, const std::string& body, std::string&
         RAND_bytes(reinterpret_cast<unsigned char*>(nonce.data()), kNonceBytes);
         char created[32];
         const std::time_t now = std::time(nullptr);
-        std::tm utc {};
-        gmtime_r(&now, &utc);
+        const std::tm utc = JPWhen::utc(now);
         std::strftime(created, sizeof created, "%Y-%m-%dT%H:%M:%SZ", &utc);
         header = security(m_username, m_password, nonce, created);
     }

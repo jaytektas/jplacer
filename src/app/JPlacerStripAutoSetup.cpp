@@ -315,8 +315,8 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                 double rise = 0, slope = 0;
                 const double apart = std::hypot(m_lastScaleAt.x() - m_firstPart.x(), m_lastScaleAt.y() - m_firstPart.y());
                 if (walked.reached && m_lastPxPerMm > 0 && apart > 0)
-                    if (const std::optional<double> far = tapeHeight(m_lastPxPerMm, "by the last part")) {
-                        rise = *far - z;
+                    if (const std::optional<double> lastZ = tapeHeight(m_lastPxPerMm, "by the last part")) {
+                        rise = *lastZ - z;
                         slope = rise / apart * 100;
                     }
                 s->zAlongStripPercent = slope;

@@ -5,6 +5,8 @@
 
 #include "JPCaptureSource.h"
 
+#include "common/JPSocket.h"
+
 #include <string>
 #include <vector>
 
@@ -32,7 +34,7 @@ public:
 private:
     std::string          m_name, m_url;
     int                  m_width, m_height, m_timeoutMs;
-    int                  m_socket = -1;
+    JPSocket             m_socket;
     std::vector<uint8_t> m_buffer;
 };
 

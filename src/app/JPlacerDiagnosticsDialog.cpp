@@ -3,13 +3,19 @@
 
 #include "JPlacerDiagnosticsDialog.h"
 
+#include "common/JPWhen.h"
+
 #include "common/JPlacerPaths.h"
 #include "ui/JPUiParts.h"
 
 #include <j/core/JStyle.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -97,13 +103,39 @@ std::string JPlacerDiagnosticsDialog::compose(const std::string& description, co
 
 std::string JPlacerDiagnosticsDialog::systemInfo(const std::string& version) {
     std::ostringstream s;
+    double totalMb = -1, freeMb = -1;
+#if defined(_WIN32)
+    // Its real version (RtlGetVersion: GetVersionEx says 6.2 to a program that does not declare newer ones).
+    using GetVersion = LONG(WINAPI*)(OSVERSIONINFOW*);
+    OSVERSIONINFOW v {};
+    v.dwOSVersionInfoSize = sizeof v;
+    if (const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll"))
+        if (const auto get = reinterpret_cast<GetVersion>(reinterpret_cast<void*>(GetProcAddress(ntdll, "RtlGetVersion"))))
+            get(&v);
+    SYSTEM_INFO si {};
+    GetNativeSystemInfo(&si);
+    const char* arch = si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ? "amd64"
+                     : si.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64 ? "arm64" : "x86";
+    s << "os.name: Windows\nos.version: " << v.dwMajorVersion << "." << v.dwMinorVersion << "." << v.dwBuildNumber
+      << "\nos.arch: " << arch << "\n";
+    MEMORYSTATUSEX m {};
+    m.dwLength = sizeof m;
+    if (GlobalMemoryStatusEx(&m)) {
+        totalMb = double(m.ullTotalPhys) / 1048576.0;
+        freeMb = double(m.ullAvailPhys) / 1048576.0;
+    }
+#else
     utsname u {};
     if (::uname(&u) == 0) s << "os.name: " << u.sysname << "\nos.version: " << u.release << "\nos.arch: " << u.machine << "\n";
     struct sysinfo i {};
     if (::sysinfo(&i) == 0) {
+        totalMb = double(i.totalram) * i.mem_unit / 1048576.0;
+        freeMb = double(i.freeram) * i.mem_unit / 1048576.0;
+    }
+#endif
+    if (totalMb >= 0) {
         char mem[80];
-        std::snprintf(mem, sizeof mem, "Memory Total: %.2f\nMemory Free: %.2f\n", double(i.totalram) * i.mem_unit / 1048576.0,
-                      double(i.freeram) * i.mem_unit / 1048576.0);
+        std::snprintf(mem, sizeof mem, "Memory Total: %.2f\nMemory Free: %.2f\n", totalMb, freeMb);
         s << mem;
     }
     s << "jplacer Version: " << version;
@@ -121,8 +153,7 @@ void JPlacerDiagnosticsDialog::send() {
     const std::string text = compose(m_description->text(), m_system->isChecked() ? systemInfo(m_sources.version) : std::string(), files);
     // Named by when it was made.
     const std::time_t now = std::time(nullptr);
-    std::tm tm {};
-    localtime_r(&now, &tm);
+    const std::tm tm = JPWhen::local(now);
     char name[64];
     std::strftime(name, sizeof name, "jplacer-diagnostics-%Y%m%d-%H%M%S.txt", &tm);
     const fs::path dir = fs::path(JPlacerPaths::configDir()) / "diagnostics";

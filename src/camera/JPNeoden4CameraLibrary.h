@@ -17,7 +17,11 @@ inline namespace jf {
 // and gain last set are the device's (OpenPnP's Neoden4Camera keeps them so).
 class JPNeoden4CameraLibrary {
 public:
+#if defined(_WIN32)
+    static constexpr const char* kFile = "NeodenCamera.dll";   // NeoDen's own, as OpenPnP loads it on Windows
+#else
     static constexpr const char* kFile = "libneodencam.so";
+#endif
     static constexpr int kDownCamera = 1, kUpCamera = 5;
     static constexpr int kInitialSize = 1024;
 

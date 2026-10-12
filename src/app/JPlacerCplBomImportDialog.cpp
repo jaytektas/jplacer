@@ -3,6 +3,8 @@
 
 #include "JPlacerCplBomImportDialog.h"
 
+#include "common/JPWhen.h"
+
 #include "JPlacerSettings.h"
 #include "common/JPlacerLog.h"
 #include "import/JPKicadBoardFile.h"
@@ -49,8 +51,7 @@ std::string listed(const std::vector<std::string>& names) {
 
 std::string now() {
     const std::time_t t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    std::tm tmv{};
-    localtime_r(&t, &tmv);
+    const std::tm tmv = JPWhen::local(t);
     char buf[32];
     std::strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%S", &tmv);
     return buf;

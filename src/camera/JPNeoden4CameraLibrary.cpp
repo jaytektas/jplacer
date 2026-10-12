@@ -10,7 +10,11 @@
 #include <chrono>
 #include <thread>
 
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 inline namespace jf {
 
@@ -23,6 +27,25 @@ void pause(int ms) {
 // OpenPnP's pauses around the library's calls.
 constexpr int kCallPauseMs = 10, kResetPauseMs = 100;
 
+// The library loaded, a function of it found, it let go: the system's way.
+#if defined(_WIN32)
+void* openLibrary(const char* file, std::string& why) {
+    if (const HMODULE h = LoadLibraryA(file)) return reinterpret_cast<void*>(h);
+    why = "Windows error " + std::to_string(GetLastError());
+    return nullptr;
+}
+void* symbol(void* h, const char* name) { return reinterpret_cast<void*>(GetProcAddress(reinterpret_cast<HMODULE>(h), name)); }
+void closeLibrary(void* h) { FreeLibrary(reinterpret_cast<HMODULE>(h)); }
+#else
+void* openLibrary(const char* file, std::string& why) {
+    if (void* h = ::dlopen(file, RTLD_NOW | RTLD_LOCAL)) return h;
+    why = ::dlerror();
+    return nullptr;
+}
+void* symbol(void* h, const char* name) { return ::dlsym(h, name); }
+void closeLibrary(void* h) { ::dlclose(h); }
+#endif
+
 } // namespace
 
 JPNeoden4CameraLibrary* JPNeoden4CameraLibrary::instance(std::string& error) {
@@ -34,12 +57,13 @@ JPNeoden4CameraLibrary* JPNeoden4CameraLibrary::instance(std::string& error) {
 }
 
 bool JPNeoden4CameraLibrary::load(std::string& error) {
-    void* h = ::dlopen(kFile, RTLD_NOW | RTLD_LOCAL);
+    std::string why;
+    void* h = openLibrary(kFile, why);
     if (!h) {
-        error = std::string("the NeoDen camera library (") + kFile + ") could not be loaded: " + ::dlerror();
+        error = std::string("the NeoDen camera library (") + kFile + ") could not be loaded: " + why;
         return false;
     }
-    auto fn = [&](const char* name) { return ::dlsym(h, name); };
+    auto fn = [&](const char* name) { return symbol(h, name); };
     m_init = reinterpret_cast<Init>(fn("img_init"));
     m_readAsy = reinterpret_cast<ReadAsy>(fn("img_readAsy"));
     m_reset = reinterpret_cast<Reset>(fn("img_reset"));
@@ -49,7 +73,7 @@ bool JPNeoden4CameraLibrary::load(std::string& error) {
     m_setSize = reinterpret_cast<SetPair>(fn("img_set_wh"));
     if (!m_init || !m_readAsy || !m_reset || !m_setExposure || !m_setGain || !m_setLeftTop || !m_setSize) {
         error = std::string(kFile) + " is not the NeoDen camera library (a function is missing)";
-        ::dlclose(h);
+        closeLibrary(h);
         return false;
     }
     m_handle = h;

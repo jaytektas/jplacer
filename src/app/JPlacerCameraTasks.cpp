@@ -850,9 +850,9 @@ void JPlacerCameraTasks::settleTest(JPCameraPanel& camera, const JPMountConfig* 
             };
             const double x = coordinate(mount.axisX, mount.offsetX), y = coordinate(mount.axisY, mount.offsetY),
                          z = coordinate(mount.axisZ, mount.offsetZ);
-            const double far = std::sqrt(std::pow(x - cameraMount.offsetX, 2) + std::pow(y - cameraMount.offsetY, 2)
+            const double away = std::sqrt(std::pow(x - cameraMount.offsetX, 2) + std::pow(y - cameraMount.offsetY, 2)
                                          + std::pow(z - cameraMount.offsetZ, 2));
-            if (far > kUpNearMm) {
+            if (away > kUpNearMm) {
                 progress("bringing the nozzle over the camera");
                 if (!m_cell.moveToolAndWait(mount, { cameraMount.offsetX, cameraMount.offsetY, cameraMount.offsetZ, std::nullopt },
                                             kTaskSpeed, words))
