@@ -128,6 +128,36 @@ int main() {
         assert(config.partNamed("10K 0603 1%") == config.part("guid-1") && !config.partNamed("guid-5"));
         config.removePart("guid-1");
     }
+    // Named as the file names it, but the file's other evidence another part's (EasyEDA's CPL names an 0402 100nF
+    // as it names the library's 0603): offered, not taken unasked; with nothing against it, taken.
+    {
+        auto k = std::make_shared<JPPackage>();
+        k->id = "pkg-c0603-named";
+        k->label = "C0603-named";
+        config.addPackage(k);
+        auto big = std::make_shared<JPPart>();
+        big->id = "guid-100n";
+        big->label = "100nF";
+        big->packageId = k->id;
+        big->identifiers.push_back({ "supplierPn", "LCSC", "C14663" });
+        config.addPart(big);
+        JPBoardPart small;
+        small.fields = { { "name", "100nF" }, { "footprint", "C0402" }, { "supplierPn", "C131394" } };
+        const auto offered = JPPartMatcher::candidates(config, small);
+        assert(!offered.empty() && offered.front().part == big.get() && offered.front().score < JPPartMatcher::kAutomatic);
+        assert(offered.front().why.find("C131394") != std::string::npos && !JPPartMatcher::automatic(config, small));
+        auto k0402 = std::make_shared<JPPackage>();
+        k0402->id = "pkg-c0402-named";
+        k0402->label = "C0402-named";
+        config.addPackage(k0402);
+        JPBoardPart other;   // its footprint another of the library's packages
+        other.fields = { { "name", "100nF" }, { "footprint", "C0402-named" } };
+        assert(!JPPartMatcher::automatic(config, other) && JPPartMatcher::candidates(config, other).front().why.find("footprint") != std::string::npos);
+        JPBoardPart plain;   // nothing against it
+        plain.fields = { { "name", "100nF" } };
+        assert(JPPartMatcher::automatic(config, plain) == big.get());
+        config.removePart("guid-100n");
+    }
     std::filesystem::remove_all(dir);
     return 0;
 }

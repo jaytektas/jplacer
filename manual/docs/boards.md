@@ -184,10 +184,15 @@ the library has is left as it is.
   parts are of that has no pads is given its footprint from LCSC, by the LCSC part number of its part (see
   [Footprints from LCSC](packages.md#footprints-from-lcsc)).
 
-A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
-grouped by the Name the files give them, else by manufacturer and MPN, else by value and footprint. A part
-is named as the files name it (a column read as **Part ▸ Name**); else its name is made up of its MPN,
-footprint and value, those the files give, joined by "-" (`CL10B104KB8NNNC-C0603-100n`). Each keeps
+A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Rows are one
+part by the surest they say of it: its manufacturer and MPN, else its supplier's part number, else its
+Name, value and footprint together; never by a Name alone (EasyEDA's pick-and-place file names a part by
+its value, so an 0402 and an 0603 100nF are both "100nF"). A part is named as the files name it (a column
+read as **Part ▸ Name**); where another part already has that name (another of the import's, or a library
+part it is not), its footprint is added (`100nF-C0402`). Else its name is made up of its MPN, footprint
+and value, those the files give, joined by "-" (`CL10B104KB8NNNC-C0603-100n`). A library part found only
+by its name is taken only when nothing else the files say is another part's (its MPN, its supplier's part
+number, its footprint naming another package); otherwise it is offered, for you to choose. Each keeps
 every field the files gave it (a supplier part number column that names its supplier, "LCSC Part #", gives
 the supplier). A placement's fields of yours are its own row's; a part's and its package's are its first
 placement's row's, and a part made for the library (and a package made with it) has them. A library part,

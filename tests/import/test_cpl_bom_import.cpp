@@ -385,6 +385,38 @@ int main() {
         assert(b.part(b.find("C3")->boardPart)->field("part") == "Small Cap" && r.made == 1);
         assert(std::any_of(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "Small Cap"; }));
     }
+    // Two parts the files name alike (EasyEDA's CPL names a part by its value): an 0402 and an 0603 100nF, each its
+    // own LCSC number. Two board parts, not one; the 0603 the library's (by its LCSC number), the 0402 not taken
+    // by the name the library's 0603 has, but made, told apart by its footprint.
+    {
+        auto pkg = std::make_shared<JPPackage>();
+        pkg->id = "pkg-c0603";
+        pkg->label = "C0603";
+        config.addPackage(pkg);
+        auto c0603 = std::make_shared<JPPart>();
+        c0603->id = "aaaaaaaa-2222-3333-4444-555555555555";
+        c0603->label = "100nF";
+        c0603->packageId = pkg->id;
+        c0603->identifiers.push_back({ "supplierPn", "LCSC", "C14663" });
+        config.addPart(c0603);
+        JPCplBomImport im;
+        im.sources.push_back(source("Designator,Mid X,Mid Y,Layer,Rotation\nC4,1,1,Top,0\nC5,2,1,Top,0\nC1,3,1,Top,0\n",
+                                    JPImportSource::Role::Cpl, "alike.csv"));
+        im.sources.push_back(source("Designator,Footprint,Part Name,Supplier Part\nC4,C0402,100nF,C131394\nC5,C0402,100nF,C131394\n"
+                                    "C1,C0603,100nF,C14663\n",
+                                    JPImportSource::Role::Bom, "alike-bom.csv"));
+        im.createMissing = true;
+        JPBoard b;
+        JPCplBomImport::Report r;
+        assert(im.build(config, "t", b, r, error));
+        const JPBoardPart* small = b.part(b.find("C4")->boardPart);
+        const JPBoardPart* big = b.part(b.find("C1")->boardPart);
+        assert(small && big && small != big && b.find("C5")->boardPart == b.find("C4")->boardPart);
+        assert(big->libraryPartId == c0603->id);
+        assert(small->state == JPBoardPart::State::Unmatched || small->libraryPartId != c0603->id);
+        assert(small->field("part") == "100nF-C0402");
+        assert(std::any_of(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "100nF-C0402"; }));
+    }
     std::filesystem::remove_all(dir);
     return 0;
 }

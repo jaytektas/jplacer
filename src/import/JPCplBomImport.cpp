@@ -331,9 +331,13 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             ++report.placements;
             continue;
         }
-        const std::string group = !named.empty() ? "name:" + upper(named)
-                                : !mpn.empty() ? "mpn:" + upper(fields.count("manufacturer") ? fields["manufacturer"] : "") + "|" + upper(mpn)
-                                               : "vf:" + val + "|" + footprint;
+        // One board part for the rows that are one part, by the surest they say: its maker and MPN, else its
+        // supplier's part number, else its Name, value and footprint together (a Name alone is not enough:
+        // EasyEDA's CPL names a part by its value, "100nF" an 0402 and an 0603 alike).
+        const std::string supplierPn = fields.count("supplierPn") ? fields["supplierPn"] : "";
+        const std::string group = !mpn.empty() ? "mpn:" + upper(fields.count("manufacturer") ? fields["manufacturer"] : "") + "|" + upper(mpn)
+                                : !supplierPn.empty() ? "spn:" + upper(supplierPn)
+                                                      : "nvf:" + upper(named) + "|" + val + "|" + footprint;
         std::string& key = keyOfGroup[group];
         // Another placement of a part already made: what its rows say of the part's fields added, against the first's.
         if (!key.empty())
@@ -353,11 +357,24 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             JPBoardPart bp;
             bp.key = key = out.newPartKey();
             bp.fields = fields;
-            // Its Name: the file's, else made up of its MPN, footprint and value.
-            bp.fields["part"] = !named.empty() ? named : JPLibraryLearning::madeName(mpn, footprint, val);
             // The library's part, where the evidence is strong (its MPN, a supplier's part number, a name it learned,
             // OpenPnP's footprint-value): JPPartMatcher. The rest are left to be chosen, with their candidates.
             const JPPart* found = JPPartMatcher::automatic(config, bp);
+            // Its Name: the file's, else made up of its MPN, footprint and value. One another part has already
+            // (two parts the file names alike: another of this import's, or, not this one, a library part) told
+            // apart by its footprint, else made up.
+            std::string name = !named.empty() ? named : JPLibraryLearning::madeName(mpn, footprint, val);
+            auto taken = [&](const std::string& n) {
+                if (std::any_of(out.parts().begin(), out.parts().end(), [&](const JPBoardPart& o) { return upper(o.field("part")) == upper(n); }))
+                    return true;
+                const JPPart* library = config.partNamed(n);
+                return library && library != found;
+            };
+            if (!named.empty() && taken(name)) {
+                name = footprint.empty() ? JPLibraryLearning::madeName(mpn, footprint, val) : named + "-" + footprint;
+                if (taken(name)) name = JPLibraryLearning::madeName(mpn, footprint, val);
+            }
+            bp.fields["part"] = name;
             if (found) {
                 bp.state = JPBoardPart::State::Matched;
                 bp.libraryPartId = found->id;

@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+- Importing a CPL and BOM no longer makes one part of different parts that share a name. EasyEDA's
+  pick-and-place file names parts by their value, so every 100nF (0402 and 0603 alike) became one part,
+  and the same for other values on more than one BOM line. Rows are now one part by their MPN, else their
+  supplier's part number, else name, value and footprint together; parts sharing a name are told apart by
+  footprint (100nF-C0402), and a library part is no longer taken by its name when the file's MPN, LCSC
+  number or footprint says it is another. A board imported with 0.1.61 to 0.1.67 from such files should be
+  imported again.
+
 ## 0.1.67
 
 - A fiducial that is not found names its part (not its id), and says how near the roundest spot came to being

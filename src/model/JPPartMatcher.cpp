@@ -151,8 +151,22 @@ std::vector<JPPartMatcher::Candidate> JPPartMatcher::candidates(const JPConfigur
             c.why = (byId->kind == "mpn" ? "its MPN " : "its supplier's part number ") + byId->code
                   + (byId->org.empty() ? std::string() : " (" + config.manufacturerName(byId->org) + ")");
         } else if (!named.empty() && calledSo(named)) {
-            c.score = kNamed;
-            c.why = "named " + named + " (as the file names it)";
+            // The name, unless what else the file says is another part's: an MPN or supplier's part number it has
+            // others of, another package. Then a candidate to look at, not taken unasked (EasyEDA's CPL names an
+            // 0402 and an 0603 100nF alike).
+            auto otherCode = [&](const char* kind, const std::string& code) {
+                if (code.empty()) return false;
+                bool has = false;
+                for (const auto& i : p->identifiers)
+                    if (i.kind == kind) has = true;
+                return has;   // none of them the file's (that would have been byId)
+            };
+            std::string differs;
+            if (otherCode("mpn", mpn)) differs = "MPN " + mpn;
+            else if (otherCode("supplierPn", supplierPn)) differs = "supplier's part number " + supplierPn;
+            else if (package && !p->packageId.empty() && !samePackage) differs = "footprint " + footprint;
+            c.score = differs.empty() ? kNamed : kValueName;
+            c.why = "named " + named + " (as the file names it)" + (differs.empty() ? std::string() : ", but the file's " + differs + " is not its");
         } else if (learned) {
             c.score = kLearnedBoth;
             c.why = "learned: value " + value + " and footprint " + footprint
