@@ -30,6 +30,8 @@
 
 inline namespace jf {
 
+class JPSearchField;
+
 // The Feeders tab, as OpenPnP's FeedersPanel: a toolbar (New Feeder…,
 // Delete Feeder…, Pick, Feed, Move Camera and Move Tool to the pick
 // location), a search box, the feeders table (JPFeedersTableModel) with its
@@ -176,7 +178,7 @@ private:
     JPConfiguration&                    m_config;
     JPFeedersTableModel                 m_model;
     JPTable*                            m_table = nullptr;
-    JLineEdit*                          m_search = nullptr;
+    JPSearchField*                          m_search = nullptr;
     JSplitter*                          m_split = nullptr;
     std::unique_ptr<JContainer>         m_tablePane, m_formPane;
     JPSetupForm*                        m_form = nullptr;

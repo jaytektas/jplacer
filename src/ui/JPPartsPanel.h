@@ -24,6 +24,8 @@
 
 inline namespace jf {
 
+class JPSearchField;
+
 // The Parts tab, as OpenPnP's PartsPanel: a toolbar (New Part…, Delete
 // Part, Pick Part, Copy Part to Clipboard, Create Part from Clipboard), a
 // search box, the parts table, and under it the chosen part's tabs
@@ -103,7 +105,7 @@ private:
     JPPartsTableModel                  m_model;
     JPTable*                           m_table = nullptr;
     JComboBox*                         m_show = nullptr;
-    JLineEdit*                         m_search = nullptr;
+    JPSearchField*                         m_search = nullptr;
     JSplitter*                         m_split = nullptr;
     std::unique_ptr<JContainer>        m_tablePane, m_tabsPane;
     JPSetupForm*                       m_form = nullptr;   // the part's tabs

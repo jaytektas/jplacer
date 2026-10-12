@@ -32,8 +32,8 @@ jplacer works out where each of these kinds picks, and feeds it. A kind it does 
 another build of OpenPnP added, read from its machine.xml) is kept and shown, but **Pick...** and **Feed...**
 say feeding it is not available.
 
-**Search**, at the right, shows only the feeders with the text typed anywhere in a row, whatever its case
-(a regular expression, as on the other tabs); its **✕** empties it.
+**Search**, at the right, shows only the feeders with the text typed in a row, as every table's search
+does (see [Search](tables.md#search)).
 
 <!-- src: src/ui/JPFeedersPanel.cpp (newFeeder, deleteFeeders, feed, pickFrom, moveToPick, followPickRotation, selectionChanged); src/app/JPlacerClassSelectionDialog.cpp; src/model/JPFeeder.cpp (create, classNames, pickLocation, feed, fromXml); src/app/JPlacerMachine.cpp (pickAt, moveToolTo); src/machine/JPCell.cpp (pickAt) -->
 

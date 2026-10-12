@@ -55,6 +55,9 @@ notes.
 - A KiCad board read for an import gives its footprints' own properties (LCSC, MPN, Datasheet…) as columns
   to fill fields with, and its title block for the board's and the job's fields.
 - **Keep as extra** is gone from the import: a column no field matches is ignored, or made a field of its own.
+- Every table's **Search** can look in one field: `lcsc: C15`, or `lcsc:` for the rows with anything in it,
+  the field's name completing as you type it (Tab takes it). What matched is marked in each cell, the count
+  of rows found shows beside the box, and a row found only in a hidden column is marked and says which.
 - A library made by 0.1.55 opens as it is, and keeps the fields you add.
 
 ## 0.1.54

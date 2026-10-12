@@ -4,12 +4,15 @@
 #include "JPUiParts.h"
 
 #include "JPIconButton.h"
+#include "JPSearchField.h"
 #include "JPTable.h"
 
 #include "model/JPSystemUnits.h"
 
 #include <j/core/JSeparator.h>
 #include <j/core/JStyle.h>
+
+#include <j/core/JTextHelper.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -50,6 +53,23 @@ std::string JPUiParts::angle(double degrees) {
     char buf[32];
     std::snprintf(buf, sizeof buf, "%.3f", degrees);
     return buf;
+}
+
+JPSearchField* JPUiParts::search(JSceneGraph& graph, JContainer& bar, int columns) {
+    const JStyle& st = JStyle::current();
+    JLabel* label = bar.add(std::make_unique<JLabel>(graph, "Search"));
+    label->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
+    JPSearchField* field = bar.add(std::make_unique<JPSearchField>(graph));
+    field->setClearButtonEnabled(true);   // the ✕ takes the filter off
+    field->setFixedSize(JTextHelper::measureWidth("M") * float(columns), st.controlHeight);
+    field->setTooltip("Rows with this anywhere in them (a regular expression, upper and lower case alike); a field's name "
+                      "and a colon first (lcsc: C15) looks in that field alone, the name alone (lcsc:) for anything in it. "
+                      "Tab takes the field name shown greyed");
+    JLabel* count = bar.add(std::make_unique<JLabel>(graph, ""));
+    count->setFixedSize(JTextHelper::measureWidth("00000 of 00000") + st.spacing, st.controlHeight);
+    count->setTooltip("How many rows the search leaves, of how many");
+    field->setCountLabel(count);
+    return field;
 }
 
 JPIconButton* JPUiParts::columnsButton(JSceneGraph& graph, JContainer& bar, std::function<JPTable*()> table,

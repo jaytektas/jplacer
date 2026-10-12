@@ -22,6 +22,8 @@
 
 inline namespace jf {
 
+class JPSearchField;
+
 // The Job tab's Placements, as OpenPnP's JobPlacementsPanel: the chosen
 // board's (or panel's) placements on its side facing up, with Placed and
 // Status; New and Remove Placement(s) (a board used once, straight in the
@@ -85,7 +87,7 @@ private:
     bool                                m_topLevel = false, m_singleInstance = false;
     std::string                         m_footprintShown;   // what showFootprint was last told of ("": none)
     JPTable*                            m_table = nullptr;
-    JLineEdit*                          m_search = nullptr;
+    JPSearchField*                          m_search = nullptr;
     JPIconButton*                       m_new = nullptr;
     JPIconButton*                       m_remove = nullptr;
     JPIconButton*                       m_cameraTo = nullptr;

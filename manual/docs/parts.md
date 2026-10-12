@@ -36,9 +36,8 @@ jplacer says so, and starts only once it is removed (delete `library.db`, and `p
 
 Delete Part works on one part or several; Pick Part and Copy Part on one.
 
-**Search**, at the right, shows only the parts with the text typed anywhere in a row, whatever its case.
-The text is a regular expression: `^C0402` finds parts whose ID starts with C0402. The **✕** at its right
-end, there while it holds text, empties it and shows every part again.
+**Search**, at the right, shows only the parts with the text typed in a row, as every table's search does
+(see [Search](tables.md#search)).
 
 <!-- src: src/ui/JPPartsPanel.cpp (newPart, deleteParts, copyPart, pastePart, updateWizards); src/app/JPlacerOpenPnpTabs.cpp (onPickPart); src/model/JPConfiguration.cpp (findFeeder); src/ui/JPTable.cpp (setFilter) -->
 

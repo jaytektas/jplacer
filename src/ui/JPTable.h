@@ -13,6 +13,7 @@
 #include <j/core/MenuSystem.h>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <regex>
@@ -32,7 +33,11 @@ inline namespace jf {
 //    compare as numbers, ticks false before true, text as a collator does
 //    (letters before case).
 //  - SEARCH: setFilter takes a regular expression, matched without regard to
-//    case anywhere in any column, as OpenPnP's search boxes do.
+//    case anywhere in any column, as OpenPnP's search boxes do; "name: text"
+//    (a column's heading before a colon) in that column alone, "name:" alone
+//    the rows with anything in it. What matched is marked in each cell; a row
+//    found only in a column not shown is marked at its start, and its tooltip
+//    says which.
 //  - SELECTION: click, Shift+click a range, Ctrl+click one more; the arrows,
 //    Home, End, Page Up and Down move it (Shift extends); Ctrl+A all.
 //  - EDITING: a text cell is edited on a double-click, F2 or by typing (all
@@ -107,6 +112,13 @@ public:
 
     void setFilter(const std::string& regex);   // empty: every row
     const std::string& filter() const { return m_filterText; }
+    // Whether a search is on; the rows it leaves (viewRowCount) out of those there would be without it.
+    bool searching() const { return m_filter.has_value() || !m_filterKey.empty(); }
+    int  unsearchedRowCount() const;
+    // Every column's heading (the hidden ones' too, an icon's by what it is), as a search names them.
+    std::vector<std::string> columnNames() const;
+    // The rows shown changed (sorted, searched, made again).
+    jf::JSignal<> onViewChanged;
 
     // Model rows chosen, in the order shown.
     std::vector<int> selectedRows() const;
@@ -240,6 +252,9 @@ private:
     std::vector<SortKey>           m_sortKeys;        // first is the primary
     std::string                    m_filterText;
     std::optional<std::regex>      m_filter;
+    std::string                    m_filterKey;       // the one column searched (its key); empty: every column
+    // Rows found only in a column not shown: that column's heading.
+    mutable std::map<int, std::string> m_hiddenHits;
     std::set<int>                  m_selected;        // model rows
     int                            m_lead = -1;       // model row
     int                            m_leadColumn = 0;

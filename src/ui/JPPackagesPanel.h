@@ -27,6 +27,8 @@
 
 inline namespace jf {
 
+class JPSearchField;
+
 // The Packages tab, as OpenPnP's PackagesPanel: a toolbar (New Package…,
 // Delete Package, Copy Package to Clipboard, Create Package from
 // Clipboard), a search box, the packages table, and under it the chosen
@@ -111,7 +113,7 @@ private:
     JPTable*                                  m_table = nullptr;
     JPTable*                                  m_pads = nullptr;
     JComboBox*                                m_show = nullptr;
-    JLineEdit*                                m_search = nullptr;
+    JPSearchField*                                m_search = nullptr;
     JSplitter*                                m_split = nullptr;
     std::unique_ptr<JContainer>               m_tablePane, m_tabsPane;
     JTabWidget*                               m_tabs = nullptr;

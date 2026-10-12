@@ -13,6 +13,23 @@ chosen rows, a tab between cells (in the columns' order as shown).
 
 <!-- src: src/ui/JPTable.cpp (clickHeader, selectView, handleKeyEvent, copySelection) -->
 
+## Search
+
+**Search**, at the right of a toolbar, shows only the rows with the text typed anywhere in them, in any
+column, a hidden one's too, whatever its case. The text is a regular expression: `^C0402` finds rows with
+something starting C0402. Beside it, while it searches, how many rows it leaves of how many (*12 of 340*),
+and in each cell what it matched is marked. A row found only in a column the table does not show has a mark
+at its start, and pointing at it says which column it was found in. The **✕** at its right end empties it.
+
+<!-- src: src/ui/JPUiParts.cpp (search); src/ui/JPSearchField.cpp (attach, updateCount); src/ui/JPTable.cpp (setFilter, rowPasses, unsearchedRowCount, populateRenderPrimitives: markMatch, the hidden mark; handleMouseMove) -->
+
+A column's heading and a colon first searches that column alone: `lcsc: C15` finds the rows whose LCSC
+starts with or holds C15, and `lcsc:` alone the rows with anything in it. As you type the start of a
+column's heading, the rest of it shows greyed after what you typed; **Tab** (or **→** at the end) takes it,
+with the colon. A colon after something that is no column's heading (`http://`) is part of the search.
+
+<!-- src: src/ui/JPSearchField.cpp (completion, handleKeyEvent, populateRenderPrimitives); src/ui/JPTable.cpp (setFilter, columnNames) -->
+
 ## Moving and widening columns
 
 Drag a heading's edge to widen a column; the columns after it give way. Drag a heading sideways to move its

@@ -23,6 +23,8 @@
 
 inline namespace jf {
 
+class JPSearchField;
+
 // The Boards tab's Placements group, as OpenPnP's BoardPlacementsPanel: a
 // toolbar (New Placement, Remove Placement(s), Import Placements, View
 // Board: the board viewer), a search box, and the chosen board's placements (all but Placed
@@ -96,7 +98,7 @@ private:
     JPBoard*                                      m_board = nullptr;
     std::vector<std::unique_ptr<JPBoardImporter>> m_importers;
     JPTable*                                      m_table = nullptr;
-    JLineEdit*                                    m_search = nullptr;
+    JPSearchField*                                    m_search = nullptr;
     JPIconButton*                                 m_new = nullptr;
     JPIconButton*                                 m_remove = nullptr;
     JPIconButton*                                 m_import = nullptr;

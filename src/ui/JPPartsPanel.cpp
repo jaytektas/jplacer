@@ -12,6 +12,7 @@
 #include "JPFieldGrid.h"
 #include "setup/JPFormBuilder.h"
 #include "setup/JPVisionForms.h"
+#include "JPSearchField.h"
 #include "JPUiParts.h"
 
 #include "openpnp/JPXmlReader.h"
@@ -86,12 +87,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
         m_model.setShow(m_show->currentText());
         m_table->refresh();
     });
-    JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
-    searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
-    m_search = bar->add(std::make_unique<JLineEdit>(graph, ""));
-    m_search->setClearButtonEnabled(true);   // the ✕ takes the filter off
-    m_search->setFixedSize(JTextHelper::measureWidth("M") * kSearchColumns, st.controlHeight);
-    m_search->onTextChanged.connect([this](const std::string& t) { m_table->setFilter(t); });
+    m_search = JPUiParts::search(graph, *bar, kSearchColumns);
     add(std::move(bar));
 
     // The table over the chosen part's tabs, a divider between to drag.
@@ -102,6 +98,7 @@ JPPartsPanel::JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double s
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("parts");
     m_table->setModel(&m_model);
+    m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {
         updateWizards();

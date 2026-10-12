@@ -10,6 +10,7 @@
 
 #include "JPFieldGrid.h"
 #include "JPGroupFrame.h"
+#include "JPSearchField.h"
 #include "JPUiParts.h"
 
 #include "model/JPKicadModImporter.h"
@@ -113,12 +114,7 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
         m_model.setShow(m_show->currentText());
         m_table->refresh();
     });
-    JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
-    searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
-    m_search = bar->add(std::make_unique<JLineEdit>(graph, ""));
-    m_search->setClearButtonEnabled(true);   // the ✕ takes the filter off
-    m_search->setFixedSize(JTextHelper::measureWidth("M") * kSearchColumns, st.controlHeight);
-    m_search->onTextChanged.connect([this](const std::string& t) { m_table->setFilter(t); });
+    m_search = JPUiParts::search(graph, *bar, kSearchColumns);
     add(std::move(bar));
 
     m_tablePane = std::make_unique<JContainer>(graph, 0.f, 0.f);
@@ -128,6 +124,7 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("packages");
     m_table->setModel(&m_model);
+    m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] { updateWizards(); });
     m_tabs = m_tabsPane->add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));

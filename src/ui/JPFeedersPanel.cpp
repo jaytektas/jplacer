@@ -4,6 +4,7 @@
 #include "JPFeedersPanel.h"
 
 #include "JPChooserTable.h"
+#include "JPSearchField.h"
 #include "JPUiParts.h"
 
 #include "camera/JPImageFile.h"
@@ -81,12 +82,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_moveTool->onClicked.connect([this] { moveToPick(Tool::Nozzle); });
     JPUiParts::columnsButton(graph, *bar, [this] { return m_table; }, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    JLabel* searchLabel = bar->add(std::make_unique<JLabel>(graph, "Search"));
-    searchLabel->setFixedSize(JTextHelper::measureWidth("Search") + st.spacing, st.controlHeight);
-    m_search = bar->add(std::make_unique<JLineEdit>(graph, ""));
-    m_search->setClearButtonEnabled(true);   // the ✕ takes the filter off
-    m_search->setFixedSize(JTextHelper::measureWidth("M") * kSearchColumns, st.controlHeight);
-    m_search->onTextChanged.connect([this](const std::string& t) { m_table->setFilter(t); });
+    m_search = JPUiParts::search(graph, *bar, kSearchColumns);
     add(std::move(bar));
 
     // The table over the chosen feeder's setup, a divider between to drag.
@@ -97,6 +93,7 @@ JPFeedersPanel::JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, doub
     m_table = m_tablePane->add(std::make_unique<JPTable>(graph));
     m_table->setStateKey("feeders");
     m_table->setModel(&m_model);
+    m_search->attach(*m_table);
     m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_table->onSelectionChanged.connect([this] {
         selectionChanged();

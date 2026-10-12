@@ -394,10 +394,44 @@ void JPTable::refresh() {
 
 bool JPTable::rowPasses(int row) const {
     if (!m_model->rowShown(row)) return false;
-    if (!m_filter) return true;
-    for (int c = 0; c < m_model->columnCount(); ++c)
+    if (!searching()) return true;
+    if (!m_filterKey.empty()) {
+        // One column: what is in it matched (nothing asked: anything in it).
+        for (int c = 0; c < m_model->columnCount(); ++c)
+            if (JPTableModel::keyOf(m_model->column(c)) == m_filterKey) {
+                const std::string t = m_model->column(c).kind == JPTableModel::Kind::Boolean ? (m_model->checked(row, c) ? "yes" : "")
+                                                                                              : m_model->text(row, c);
+                return m_filter ? std::regex_search(t, *m_filter) : !t.empty();
+            }
+        return false;
+    }
+    // Any column: one shown first; one hidden noted, for the row's mark and tooltip.
+    const std::vector<int>& shown = order();
+    for (const int c : shown)
         if (std::regex_search(m_model->text(row, c), *m_filter)) return true;
+    for (int c = 0; c < m_model->columnCount(); ++c)
+        if (std::find(shown.begin(), shown.end(), c) == shown.end() && std::regex_search(m_model->text(row, c), *m_filter)) {
+            const JPTableModel::Column col = m_model->column(c);
+            m_hiddenHits[row] = col.name.empty() ? col.tooltip.substr(0, col.tooltip.find(':')) : col.name;
+            return true;
+        }
     return false;
+}
+
+int JPTable::unsearchedRowCount() const {
+    int n = 0;
+    for (int r = 0; m_model && r < m_model->rowCount(); ++r) n += m_model->rowShown(r);
+    return n;
+}
+
+std::vector<std::string> JPTable::columnNames() const {
+    std::vector<std::string> out;
+    for (int c = 0; m_model && c < m_model->columnCount(); ++c) {
+        const JPTableModel::Column col = m_model->column(c);
+        const std::string name = col.name.empty() ? col.tooltip.substr(0, col.tooltip.find(':')) : col.name;
+        if (!name.empty()) out.push_back(name);
+    }
+    return out;
 }
 
 int JPTable::compareRows(int a, int b, int c) const {
@@ -417,6 +451,7 @@ int JPTable::compareRows(int a, int b, int c) const {
 
 void JPTable::rebuildView() {
     m_view.clear();
+    m_hiddenHits.clear();
     if (m_model)
         for (int r = 0; r < m_model->rowCount(); ++r)
             if (rowPasses(r)) m_view.push_back(r);
@@ -434,23 +469,40 @@ void JPTable::rebuildView() {
     if (m_lead >= 0 && viewIndexOf(m_lead) < 0) m_lead = -1;
     clampScroll();
     m_graph.invalidateNode(m_nodeId, DirtySelf);
+    onViewChanged.emit();
 }
 
 void JPTable::setFilter(const std::string& text) {
-    std::string t = text;
-    while (!t.empty() && std::isspace(static_cast<unsigned char>(t.back()))) t.pop_back();
-    size_t a = 0;
-    while (a < t.size() && std::isspace(static_cast<unsigned char>(t[a]))) ++a;
-    t = t.substr(a);
-    if (t.empty()) {
-        m_filter.reset();
-    } else {
+    auto trim = [](std::string t) {
+        while (!t.empty() && std::isspace(static_cast<unsigned char>(t.back()))) t.pop_back();
+        size_t a = 0;
+        while (a < t.size() && std::isspace(static_cast<unsigned char>(t[a]))) ++a;
+        return t.substr(a);
+    };
+    std::string t = trim(text);
+    // "name: text": a column named so (without regard to case), searched alone.
+    std::string key;
+    if (const size_t colon = t.find(':'); colon != std::string::npos && m_model) {
+        std::string name = trim(t.substr(0, colon));
+        for (char& ch : name) ch = char(std::tolower(uint8_t(ch)));
+        for (int c = 0; c < m_model->columnCount() && key.empty(); ++c) {
+            const JPTableModel::Column col = m_model->column(c);
+            std::string heading = col.name.empty() ? col.tooltip.substr(0, col.tooltip.find(':')) : col.name;
+            for (char& ch : heading) ch = char(std::tolower(uint8_t(ch)));
+            if (!name.empty() && heading == name) key = JPTableModel::keyOf(col);
+        }
+        if (!key.empty()) t = trim(t.substr(colon + 1));
+    }
+    std::optional<std::regex> filter;
+    if (!t.empty()) {
         try {
-            m_filter = std::regex(t, std::regex::ECMAScript | std::regex::icase);
+            filter = std::regex(t, std::regex::ECMAScript | std::regex::icase);
         } catch (const std::regex_error&) {
             return;   // as OpenPnP: an expression not finished yet changes nothing
         }
     }
+    m_filter = std::move(filter);
+    m_filterKey = key;
     m_filterText = text;
     const size_t before = m_selected.size();
     rebuildView();
@@ -730,6 +782,18 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
     }
     buf.popClip();
 
+    // What a search matched in a cell's text as drawn at `tx`: marked behind it.
+    const bool marking = m_filter.has_value();
+    auto markMatch = [&](int c, float tx, float ty, const std::string& shown) {
+        if (!marking || shown.empty()) return;
+        if (!m_filterKey.empty() && JPTableModel::keyOf(m_model->column(c)) != m_filterKey) return;
+        std::smatch m;
+        if (!std::regex_search(shown, m, *m_filter) || m.length(0) == 0) return;
+        const float x0 = tx + JTextHelper::measureWidth(shown.substr(0, size_t(m.position(0))));
+        const float x1 = tx + JTextHelper::measureWidth(shown.substr(0, size_t(m.position(0) + m.length(0))));
+        uint8_t hit[4] = { Colors::Accent[0], Colors::Accent[1], Colors::Accent[2], 110 };
+        buf.pushRectangle(x0, ty, std::max(1.f, x1 - x0), lh, hit);
+    };
     // A cell's contents (its tick box, tint, icon and text) in `cell`.
     JVectorCanvas vg;
     auto content = [&](JVectorCanvas& canvas, int r, int c, const JRect& cell, bool chosen) {
@@ -793,7 +857,9 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             }
             // A hair of slack: the room is worked out from the same text's width.
             const float fit = cell.x + cell.width - pad - tx + 1.f;
-            JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, elided(full, fit), ink, std::max(1.f, fit));
+            const std::string shown = elided(full, fit);
+            markMatch(c, tx, y + (rh - lh) * 0.5f, shown);
+            JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, shown, ink, std::max(1.f, fit));
             return;
         }
         const std::string t = elided(full, room);
@@ -803,6 +869,7 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             align = kind == JPTableModel::Kind::Number ? JPTableModel::Align::Right : JPTableModel::Align::Left;
         if (align == JPTableModel::Align::Right) tx = std::max(tx, cell.x + cell.width - pad - tw);
         else if (align == JPTableModel::Align::Center) tx = std::max(tx, cell.x + (cell.width - tw) * 0.5f);
+        markMatch(c, tx, y + (rh - lh) * 0.5f, t);
         JTextHelper::pushText(buf, tx, y + (rh - lh) * 0.5f, t, ink, room);
     };
 
@@ -819,6 +886,8 @@ void JPTable::populateRenderPrimitives(JPrimitiveBuffer& buf) {
             uint8_t sel[4] = { Colors::Accent[0], Colors::Accent[1], Colors::Accent[2], 90 };
             buf.pushRectangle(b.x, y, innerW, rh, sel);
         }
+        // Found only in a column not shown: marked at its start.
+        if (m_hiddenHits.count(r)) buf.pushRectangle(b.x + st.borderWidth, y, st.borderWidth * 3, rh, Colors::Accent);
         for (size_t pos = 0; pos < shownOrder.size(); ++pos) {
             const int c = shownOrder[pos];
             const JRect cell = cellRect(v, c);
@@ -1127,6 +1196,9 @@ void JPTable::handleMouseMove(float mx, float my) {
     } else if (m_model) {
         const int r = rowAt(my), c = columnAt(mx);
         if (r >= 0 && c >= 0) tip = m_model->cellTooltip(r, c);
+        // Found by the search in a column not shown: which.
+        if (const auto hit = m_hiddenHits.find(r); tip.empty() && hit != m_hiddenHits.end())
+            tip = "Found in " + hit->second + ", a column not shown here (Columns… shows it)";
     }
     setTooltip(tip);
     JControl::handleMouseMove(mx, my);

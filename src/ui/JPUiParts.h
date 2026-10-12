@@ -5,6 +5,7 @@
 
 #include <j/core/JButton.h>
 #include <j/core/JContainer.h>
+#include <j/core/JLabel.h>
 
 #include <functional>
 
@@ -15,6 +16,7 @@ inline namespace jf {
 
 class JMenu;
 class JPIconButton;
+class JPSearchField;
 class JPTable;
 
 // The small pieces every panel is built from, made one way.
@@ -36,6 +38,9 @@ public:
     // table's columns menu (JPTable::columnsMenu: a tick for each column shown, Reset Columns) under it,
     // through the panel's `open` (its openMenu, read when clicked). `table` is read when clicked too, so the
     // bar may be made before its table.
+    // A table's Search at the end of a toolbar: its label, the line (JPSearchField, `columns` letters wide) and the
+    // count beside it; the table attached to it once made (JPSearchField::attach).
+    static JPSearchField* search(JSceneGraph& graph, JContainer& bar, int columns);
     static JPIconButton* columnsButton(JSceneGraph& graph, JContainer& bar, std::function<JPTable*()> table,
                                        const std::function<void(JMenu*, float x, float y)>* open);
 };
