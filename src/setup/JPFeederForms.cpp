@@ -95,7 +95,9 @@ JPFormBuilder::Named partNames(const JPConfiguration& config, bool none) {
 // The feeder's Part, chosen from the library's parts (the Parts tab's table dropped), loaded with its
 // packaging's values (JPFeederPackaging::load); `none`: "" (no part) among them. On the row begun, when one is.
 void partChoice(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, bool none = false) {
-    const JPFormBuilder::Named parts = partNames(config, none);
+    JPFormBuilder::Named parts = partNames(config, none);
+    // A part the library has not (deleted since): said so, not by its id.
+    if (const std::string id = f().partId(); !id.empty() && !config.part(id)) parts.add(JPFeeder::kDeletedPart, id);
     add.byName("part", "Part", parts, [f] { return f().partId(); },
                [&config, f](const std::string& id) { JPFeederPackaging::load(config, f(), id); });
     add.searchable(JPLibrarySearch::parts(config, parts.ids), JPLibrarySearch::kPartsTable);

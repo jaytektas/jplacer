@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A feeder whose part was deleted from the library shows **(a deleted part)** on the Feeders tab and its page,
+  not a long ID; deleting parts names them, and says how many feeders hold them.
+
 ## 0.1.61
 
 - The CSV/BOM import can read a part's **Name** (a column such as "Part Name" or "LibRef" is taken as

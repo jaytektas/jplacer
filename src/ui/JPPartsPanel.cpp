@@ -667,15 +667,21 @@ void JPPartsPanel::newPart() {
 void JPPartsPanel::deleteParts() {
     const auto chosen = selections();
     if (chosen.empty()) return;
+    // Named by their Names; the feeders holding them said (their part then a deleted one).
     std::string ids;
-    for (size_t i = 0; i < chosen.size() && i < 3; ++i) ids += (i ? ", " : "") + chosen[i]->id;
+    for (size_t i = 0; i < chosen.size() && i < 3; ++i) ids += (i ? ", " : "") + chosen[i]->shownName();
     if (chosen.size() > 3) ids += ", and " + std::to_string(chosen.size() - 3) + " others";
     std::vector<std::string> doomed;
     for (const JPPart* p : chosen) doomed.push_back(p->id);
+    int held = 0;
+    for (const JPFeeder& f : m_config.feeders())
+        if (std::find(doomed.begin(), doomed.end(), f.partId()) != doomed.end()) ++held;
+    if (held) ids += "?\n" + std::to_string(held) + " feeder(s) hold them: their part will show as deleted until another is chosen";
     JDialogOptions opts;
     opts.okLabel = "Yes";
     opts.cancelLabel = "No";
-    JDialog::confirm("Delete " + std::to_string(chosen.size()) + " parts?", "Are you sure you want to delete " + ids + "?",
+    JDialog::confirm("Delete " + std::to_string(chosen.size()) + " parts?",
+                     "Are you sure you want to delete " + ids + (held ? "." : "?"),
         [this, doomed] {
             for (const std::string& id : doomed) m_config.removePart(id);
             refresh();
