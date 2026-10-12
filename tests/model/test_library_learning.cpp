@@ -68,19 +68,19 @@ int main() {
     assert(JPPartMatcher::automatic(config, otherMaker) == &part);
     assert(config.manufacturerName("semco") == "Samsung Electro-Mechanics" && config.sameManufacturer("Samsung", "SEMCO"));
 
-    // A part made from a board part: named by its footprint and value (its MPN an identifier); its package the
-    // library's by AKA.
+    // A part made from a board part: named by its MPN, footprint and value (its MPN an identifier too); its package
+    // the library's by AKA.
     JPBoardPart other;
     other.fields = { { "value", "10n" }, { "footprint", "C_0603_1608Metric" }, { "mpn", "CL10B103KB8NNNC" }, { "height", "0.8" },
                      { "description", "10n X7R" } };
     JPPart* made = JPLibraryLearning::addFrom(config, other, "Ctrl", "now");
     // Named by it, known for good by a GUID (so the name can be changed).
-    assert(made && made->label == "C_0603_1608Metric-10n" && made->id.size() == 36 && made->packageId == "C0603" && made->value == "10n");
+    assert(made && made->label == "CL10B103KB8NNNC-C_0603_1608Metric-10n" && made->id.size() == 36 && made->packageId == "C0603" && made->value == "10n");
     assert(made->name == "10n X7R" && std::abs(made->height.value() - 0.8) < 1e-9);
     assert(made->identifiers.size() == 1 && made->akas.size() == 1);
     // Its name taken: numbered. A footprint the library has no package for: one made. The file's Name: that.
     JPPart* second = JPLibraryLearning::addFrom(config, other, "Ctrl", "now");
-    assert(second->label == "C_0603_1608Metric-10n (2)" && second->id != made->id);
+    assert(second->label == "CL10B103KB8NNNC-C_0603_1608Metric-10n (2)" && second->id != made->id);
     JPBoardPart again = other;
     again.fields["footprint"] = "SOT-23";
     again.fields["name"] = "My Cap";

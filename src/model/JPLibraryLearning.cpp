@@ -63,14 +63,18 @@ void JPLibraryLearning::learn(JPConfiguration& config, JPPart& part, const JPBoa
         if (JPLibraryFootprint* f = config.defaultFootprint(part.packageId, true)) f->cadNames.push_back(footprint);
 }
 
+std::string JPLibraryLearning::madeName(const std::string& mpn, const std::string& footprint, const std::string& value) {
+    std::string name;
+    for (const std::string& s : { mpn, footprint, value })
+        if (!s.empty()) name += (name.empty() ? "" : "-") + s;
+    return name;
+}
+
 JPPart* JPLibraryLearning::addFrom(JPConfiguration& config, const JPBoardPart& bp, const std::string& from,
                                    const std::string& when) {
     const std::string value = bp.field("value"), footprint = footprintOf(bp), mpn = bp.field("mpn");
-    std::string base = !bp.field("name").empty()                 ? bp.field("name")
-                     : !footprint.empty() && !value.empty() ? footprint + "-" + value
-                     : !value.empty()                       ? value
-                     : !mpn.empty()                         ? mpn
-                     : !footprint.empty()                   ? footprint : bp.field("part");
+    std::string base = !bp.field("name").empty() ? bp.field("name") : madeName(mpn, footprint, value);
+    if (base.empty()) base = bp.field("part");
     if (base.empty()) base = "Part";
     // Named so (numbered when the name is taken); known for good by a GUID, so the name can be changed.
     std::string name = base;

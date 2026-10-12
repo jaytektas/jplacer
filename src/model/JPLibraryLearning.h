@@ -19,8 +19,7 @@ inline namespace jf {
 //    identifiers, the footprint as its package's AKA (each once).
 //  * addFrom: a library part made from all a board part says: known by a
 //    new GUID, named (its Name, which the user may change) as the file names
-//    it, else footprint-value, else its value, MPN or footprint (a name
-//    taken already: numbered);
+//    it, else madeName (a name taken already: numbered);
 //    its package the library's of that footprint (by name or AKA), else one
 //    made; its value, description, datasheet, height, identifiers, AKA.
 //  * describe: what a board part says of the part itself (its description,
@@ -40,6 +39,9 @@ public:
     // Its description, datasheet, MPN and supplier's part number, each where the board part gives it and the part
     // has none (no identifier of that kind).
     static void describe(JPPart& part, const JPBoardPart& bp);
+    // A part's name made up of what a file says of it: its MPN, footprint and value, those given, joined by "-"
+    // ("CL10B104KB8NNNC-C0603-100n"); none: empty.
+    static std::string madeName(const std::string& mpn, const std::string& footprint, const std::string& value);
     static JPPart* addFrom(JPConfiguration& config, const JPBoardPart& bp, const std::string& from, const std::string& when);
 };
 

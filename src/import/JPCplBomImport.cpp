@@ -353,10 +353,8 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
             JPBoardPart bp;
             bp.key = key = out.newPartKey();
             bp.fields = fields;
-            const std::string name = !footprint.empty() && !val.empty() ? footprint + "-" + val
-                                   : !val.empty() ? val : !mpn.empty() ? mpn : footprint;
-            // Its Name: the file's, else made up of its footprint and value (else its value, MPN or footprint).
-            bp.fields["part"] = !named.empty() ? named : name;
+            // Its Name: the file's, else made up of its MPN, footprint and value.
+            bp.fields["part"] = !named.empty() ? named : JPLibraryLearning::madeName(mpn, footprint, val);
             // The library's part, where the evidence is strong (its MPN, a supplier's part number, a name it learned,
             // OpenPnP's footprint-value): JPPartMatcher. The rest are left to be chosen, with their candidates.
             const JPPart* found = JPPartMatcher::automatic(config, bp);

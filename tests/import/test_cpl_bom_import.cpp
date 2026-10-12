@@ -152,8 +152,8 @@ int main() {
     const JPBoardPart* cap = board.part(c1->boardPart);
     assert(cap->field("mpn") == "CL10B104KB8NNNC" && cap->field("manufacturer") == "Samsung" && cap->field("value") == "100n");
     assert(cap->field("supplierPn") == "C14663" && cap->field("supplier") == "LCSC");
-    // Named (no Name column) by its footprint and value.
-    assert(cap->state == JPBoardPart::State::Unmatched && cap->partId() == "C0603-100n");
+    // Named (no Name column) by its MPN, footprint and value.
+    assert(cap->state == JPBoardPart::State::Unmatched && cap->partId() == "CL10B104KB8NNNC-C0603-100n");
     assert(board.part(board.find("R1")->boardPart)->field("value") == "10k");
     const JPBoardPart* op = board.part(board.find("U1")->boardPart);
     assert(op->state == JPBoardPart::State::Matched && op->libraryPartId == "LM358DR" && board.find("U1")->partId == "LM358DR");
@@ -233,7 +233,7 @@ int main() {
         const JPBoardPart* made = b3.part(b3.find("C1")->boardPart);
         // Named as the files name it, known by a GUID, the board part linked by it, the name its AKA.
         const auto part = std::find_if(b3.madeParts.begin(), b3.madeParts.end(),
-                                       [](const auto& p) { return p->label == "C0603-100n"; });
+                                       [](const auto& p) { return p->label == "CL10B104KB8NNNC-C0603-100n"; });
         assert(part != b3.madeParts.end() && (*part)->id.size() == 36 && !(*part)->akas.empty());
         // What the files say of it: its description (shown as the Parts table's Description), its MPN and LCSC number.
         assert((*part)->name == std::optional<std::string>("100nF 50V X7R"));
@@ -244,7 +244,7 @@ int main() {
         assert(made->state == JPBoardPart::State::Matched && made->libraryPartId == (*part)->id && r3.made > 0);
         assert(config.parts().size() == 1 && !b3.madeParts.empty());   // the library untouched by building it
         int packages = 0;
-        assert(config.takeMade(b3, packages) == int(b3.madeParts.size()) && config.partNamed("C0603-100n"));
+        assert(config.takeMade(b3, packages) == int(b3.madeParts.size()) && config.partNamed("CL10B104KB8NNNC-C0603-100n"));
         assert(config.takeMade(b3, packages) == 0);   // taken once
         for (const auto& p : b3.madeParts) config.removePart(p->id);
         for (const auto& k : b3.madePackages) config.removePackage(k->id);
@@ -342,7 +342,7 @@ int main() {
         // The placement's own; one its type cannot read noted, not taken.
         assert(b.find("R1")->custom.get(lane).number() == 3 && !b.find("R2")->custom.has(lane) && noted("not a number"));
         // The part made: the first placement's value, the other's noted; its package made with its pitch.
-        const auto made = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "R0603X-10k"; });
+        const auto made = std::find_if(b.madeParts.begin(), b.madeParts.end(), [](const auto& p) { return p->label == "MPN1-R0603X-10k"; });
         assert(made != b.madeParts.end() && (*made)->custom.get(volts).str() == "50V" && noted("25V"));
         const auto pkg = std::find_if(b.madePackages.begin(), b.madePackages.end(), [](const auto& k) { return k->label == "R0603X"; });
         assert(pkg != b.madePackages.end() && (*pkg)->custom.get(pitch).number() == 0.5);

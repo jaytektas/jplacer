@@ -12,8 +12,8 @@ notes.
 
 - The CSV/BOM import can read a part's **Name** (a column such as "Part Name" or "LibRef" is taken as
   **Part ▸ Name**): the part is called that, rows with one name are one part, and a library part of that
-  name is found by it. With no name given, a part is named by its footprint and value (`C0603-100n`), not
-  by its MPN; the MPN is still kept with it.
+  name is found by it. With no name given, a part is named by its MPN, footprint and value together
+  (`CL10B104KB8NNNC-C0603-100n`), so two parts are less likely to share a name.
 
 ## 0.1.60
 

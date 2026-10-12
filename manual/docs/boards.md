@@ -196,8 +196,8 @@ the library has is left as it is.
 
 A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Parts are
 grouped by the Name the files give them, else by manufacturer and MPN, else by value and footprint. A part
-is named as the files name it (a column read as **Part ▸ Name**); else its name is made up of its footprint
-and value (`C0603-100n`; one of them alone where the files give only one, else its MPN). Each keeps
+is named as the files name it (a column read as **Part ▸ Name**); else its name is made up of its MPN,
+footprint and value, those the files give, joined by "-" (`CL10B104KB8NNNC-C0603-100n`). Each keeps
 every field the files gave it (a supplier part number column that names its supplier, "LCSC Part #", gives
 the supplier). A placement's fields of yours are its own row's; a part's and its package's are its first
 placement's row's, and a part made for the library (and a package made with it) has them. A library part,
@@ -215,7 +215,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/model/JPPartMatcher.cpp (candidates); src/model/JPFieldSet.cpp (builtIns); src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/ui/JPBoardPlacementsPanel.cpp (takeMade); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/model/JPPartMatcher.cpp (candidates); src/model/JPFieldSet.cpp (builtIns); src/model/JPLibraryLearning.cpp (madeName); src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/ui/JPBoardPlacementsPanel.cpp (takeMade); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 
