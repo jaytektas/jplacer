@@ -10,23 +10,21 @@ notes.
 
 ## Unreleased
 
+## 0.1.69
+
 - Changing a setting only a job or a check uses (Machine Setup's Vision settings, the job processor's; the
   Job tab's **Measure Board Z** toggle) no longer makes the machine's panels again: the Jog panel no longer
   flickers.
-
 - The camera tab's target is now **Hold Footprint Size**, a toggle: while it is on, the footprint drawn over
   the picture is kept as big on the screen as it was when you pressed it, the picture zooming in or out as
   you go from placement to placement (**Previous** and **Next**), as far as the zoom goes; zoom by hand to
   change the size it holds. It no longer calibrates the camera, so it cannot start a calibration by
   mistake: that is **Start Calibration** on the camera's **Advanced Calibration** page (the gear).
-
 - The Job tab's Placements has **Move Camera To Previous Placement Location** (Next's arrow pointing back),
   left of **Move Camera To Next Placement Location**: the camera to the placement before the chosen one.
-
 - A submenu of a menu long enough to wrap into two columns (a table's **Columns**, its **This View**) can be
   reached: it opens over the second column, and moving the mouse across it used to hover that column's entry
   underneath and close it.
-
 - The Job tab's boards toolbar has a **Measure Board Z** toggle beside **Fiducial Check**: Machine Setup's
   **Measure Board Z?** (a fiducial check measures each board's height at its fiducials), turned on and off
   from there, lit while on.
