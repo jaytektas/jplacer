@@ -10,13 +10,14 @@ notes.
 
 ## Unreleased
 
+## 0.1.60
+
 - **Footprints from LCSC**: a package's footprint can be fetched by its LCSC part number (C14663), with no
   export from EasyEDA. Use the new LCSC button beside KiCad under the Footprint tab's **Generate**, **Import
   LCSC Footprint…** on its Footprints tab, **Fetch Missing Footprints** on the Packages toolbar (every
   package with no pads, by its parts' LCSC numbers), or the CSV/BOM import's **Fetch Footprints from LCSC**.
   Only the part number is sent; each answer is kept so a part is fetched once. Parts fetched for also get
   their description, MPN and height where they had none.
-
 - **Start**, **Step** and **Stop** are also in the toolbar at the top of the window, beside the machine's power
   and home buttons, so a job can be run from any tab.
 
