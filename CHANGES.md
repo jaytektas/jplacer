@@ -14,14 +14,12 @@ notes.
   keeps up with parts added, renamed or deleted without leaving the head and coming back, and a deleted one
   shows as (none). A machine set up before the choice still uses (and shows) its part named
   FIDUCIAL-HOME.
-
 - **No more Boards and Panels tabs**: boards and panels are the job's. Choose one on the Job tab and the
   new **Board** (or **Panel**) tab beside its Placements is the board or panel itself: its placements,
   imports, revisions, parts and viewer, or a panel's children and fiducials. Make or add them with the Job
   tab's Add Board/Panel, which also offers **Copy of the Chosen Board/Panel…**. A board's or panel's Name,
   Width and Length are changed in the Job tab's table. Nothing made can drop out of sight any more, and your
   boards, panels and jobs open as before.
-
 - A feeder whose part was deleted from the library shows no part on the Feeders tab and its page, not a long
   ID; deleting parts names them, and says how many feeders hold them.
 
