@@ -93,6 +93,20 @@ void JPIcons::photograph(JVectorCanvas& vg, float cx, float cy, float size, cons
     vg.fillCircle(cx + w * 0.7f, top + h * 0.45f, size * 0.04f, JPaint::solid(ink));
 }
 
+void JPIcons::boardHeight(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    const float line = size * kLine, w = size * 0.42f, boardTop = cy + size * 0.24f, boardH = size * 0.14f;
+    // The board, edge on, and a fiducial on it.
+    vg.fillRect(cx - w, boardTop, 2 * w, boardH, JPaint::solid(ink));
+    vg.fillCircle(cx + w * 0.6f, boardTop - size * 0.05f, size * 0.05f, JPaint::solid(ink));
+    // The line it is measured from, and the arrow between (its heads on both).
+    const float top = cy - size * 0.4f, head = size * 0.11f, x = cx - w * 0.25f;
+    vg.drawLine(cx - w, top, cx + w * 0.3f, top, line, JPaint::solid(ink));
+    const float a = top + line, b = boardTop - line;
+    vg.drawLine(x, a + head, x, b - head, line, JPaint::solid(ink));
+    vg.fillConvex({ { x - head, a + head }, { x + head, a + head }, { x, a } }, JPaint::solid(ink));
+    vg.fillConvex({ { x - head, b - head }, { x + head, b - head }, { x, b } }, JPaint::solid(ink));
+}
+
 void JPIcons::fetchPart(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     const float line = size * kLine, w = size * 0.26f, top = cy - size * 0.02f, h = size * 0.4f;
     // The chip, its legs either side.

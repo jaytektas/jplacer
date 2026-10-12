@@ -206,6 +206,8 @@ public:
     // settings shown); shown again when the settings change elsewhere.
     void setSetupVisionTests(JPVisionTests tests);
     std::function<void()> onSetupConfigurationChanged;
+    // A Machine Setup change applied to the machine (made there or elsewhere, undone, redone).
+    std::function<void()> onSetupApplied;
     // A script's request of the job (OpenPnP's gui.jobTab: the board locations,
     // enabling one, a place on one), answered on the screen's thread.
     std::function<JJson(const JJson& request)> onScriptJobRequest;

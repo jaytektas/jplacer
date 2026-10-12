@@ -16,6 +16,9 @@ public:
     static void eye(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A camera (its body, lens and the bump on top): photograph.
     static void photograph(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // A board seen edge on, a fiducial on it, and a two-headed arrow down to it from a line above: the board's
+    // height measured (Measure Board Z?).
+    static void boardHeight(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A chip with an arrow down into it: a part's footprint fetched (from LCSC, by its part number).
     static void fetchPart(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A floppy disk: save.

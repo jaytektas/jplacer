@@ -91,11 +91,12 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 | **Capture Camera Location** | Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept). |
 | **Capture Tool Location** | Sets the chosen boards' Z to the nozzle's. |
 | **Fiducial Check** | Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too (and its Z, measured, with the Fiducial Locator's **Measure Board Z?**, as a job's check sets it). The camera is then taken to it. Each fiducial looked for has its package's footprint drawn over the cameras (as a job's check does too), the last chosen footprint until another is. |
+| **Measure Board Z** (a toggle, lit when on) | Machine Setup's Fiducial Locator **Measure Board Z?**, turned on or off from here: with it on, a fiducial check (this one and a job's) measures the board's height at each of its fiducials and sets its Z from their mean. A change to the machine's setup: saved with it, and taken back by **Edit ▸ Undo**; it follows a change made in Machine Setup. |
 | **Multiple Point Board Location** | Sets where the chosen board lies from placements you jog the camera over (below). |
 | **Photograph Board** (camera) | Photographs the chosen boards (a panel's: every board on it) with the head camera, one after another; **Stop** stops it (see [Board photos](#board-photos)). |
 | **View Job** | Opens the job viewer (see [Panels](panels.md#the-viewer)), following the boards chosen. |
 
-<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel, setPhotographing); src/tasks/JPFiducialLocator.cpp (locate); src/tasks/JPCellJobMachine.h (lookingFor); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
+<!-- src: src/ui/JPJobPanel.cpp (addBoard, addPanel, setPhotographing, machineChanged); src/tasks/JPFiducialLocator.cpp (locate); src/tasks/JPCellJobMachine.h (lookingFor); src/ui/JPLocationsTableModel.cpp; src/app/JPlacerOpenPnpTabs.cpp; src/app/JPlacerMachine.cpp (toolLocation, moveToolTo); src/app/JPlacerJobRun.cpp (fiducialCheck) -->
 
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or

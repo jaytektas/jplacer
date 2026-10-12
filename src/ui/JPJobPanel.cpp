@@ -146,6 +146,14 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         const auto s = selections();
         if (s.size() == 1 && onFiducialCheck) onFiducialCheck(s.front());
     });
+    m_measureBoardZ = bar->add(std::make_unique<JPIconButton>(
+        graph, "Measure Board Z", JPIcons::boardHeight,
+        "Measure Board Z? (Machine Setup, Vision): a fiducial check also measures the board's height at each of its "
+        "fiducials and sets its Z from them. On while lit."));
+    m_measureBoardZ->setCheckable(true);
+    m_measureBoardZ->onToggled.connect([this](bool on) {
+        if (setMeasureBoardZ) setMeasureBoardZ(on);
+    });
     m_photograph = bar->add(std::make_unique<JPIconButton>(graph, "Photograph Board", JPIcons::photograph,
                                                            "Photograph the selected board(s) with the head camera: kept "
                                                            "beside the board's file and shown in the Board Viewer. Stop "
@@ -283,6 +291,12 @@ void JPJobPanel::buildMenu() {
         });
 }
 
+void JPJobPanel::machineChanged() {
+    const std::optional<bool> on = measuresBoardZ ? measuresBoardZ() : std::nullopt;
+    m_measureBoardZ->setChecked(on.value_or(false));
+    m_measureBoardZ->setEnabled(on.has_value());
+}
+
 void JPJobPanel::refresh() {
     JPJob* j = m_job();
     // Every board and panel but the job's own root, nested in order.
@@ -299,6 +313,7 @@ void JPJobPanel::refresh() {
     m_placements->boardTools().refresh();
     m_panel->refresh();
     updateJobActions();
+    machineChanged();
 }
 
 std::vector<JPPlacementsHolderLocation*> JPJobPanel::selections() const {

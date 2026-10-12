@@ -990,6 +990,17 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_vision->refresh();
         m_job.configurationChanged();
     };
+    // The Job tab's Measure Board Z toggle: Machine Setup's (Vision), changed as a setup change (undone there).
+    m_jobPanel->measuresBoardZ = [this]() -> std::optional<bool> {
+        if (const JPCell* c = m_machine.cell()) return c->config().vision.measureBoardZ;
+        return std::nullopt;
+    };
+    m_jobPanel->setMeasureBoardZ = [this](bool on) {
+        m_machine.changeSetup(on ? "Measure Board Z On" : "Measure Board Z Off",
+                              [on](JPCellConfig& cell) { cell.vision.measureBoardZ = on; });
+    };
+    m_machine.onSetupApplied = [this] { m_jobPanel->machineChanged(); };
+    m_jobPanel->machineChanged();
     m_machine.setBoardsZ = [this](double z) {
         for (JPBoardLocation* b : m_job.job().boardLocations()) {
             const JPLocation l = b->globalLocation();
@@ -1131,6 +1142,7 @@ JPlacerOpenPnpTabs::~JPlacerOpenPnpTabs() {
     m_machine.onEditTipPipeline = nullptr;
     m_machine.homeFiducialLook = nullptr;
     m_machine.onSetupConfigurationChanged = nullptr;
+    m_machine.onSetupApplied = nullptr;
     m_machine.setBoardsZ = nullptr;
     m_jobRun.reset();   // a run under way stops before what it works on goes
     JSettings::instance().set(JPlacerSettings::kPartsSplit, m_parts->split());

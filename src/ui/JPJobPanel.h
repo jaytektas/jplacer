@@ -71,6 +71,11 @@ public:
     // Start (Pause, Resume), Step and Stop; Fiducial Check on the chosen board or panel.
     std::function<void()> onStartPauseResume, onStep, onStop;
     std::function<void(JPPlacementsHolderLocation*)> onFiducialCheck;
+    // Machine Setup's Measure Board Z? (a fiducial check measures each board's height at its fiducials): what it
+    // is (none: no machine), and set. machineChanged() shows it again (changed in Machine Setup, undone).
+    std::function<std::optional<bool>()> measuresBoardZ;
+    std::function<void(bool on)>         setMeasureBoardZ;
+    void machineChanged();
     // The boards chosen photographed (a panel's, all its boards).
     std::function<void(std::vector<JPPlacementsHolderLocation*>)> onPhotograph;
     // How the job runs now, and whether the machine is connected: the run
@@ -171,6 +176,7 @@ private:
     JPIconButton*                       m_captureTool = nullptr;
     JPIconButton*                       m_twoPoint = nullptr;
     JPIconButton*                       m_fiducialCheck = nullptr;
+    JPIconButton*                       m_measureBoardZ = nullptr;   // a toggle: the machine's Measure Board Z?
     JPIconButton*                       m_photograph = nullptr;
     std::unique_ptr<JPIconButton>       m_barStart, m_barStep, m_barStop;   // the toolbar's (addRunButtons)
     bool                                m_photographing = false;

@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- The Job tab's boards toolbar has a **Measure Board Z** toggle beside **Fiducial Check**: Machine Setup's
+  **Measure Board Z?** (a fiducial check measures each board's height at its fiducials), turned on and off
+  from there, lit while on.
+
 ## 0.1.68
 
 - Importing a CPL and BOM no longer makes one part of different parts that share a name. EasyEDA's

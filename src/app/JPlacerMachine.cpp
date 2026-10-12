@@ -574,7 +574,11 @@ std::unique_ptr<JPMachineSetupPanel> JPlacerMachine::makeSetup() {
         if (onSetupVisionAction) onSetupVisionAction(id, action);
     };
     setup->onSelected = [this](const std::string& path) { m_setupSelected = path; };
-    setup->onApply = [this](const JPCellConfig& cell) { return applySetup(cell); };
+    setup->onApply = [this](const JPCellConfig& cell) {
+        const bool ok = applySetup(cell);
+        if (ok && onSetupApplied) onSetupApplied();
+        return ok;
+    };
     setup->onAction = [this](const std::string& path, const std::string& action) { setupAction(path, action); };
     setup->probeZ = [this](double x, double y, std::function<void(double)> done) { return probeZ && probeZ(x, y, std::move(done)); };
     setup->chooseClass = [this](const std::string& title, const std::string& description, const std::vector<std::string>& classes,
