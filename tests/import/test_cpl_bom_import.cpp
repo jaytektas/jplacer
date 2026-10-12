@@ -106,14 +106,15 @@ int main() {
                            "C1,10,5,Top,0\nC2,12,5,Top,90\nR1,20,5,Top,0\nR2,22,5,Top,0\nU1,30,10,Bottom,180\n"
                            "FID1,1,1,Top,0\nJ1,40,10,Top,0\n",
                            JPImportSource::Role::Cpl, "cpl.csv"));
-    files.push_back(source("Comment,Designator,Footprint,LCSC Part #,MPN,Provider,Voltage,DNP\n"
-                           "100n,\"C1,C2\",C0603,C14663,CL10B104KB8NNNC,Samsung,50V,\n"
-                           "10k,R1-R2,R0603,C25804,0603WAF1002T5E,UniOhm,,\n"
-                           "LM358,U1,SOIC-8,C7950,LM358DR,TI,,\n"
-                           "22u,C9,C0805,C45783,CL21A226MAQNNNE,Samsung,,\n"
-                           "NC,J1,Conn,,,,,DNP\n",
+    files.push_back(source("Comment,Designator,Footprint,LCSC Part #,MPN,Provider,Voltage,DNP,Description\n"
+                           "100n,\"C1,C2\",C0603,C14663,CL10B104KB8NNNC,Samsung,50V,,100nF 50V X7R\n"
+                           "10k,R1-R2,R0603,C25804,0603WAF1002T5E,UniOhm,,,\n"
+                           "LM358,U1,SOIC-8,C7950,LM358DR,TI,,,\n"
+                           "22u,C9,C0805,C45783,CL21A226MAQNNNE,Samsung,,,\n"
+                           "NC,J1,Conn,,,,,DNP,\n",
                            JPImportSource::Role::Bom, "bom.csv"));
-    assert(files[1].column(I::SupplierPn) == 3 && files[1].column(I::Mpn) == 4 && files[1].mapping[5].empty());
+    assert(files[1].column(I::SupplierPn) == 3 && files[1].column(I::Mpn) == 4 && files[1].mapping[5].empty()
+           && files[1].column(I::Description) == 8);
     files[1].mapping[5] = JPImportField::target(I::Manufacturer);   // the user's choice: "Provider" is the manufacturer
 
     JPCplBomImport imp;
@@ -200,6 +201,12 @@ int main() {
         const auto part = std::find_if(b3.madeParts.begin(), b3.madeParts.end(),
                                        [](const auto& p) { return p->label == "CL10B104KB8NNNC"; });
         assert(part != b3.madeParts.end() && (*part)->id.size() == 36 && !(*part)->akas.empty());
+        // What the files say of it: its description (shown as the Parts table's Description), its MPN and LCSC number.
+        assert((*part)->name == std::optional<std::string>("100nF 50V X7R"));
+        assert(std::any_of((*part)->identifiers.begin(), (*part)->identifiers.end(),
+                           [](const auto& i) { return i.kind == "mpn" && i.org == "Samsung" && i.code == "CL10B104KB8NNNC"; }));
+        assert(std::any_of((*part)->identifiers.begin(), (*part)->identifiers.end(),
+                           [](const auto& i) { return i.kind == "supplierPn" && i.code == "C14663"; }));
         assert(made->state == JPBoardPart::State::Matched && made->libraryPartId == (*part)->id && r3.made > 0);
         assert(config.parts().size() == 1 && !b3.madeParts.empty());   // the library untouched by building it
         int packages = 0;
@@ -233,13 +240,13 @@ int main() {
         assert(profiles.save(path, error));
         JPMappingProfiles read;
         assert(read.load(path, error) && read.profiles.size() == 1);
-        JPImportSource next = source("Comment,Designator,Footprint,LCSC Part #,MPN,Provider,Voltage,DNP,Extra Col\n",
+        JPImportSource next = source("Comment,Designator,Footprint,LCSC Part #,MPN,Provider,Voltage,DNP,Description,Extra Col\n",
                                      JPImportSource::Role::Bom, "next.csv");
         assert(next.mapping[5].empty());
         const JPMappingProfiles::Profile* p = read.best(next.table.header, JPImportSource::Role::Bom);
         assert(p && p->name == "My BOM");
         JPMappingProfiles::apply(*p, next, shipped());
-        assert(next.mapping[5] == JPImportField::target(I::Manufacturer) && next.profile == "My BOM" && next.mapping[8].empty());
+        assert(next.mapping[5] == JPImportField::target(I::Manufacturer) && next.profile == "My BOM" && next.mapping[9].empty());
         assert(!read.best({ "Comment", "Designator" }, JPImportSource::Role::Bom));
     }
     // The fields added: a placement's, a part's and its package's from their rows; the board's and the job's one

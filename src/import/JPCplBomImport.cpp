@@ -375,6 +375,7 @@ bool JPCplBomImport::build(const JPConfiguration& config, const std::string& whe
                     made->label = name;
                     made->value = val;   // its value as the files wrote it
                     made->custom = bp.added(defs, JPFieldSet::Of::Parts);
+                    JPLibraryLearning::describe(*made, bp);
                     JPLibraryLearning::learnName(*made, bp, out.scopeName(), JPWhen::now());
                     if (const auto h = fields.find("height"); h != fields.end()) {
                         double mm = 0;

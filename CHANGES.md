@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A part made by a CSV/BOM import (Create Missing Parts) now takes the files' description (the Parts table's
+  **Description**), datasheet, MPN and supplier's part number, not only its value and height.
+
 - A head's **Homing Fiducial Part** (Machine Setup, beside Homing Fiducial) chooses the library part visual
   homing looks for the mark as, kept by the part itself so renaming it changes nothing; not chosen, the part
   named FIDUCIAL-HOME, as before.

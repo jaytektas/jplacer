@@ -43,6 +43,13 @@ bool JPLibraryLearning::learnName(JPPart& part, const JPBoardPart& bp, const std
     return true;
 }
 
+void JPLibraryLearning::describe(JPPart& part, const JPBoardPart& bp) {
+    if (!part.name && !bp.field("description").empty()) part.name = bp.field("description");   // OpenPnP's part name is its description
+    if (part.datasheet.empty()) part.datasheet = bp.field("datasheet");
+    addIdentifier(part, "mpn", bp.field("manufacturer"), bp.field("mpn"));
+    addIdentifier(part, "supplierPn", bp.field("supplier"), bp.field("supplierPn"));
+}
+
 void JPLibraryLearning::learn(JPConfiguration& config, JPPart& part, const JPBoardPart& bp, const std::string& from,
                               const std::string& when) {
     const std::string footprint = footprintOf(bp);
@@ -69,8 +76,7 @@ JPPart* JPLibraryLearning::addFrom(JPConfiguration& config, const JPBoardPart& b
     p->id = id;
     p->label = name;
     p->value = value;
-    if (!bp.field("description").empty()) p->name = bp.field("description");   // OpenPnP's part name is its description
-    p->datasheet = bp.field("datasheet");
+    describe(*p, bp);
     if (const std::string h = bp.field("height"); !h.empty()) {
         char* end = nullptr;
         const double mm = std::strtod(h.c_str(), &end);
