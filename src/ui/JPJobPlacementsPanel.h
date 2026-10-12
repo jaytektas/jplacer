@@ -5,6 +5,7 @@
 
 #include "JPGroupFrame.h"
 #include "JPIconButton.h"
+#include "JPBoardTools.h"
 #include "JPPlacementsTableModel.h"
 #include "JPTable.h"
 
@@ -26,8 +27,11 @@ class JPSearchField;
 
 // The Job tab's Placements, as OpenPnP's JobPlacementsPanel: the chosen
 // board's (or panel's) placements on its side facing up, with Placed and
-// Status; New and Remove Placement(s) (a board used once, straight in the
-// job), Move Camera To (and To Next) Placement Location, Move Tool To
+// Status; a board's own (its ID, part, side, where it lies, type, comments:
+// every use of it shares them) changed here, its use's (Enabled, Placed,
+// Error Handling) for this use alone; the board's tools (JPBoardTools:
+// Import Placements, Board's Parts, View Board, Revision); New and Remove
+// Placement(s) (a board's), Move Camera To (and To Next) Placement Location, Move Tool To
 // Placement Location, Capture Camera and Tool Placement Location, Edit
 // Placement Feeder, a search box, and the right-click Set Type, Set Side,
 // Set Placed, Set Enabled, Set Error Handling. Space turns the chosen
@@ -67,6 +71,8 @@ public:
     // The placed counts given again (OpenPnP's updateActivePlacements).
     void updateActivePlacements();
     JPPlacementsTableModel& model() { return m_model; }
+    // The tools of the board shown (none: a panel's, or nothing chosen).
+    JPBoardTools& boardTools() { return *m_boardTools; }
 
     // The placements chosen, in the order shown.
     std::vector<JPPlacement*> selections() const;
@@ -84,11 +90,11 @@ private:
     std::function<JPJob*()>             m_job;
     JPPlacementsTableModel              m_model;
     JPPlacementsHolderLocation*         m_location = nullptr;
-    bool                                m_topLevel = false, m_singleInstance = false;
     std::string                         m_footprintShown;   // what showFootprint was last told of ("": none)
     JPTable*                            m_table = nullptr;
     JPSearchField*                          m_search = nullptr;
     JPIconButton*                       m_new = nullptr;
+    JPBoardTools* m_boardTools = nullptr;
     JPIconButton*                       m_remove = nullptr;
     JPIconButton*                       m_cameraTo = nullptr;
     JPIconButton*                       m_cameraNext = nullptr;

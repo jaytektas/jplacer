@@ -1,8 +1,8 @@
 # Boards
 
 A board is the job's. On the [Job tab](jobs.md#the-job-tab), choosing one of its boards (straight in the
-job or on a panel) shows, beside its **Placements** in the job, the **Board** tab: the board itself, its
-placements, imports, revisions and parts, what every use of it shares. A board comes into the job by the
+job or on a panel) shows its **Placements**: the board's own, every use of it shares them, with the
+board's imports, revisions, parts and viewer in its toolbar. A board comes into the job by the
 Job tab's **Add Board/Panel** (see [Making and copying boards](#making-and-copying-boards)) and goes with it:
 the boards open are the open job's (and its panels'). Leaving the job (**New Job**, **Open Job…**, **Open
 Recent Job...**) closes them all, each with changes asked about first ("Save *name*?": **Yes** saves it,
@@ -35,7 +35,7 @@ without the board's (one the library has by that name is taken instead), as are 
 library lacks; its parts then point at the library's, the log says how many were added, and the board
 has changes to save.
 
-<!-- src: src/model/JPBoardPart.h; src/model/JPBoardPart.cpp (toJson, fromJson); src/model/JPBoard.cpp (useLibraryPart, takeParts, dropUnusedParts, forEveryPart); src/model/JPConfiguration.cpp (part, package, libraryPart, takeMade, adoptFormer, board); src/ui/JPBoardPlacementsPanel.cpp (takeMade, merge, upgrade) -->
+<!-- src: src/model/JPBoardPart.h; src/model/JPBoardPart.cpp (toJson, fromJson); src/model/JPBoard.cpp (useLibraryPart, takeParts, dropUnusedParts, forEveryPart); src/model/JPConfiguration.cpp (part, package, libraryPart, takeMade, adoptFormer, board); src/ui/JPBoardTools.cpp (takeMade, merge, upgrade) -->
 
 ### Choosing a part
 
@@ -81,7 +81,7 @@ parts to be chosen opens it when the placements are in.
 As a board comes in (any import), a part is taken from the library unasked when the evidence is strong:
 an identifier, a name it learned, OpenPnP's *footprint*-*value* name, a value it learned in its package.
 
-<!-- src: src/app/JPlacerPartPickerDialog.cpp; src/app/JPlacerBoardPartsDialog.cpp; src/model/JPPartMatcher.cpp (candidates, valueOf, chipSize, matches, kStrong, kAutomatic, automatic); src/model/JPLibraryLearning.cpp (learn, addFrom); src/model/JPConfiguration.cpp (packageNamed, libraryPartFor, part); src/model/JPBoard.cpp (splitPlacement, placementsOf); src/ui/JPPlacementsTableModel.cpp (pick, applyPart); src/ui/JPBoardPlacementsPanel.cpp (importCplBom, merge); src/app/JPlacerOpenPnpTabs.cpp (openBoardParts) -->
+<!-- src: src/app/JPlacerPartPickerDialog.cpp; src/app/JPlacerBoardPartsDialog.cpp; src/model/JPPartMatcher.cpp (candidates, valueOf, chipSize, matches, kStrong, kAutomatic, automatic); src/model/JPLibraryLearning.cpp (learn, addFrom); src/model/JPConfiguration.cpp (packageNamed, libraryPartFor, part); src/model/JPBoard.cpp (splitPlacement, placementsOf); src/ui/JPPlacementsTableModel.cpp (pick, applyPart); src/ui/JPBoardTools.cpp (importCplBom, merge); src/app/JPlacerOpenPnpTabs.cpp (openBoardParts) -->
 
 ## Making and copying boards
 
@@ -96,32 +96,28 @@ typed with units, `1.5in`; without, millimetres are taken); pointing at a name s
 
 ## Placements
 
-The chosen board's placements, with OpenPnP's columns: **Enabled**, **ID**, **Part**, **Side**, **X**,
-**Y**, **Rot.**, **Type**, **Error Handling**, **Rank** (pointing at it explains it) and **Comments**.
-All but the ID are changed in the table; Part opens the part picker on a click (see [Choosing a
-part](#choosing-a-part)), and Side, Type and Error Handling their list.
-X and Y keep their own units when typed without. A fiducial's Type stands out. The ID column sorts as
-reference designators do: R2 before R10.
+A board's placements are the Job tab's **Placements**, the board chosen (see [Jobs](jobs.md#the-job-tab)):
+**Enabled**, **ID**, **Part**, **Side**, **X**, **Y**, **Rot.**, **Type**, **Placed**, **Status**, **Error
+Handling**, **Rank** (pointing at it explains it), **Comments** and **Verified**. The board's own (its ID,
+Part, Side, where it lies, Type, Rank, Comments) are changed there, and every use of it shares them; Enabled,
+Placed and Error Handling are this use's. Part opens the part picker on a click (see [Choosing a
+part](#choosing-a-part)), and Side, Type and Error Handling their list. X and Y keep their own units when
+typed without. The ID column sorts as reference designators do: R2 before R10. Besides the job's tools,
+its toolbar has the board's:
 
 | Button | |
 |---|---|
-| **New Placement** (plus) | Asks for the new placement's ID and adds it: the first part, at 0, 0 on the top. There must be a part first; an ID already on the board is refused. |
-| **Remove Placement(s)** (cross) | Takes the chosen placements off the board. |
 | **Import Placements** (with a menu) | Reads placements from a CAD tool's file into the board (see below). |
 | **Board's Parts** | The board's parts, one a row, to choose them (see [Choosing a part](#choosing-a-part)). |
 | **View Board** | Opens the board viewer (see [Panels](panels.md#the-viewer)). |
 
-**Revision**, after the buttons, shows which of the board's revisions is shown and switches to another
-(see [Revisions](#revisions)); it says **None yet** until the board has one.
-
-**Search**, at the right, works as on the Parts tab. Right-click for **Set Type**, **Set Side**, **Set
-Enabled** and **Set Error Handling**, each for all the chosen placements. **Space** turns the chosen
-placement on or off.
+**Revision**, after them, shows which of the board's revisions is shown and switches to another (see
+[Revisions](#revisions)); it says **None yet** until the board has one. With a panel chosen they are greyed.
 
 A change to a board is made to every use of it, in the job and on panels, as OpenPnP does: what a job
-set on its own copy (a placement turned off there) is kept unless the same thing is changed here.
+set on its own copy (a placement turned off there) is kept unless the same thing is changed for it.
 
-<!-- src: src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPlacementsTableModel.cpp; src/model/JPDefinitionChanges.h -->
+<!-- src: src/ui/JPJobPlacementsPanel.cpp (setLocation, updateActions); src/ui/JPBoardTools.cpp; src/ui/JPPlacementsTableModel.cpp; src/model/JPDefinitionChanges.h -->
 
 ## Importing placements
 
@@ -209,7 +205,7 @@ its value is "DNP"; FID1, REF1 and the like are fiducials. **Import** brings it 
 the other importers do (Merge or Replace), and the files themselves, every row and how their columns
 were read, are kept in the board.
 
-<!-- src: src/model/JPPartMatcher.cpp (candidates); src/model/JPFieldSet.cpp (builtIns); src/model/JPLibraryLearning.cpp (madeName); src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/ui/JPBoardPlacementsPanel.cpp (takeMade); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardPlacementsPanel.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
+<!-- src: src/model/JPPartMatcher.cpp (candidates); src/model/JPFieldSet.cpp (builtIns); src/model/JPLibraryLearning.cpp (madeName); src/app/JPlacerCplBomImportDialog.cpp (fillColumns, fillSingles, choices, runImport); src/ui/JPBoardTools.cpp (takeMade); src/import/JPKicadBoardFile.cpp (properties, title_block); src/import/JPCplBomImport.cpp (build, join, winner, single, doNotPlace, bottom, leftOut); src/import/JPImportField.cpp (offered, label, guess); src/model/JPBoardPart.cpp (added); src/model/JPConfiguration.cpp (takeMade); src/model/JPLibraryLearning.cpp (describe); src/app/JPlacerOpenPnpTabs.cpp (openCplBom); src/import/JPTableFile.cpp; src/import/JPImportSource.cpp (guess, unitsOfComments, length, provenance); src/import/JPTableFile.cpp (comments); src/import/JPDesignators.cpp; src/import/JPMappingProfiles.cpp; src/ui/JPBoardTools.cpp (importCplBom, take); src/ui/JPPlacementsTableModel.cpp (data) -->
 
 ### OpenPnP's importers
 
@@ -241,7 +237,7 @@ Revision…** makes what was read the board's next revision (see [Revisions](#re
 leaves the board as it was. A part the board already has keeps the choice made for it (importing again
 does not undo it); what the file says about it now is kept with it.
 
-<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPConfiguration.cpp (takeMade); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp (parseFile: Unit); src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardPlacementsPanel.cpp (importBoard, take, merge); src/model/JPBoard.cpp (takeParts) -->
+<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPConfiguration.cpp (takeMade); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp (parseFile: Unit); src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardTools.cpp (importBoard, take, merge); src/model/JPBoard.cpp (takeParts) -->
 
 ## Revisions
 
@@ -288,7 +284,7 @@ The board file keeps every revision, complete: its label, when it was made, its 
 placements and its parts. A job's file records the revision of each of its boards, and opening the job
 shows that revision.
 
-<!-- src: src/model/JPBoardUpgrade.cpp (pairing, findOriginMove, sort, revision); src/model/JPBoard.cpp (addRevision, switchRevision, undoCarry, toJson); src/model/JPBoardRevision.cpp (next); src/model/JPBoardPart.cpp (samePart); src/app/JPlacerBoardUpgradeDialog.cpp; src/ui/JPBoardPlacementsPanel.cpp (take, upgrade, fillRevisions, switchRevision); src/model/JPPlacementsHolderLocation.cpp (toXml); src/model/JPConfiguration.cpp (resolveBoard) -->
+<!-- src: src/model/JPBoardUpgrade.cpp (pairing, findOriginMove, sort, revision); src/model/JPBoard.cpp (addRevision, switchRevision, undoCarry, toJson); src/model/JPBoardRevision.cpp (next); src/model/JPBoardPart.cpp (samePart); src/app/JPlacerBoardUpgradeDialog.cpp; src/ui/JPBoardTools.cpp (take, upgrade, fillRevisions, switchRevision); src/model/JPPlacementsHolderLocation.cpp (toXml); src/model/JPConfiguration.cpp (resolveBoard) -->
 
 ## Saving boards
 

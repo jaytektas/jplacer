@@ -22,9 +22,6 @@ JPlacerTableLinks::JPlacerTableLinks(Tabs tabs, JPConfiguration& config, std::fu
     m_tabs.job.placements().onPlacementChosen = [this](const JPPlacement* p) {
         if (leads(m_tabs.jobDock)) choose([&] { jobPlacementChosen(p); });
     };
-    m_tabs.job.board().onPlacementChosen = [this](const JPPlacement* p) {
-        if (leads(m_tabs.jobDock)) choose([&] { boardPlacementChosen(p); });
-    };
     m_tabs.job.panel().onFiducialChosen = [this](const JPPlacement* f) {
         if (f && leads(m_tabs.jobDock)) choose([&] { panelFiducialChosen(*f); });
     };
@@ -60,19 +57,10 @@ void JPlacerTableLinks::partAndLinks(const std::string& partId, bool choosePart)
 void JPlacerTableLinks::jobPlacementChosen(const JPPlacement* p) {
     const JPPlacementsHolderLocation* l = m_tabs.job.placements().location();
     if (!l || !l->holder) return;
-    if (l->kind() == JPPlacementsHolderLocation::Kind::Board) m_tabs.job.board().selectPlacement(p ? p->id : "");
-    else m_tabs.job.panel().selectFiducial(p ? p->id : "");
+    if (l->kind() == JPPlacementsHolderLocation::Kind::Panel) m_tabs.job.panel().selectFiducial(p ? p->id : "");
     if (p) partAndLinks(p->partId, true);
 }
 
-void JPlacerTableLinks::boardPlacementChosen(const JPPlacement* p) {
-    if (!p) return;
-    // The same placement in the job's, as it shows (an instance of) this board.
-    const JPPlacementsHolderLocation* l = m_tabs.job.placements().location();
-    const JPBoard* board = m_tabs.job.board().board();
-    if (l && l->holder && board && l->holder->definition() == board) m_tabs.job.placements().selectPlacement(p->id);
-    partAndLinks(p->partId, true);
-}
 
 void JPlacerTableLinks::panelFiducialChosen(const JPPlacement& f) {
     const JPPlacementsHolderLocation* l = m_tabs.job.placements().location();

@@ -69,10 +69,9 @@ then marked as changed, so saving it writes it as jplacer's `.jpjob` (the old fi
 ## The Job tab
 
 The **Job** tab (the first in the work area, as in OpenPnP) shows the job's boards and panels and,
-under them, two tabs: **Placements**, the chosen one's placements in the job; and **Board** (or **Panel**,
-a panel chosen), the chosen board itself (see [Boards](boards.md)) or the panel itself (see
-[Panels](panels.md)), what every use of it shares. There is no other place a board or panel is kept: each
-is the job's.
+under them the chosen one's **Placements** (a board's, with its imports, revisions, parts and viewer: see
+[Boards](boards.md#placements)); a panel chosen, its **Panel** tab beside them, the panel itself (see
+[Panels](panels.md)). There is no other place a board or panel is kept: each is the job's.
 
 **Boards**: every board and panel in the job, those on a panel under it and indented, with a board or
 panel mark: **Board/Panel Id**, **Name** (pointing at it shows the file), **Width**, **Length**, **Side**,
@@ -100,9 +99,9 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or
-**Disabled**). A board used once, straight in the job, is changed here as on its Board tab (and New and
-Remove Placement(s) work); otherwise only Enabled, Placed and Error Handling are changed, for this use of
-it alone. **Move Camera To Placement Location** (and **To Next**), **Move Tool To Placement Location**,
+**Disabled**). A board's own (its placements' IDs, parts, sides, where they lie, types, comments) are
+changed here, for every use of it (and New and Remove Placement(s) work); Enabled, Placed and Error
+Handling for this use alone. **Move Camera To Placement Location** (and **To Next**), **Move Tool To Placement Location**,
 **Capture Camera Placement Location** and **Capture Tool Placement Location** work as the board ones,
 for the chosen placement. **Edit Placement Feeder** (one placement of a board) opens the
 [Feeders](feeders.md) tab on the feeder holding its part: an enabled one first, else a disabled one, else
@@ -125,7 +124,7 @@ footprint should lie on the board's pads, turned as the part will be placed.
 - **Verified, Next** marks the chosen placement verified and takes the camera to the next one shown, facing
   up, not verified yet.
 
-The **Verified** column (here and on the Board tab) says whether each was, and when (*Yes*, *Position
+The **Verified** column says whether each was, and when (*Yes*, *Position
 only*). Changing a placement's position, rotation or part takes its mark off: what was checked is no longer
 what is placed.
 

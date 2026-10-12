@@ -98,6 +98,14 @@ JPJobPlacementsPanel::JPJobPlacementsPanel(JSceneGraph& graph, JPConfiguration& 
     m_editFeeder->onClicked.connect([this] {
         if (const auto chosen = selections(); chosen.size() == 1 && onEditFeeder) onEditFeeder(chosen.front()->partId);
     });
+    // The board's own: its imports, parts, viewer and revision.
+    bar->add(toolSeparator(graph));
+    m_boardTools = bar->add(std::make_unique<JPBoardTools>(graph, config, [job]() -> const JPJob* { return job(); }));
+    m_boardTools->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
+    m_boardTools->onChanged = [this] {
+        refresh();
+        changed();
+    };
     JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     m_search = JPUiParts::search(graph, *bar, kSearchColumns);
@@ -179,11 +187,14 @@ void JPJobPlacementsPanel::buildMenu() {
 void JPJobPlacementsPanel::setLocation(JPPlacementsHolderLocation* location) {
     m_location = location;
     JPJob* job = m_job();
-    m_topLevel = location && job && location->parent == &job->root();
-    m_singleInstance = location && job && location->holder && job->instanceCount(*location->holder) == 1;
-    const bool editDefinition =
-        m_topLevel && m_singleInstance && location->kind() == JPPlacementsHolderLocation::Kind::Board;
-    m_model.setLocation(location, editDefinition, job);
+    // A board's own placements changed here, wherever it is (every use of it shares them).
+    const bool board = location && location->kind() == JPPlacementsHolderLocation::Kind::Board;
+    m_model.setLocation(location, board, job);
+    JPBoard* definition = nullptr;
+    if (board && location->holder)
+        for (const auto& b : m_config.boards())
+            if (b.get() == location->holder->definition()) definition = b.get();
+    m_boardTools->setBoard(definition);   // a panel's, or none: greyed
     m_table->refresh();
     updateActions();
     updateActivePlacements();
@@ -225,8 +236,7 @@ std::vector<JPPlacement*> JPJobPlacementsPanel::selections() const {
 
 void JPJobPlacementsPanel::updateActions() {
     const auto chosen = selections();
-    const bool editDefinition =
-        m_topLevel && m_singleInstance && m_location && m_location->kind() == JPPlacementsHolderLocation::Kind::Board;
+    const bool editDefinition = m_location && m_location->kind() == JPPlacementsHolderLocation::Kind::Board;
     // As OpenPnP's action groups.
     m_new->setEnabled(editDefinition);
     m_remove->setEnabled(editDefinition);

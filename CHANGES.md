@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- The Job tab's **Placements** is the one place for a board: its toolbar has the board's **Import
+  Placements**, **Board's Parts**, **View Board** and **Revision**, and a board's placements (their IDs,
+  parts, sides, positions, types) are changed there for every board, wherever it is used. The separate Board
+  tab is gone; a panel chosen still shows its **Panel** tab beside Placements.
+
 ## 0.1.62
 
 - The head's **Homing Fiducial Part** lists only the library's parts (**(none)** until one is chosen), its list

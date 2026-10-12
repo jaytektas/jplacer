@@ -17,7 +17,7 @@ inline namespace jf {
 // A board's (or panel's) placements, as OpenPnP's
 // PlacementsHolderPlacementsTableModel: Enabled, ID, Part, Side, X, Y, Rot.,
 // Type, Placed, Status, Error Handling, Rank, Comments; a tab shows the
-// columns it wants (a board's own, the Job tab's Board tab, leaves out Placed and Status). All but
+// columns it wants (the Job tab's Placements shows them all). All but
 // the ID and Status are edited in place, on the definition, and carried to
 // its uses. IDs sort as reference designators (R2 before R10); a
 // fiducial's type stands out.

@@ -183,19 +183,17 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_placementsPane->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_lower = m_placementsPane->add(std::make_unique<JTabWidget>(graph, 0.f, 0.f));
     m_lower->setVSizePolicy(JSizePolicyMode::Expanding, 1);
+    m_stripThickness = m_lower->stripThickness();
+    m_lower->setStripThickness(0);
     m_inJobPage = std::make_unique<JContainer>(graph, 0.f, 0.f);
     m_inJobPage->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     m_placements = m_inJobPage->add(std::make_unique<JPJobPlacementsPanel>(graph, config, job));
     m_placements->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    for (auto* page : { &m_boardPage, &m_panelPage }) {
-        *page = std::make_unique<JContainer>(graph, 0.f, 0.f);
-        (*page)->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
-    }
+    m_panelPage = std::make_unique<JContainer>(graph, 0.f, 0.f);
+    m_panelPage->setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
     auto constJob = [job]() -> const JPJob* { return job(); };
-    m_board = m_boardPage->add(std::make_unique<JPBoardPlacementsPanel>(graph, config, constJob));
-    m_board->setVSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_board->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_board->onChanged = [this] {
+    // An import, a revision shown: the board itself changed.
+    m_placements->boardTools().onChanged = [this] {
         m_placements->refresh();
         m_table->refresh();
         if (onDefinitionChanged) onDefinitionChanged();
@@ -208,8 +206,7 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         refresh();
         if (onDefinitionChanged) onDefinitionChanged();
     };
-    m_lower->addTab("Placements", m_inJobPage.get());
-    m_lower->addTab("Board", m_boardPage.get());
+    m_lower->addTab("", m_inJobPage.get());   // named once there is a Panel tab beside it
     m_lower->setActiveTab(0);
     m_placements->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_placements->toolLocation = [this](Tool t) { return toolLocation ? toolLocation(t) : std::nullopt; };
@@ -296,8 +293,8 @@ void JPJobPanel::refresh() {
     m_model.setRows(j ? &j->root() : nullptr, rows);
     m_table->refresh();
     selectionChanged();
-    // The board or panel itself shown again (changed elsewhere, or another job's).
-    m_board->refresh();
+    // The board's tools and the panel itself shown again (changed elsewhere, or another job's).
+    m_placements->boardTools().refresh();
     m_panel->refresh();
     updateJobActions();
 }
@@ -425,26 +422,23 @@ void JPJobPanel::addRunButtons(JToolBar& bar) {
 void JPJobPanel::showDefinition() {
     const auto s = selections();
     const JPPlacementsHolderLocation* l = s.size() == 1 ? s.front() : nullptr;
-    const JPPlacementsHolder* def = l && l->holder ? l->holder->definition() : nullptr;
     const bool panel = l && l->kind() == JPPlacementsHolderLocation::Kind::Panel;
-    JPBoard* board = nullptr;
     std::shared_ptr<JPPanel> shownPanel;
-    if (def && !panel)
-        for (const auto& b : m_config.boards())
-            if (b.get() == def) board = b.get();
-    if (def && panel)
+    if (panel && l->holder)
         for (const auto& p : m_config.panels())
-            if (p.get() == def) shownPanel = p;
-    // The second tab the board's, or the panel's when a panel is chosen (the one in front kept in front).
+            if (p.get() == l->holder->definition()) shownPanel = p;
+    // The Panel tab beside Placements while a panel is chosen (Placements in front once it goes).
     if (panel != m_panelShown) {
-        const int front = m_lower->activeTab();
-        m_lower->removeTab(1);
-        m_lower->addTab(panel ? "Panel" : "Board", panel ? m_panelPage.get() : m_boardPage.get());
-        m_lower->setActiveTab(front);
+        if (panel) m_lower->addTab("Panel", m_panelPage.get());
+        else m_lower->removeTab(1);
+        m_lower->setActiveTab(0);
+        m_lower->setStripThickness(panel ? m_stripThickness : 0);
+        m_lower->setTabLabel(0, panel ? "Placements" : "");
         m_panelShown = panel;
     }
-    if (m_board->board() != board) {
-        m_board->setBoard(board);
+    JPBoard* board = m_placements->boardTools().board();
+    if (board != m_shownBoard) {
+        m_shownBoard = board;
         if (onBoardShown) onBoardShown(board);
     }
     if (m_panel->panel() != shownPanel.get()) {

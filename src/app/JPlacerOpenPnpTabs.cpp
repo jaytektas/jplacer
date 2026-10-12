@@ -119,16 +119,13 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         if (m_jobViewer) m_jobViewer->regenerate();
         changed();
     };
-    // The chosen board itself (the Job tab's Board tab): its imports, parts, revisions and viewer.
-    JPBoardPlacementsPanel& placements = m_jobPanel->board();
+    // The chosen board's tools (in the Job tab's Placements): its imports, parts, revisions and viewer.
+    JPBoardTools& placements = m_jobPanel->board();
     placements.openImporter = [this](const JPBoardImporter& importer, std::function<void(JPBoard&)> imported) {
         m_window.openModal<JPlacerImportDialog>(importer, m_job.configuration(), std::move(imported));
     };
-    placements.model().openPartPicker = [this](JPBoard& board, const std::string& id, std::function<void(const JPPartChoice&)> chosen) {
-        m_window.openModal<JPlacerPartPickerDialog>(m_job.configuration(), board, id, std::move(chosen));
-    };
-    placements.openBoardParts = [this, &placements](JPBoard& board) {
-        JPPlacementsTableModel& model = placements.model();
+    placements.openBoardParts = [this](JPBoard& board) {
+        JPPlacementsTableModel& model = m_jobPanel->placements().model();
         m_window.openModal<JPlacerBoardPartsDialog>(
             m_job.configuration(), board,
             [&model, b = &board](const std::string& id, const JPPartChoice& choice) { model.applyPart(b, id, choice); },

@@ -90,7 +90,7 @@ void JPlacerMenuBuilder::build(JAppWindow& window, JSceneGraph& graph, JPlacerAp
     entry(keys, file, graph, "file.saveConfiguration", "File", "Save Configuration", none,
           [&app] { app.tabs().saveConfiguration(); });
     file->addSeparator(graph);
-    // Import Placements: OpenPnP's importers, into the Job tab's chosen board (its Board tab shown).
+    // Import Placements: OpenPnP's importers, into the Job tab's chosen board (its Placements shown).
     menuStore().push_back(std::make_unique<JMenu>("Import Placements"));
     JMenu* import = menuStore().back().get();
     import->add(graph, "CPL and BOM…")->onTriggered.connect([&app] {

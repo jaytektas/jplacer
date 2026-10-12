@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-#include "JPBoardPlacementsPanel.h"
+#include "JPBoardTools.h"
 
-#include "JPSearchField.h"
-#include "JPTableTools.h"
 #include "JPUiParts.h"
 
 #include "model/JPDefinitionChanges.h"
@@ -25,8 +23,6 @@ inline namespace jf {
 
 namespace {
 
-// OpenPnP's search box is fifteen characters wide.
-constexpr int kSearchColumns = 15;
 constexpr int kRevisionColumns = 8;      // the revision chooser's width, in Ms
 constexpr size_t kCarryListed = 12;      // designators named in the work given, before "and n more"
 
@@ -34,41 +30,16 @@ std::unique_ptr<JSeparator> toolSeparator(JSceneGraph& graph) {
     return std::make_unique<JSeparator>(graph, JSeparator::JOrientation::Vertical, JPIconButton::size());
 }
 
-std::string trimmed(const std::string& s) {
-    size_t a = 0, b = s.size();
-    while (a < b && std::isspace(static_cast<unsigned char>(s[a]))) ++a;
-    while (b > a && std::isspace(static_cast<unsigned char>(s[b - 1]))) --b;
-    return s.substr(a, b - a);
-}
 
 } // namespace
 
-JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfiguration& config,
-                                               std::function<const JPJob*()> job)
-    : JContainer(graph, 0.f, 0.f)
-    , m_config(config)
-    , m_job(job)
-    , m_model(config, job,
-              { JPPlacementsTableModel::kEnabled, JPPlacementsTableModel::kId, JPPlacementsTableModel::kPart,
-                JPPlacementsTableModel::kSide, JPPlacementsTableModel::kX, JPPlacementsTableModel::kY,
-                JPPlacementsTableModel::kRotation, JPPlacementsTableModel::kType,
-                JPPlacementsTableModel::kErrorHandling, JPPlacementsTableModel::kRank,
-                JPPlacementsTableModel::kComments, JPPlacementsTableModel::kVerified })
-    , m_importers(JPBoardImporter::all()) {
-    setDirection(JFlexDirection::Column)->setAlignItems(JAlignItems::Stretch);
+JPBoardTools::JPBoardTools(JSceneGraph& graph, JPConfiguration& config, std::function<const JPJob*()> job)
+    : JContainer(graph, 0.f, 0.f), m_config(config), m_job(job), m_importers(JPBoardImporter::all()) {
     const JStyle& st = JStyle::current();
-    m_model.onChanged = [this] { changed(); };
-
-    auto bar = JPUiParts::row(graph);
+    setDirection(JFlexDirection::JRow)->setAlignItems(JAlignItems::Center)->setGap(st.spacing);
     auto tool = [&](const char* name, const char* icon, const char* tip) {
-        return bar->add(std::make_unique<JPIconButton>(graph, name, icon, tip));
+        return add(std::make_unique<JPIconButton>(graph, name, icon, tip));
     };
-    m_new = tool("New Placement", "general-add", "Create a new placement and add it to the board.");
-    m_new->setLeads(JPIconButton::Leads::Elsewhere);
-    m_new->onClicked.connect([this] { newPlacement(); });
-    m_remove = tool("Remove Placement(s)", "general-remove", "Remove the currently selected placement(s).");
-    m_remove->onClicked.connect([this] { removePlacements(); });
-    bar->add(toolSeparator(graph));
     m_import = tool("Import Placements", "import", "Import placements from CAD files");
     m_import->setLeads(JPIconButton::Leads::Menu);
     m_import->onClicked.connect([this] { showImportMenu(); });
@@ -78,104 +49,33 @@ JPBoardPlacementsPanel::JPBoardPlacementsPanel(JSceneGraph& graph, JPConfigurati
     m_parts->onClicked.connect([this] {
         if (m_board && openBoardParts) openBoardParts(*m_board);
     });
-    bar->add(toolSeparator(graph));
     m_view = tool("View Board", "color-true", "View a graphical representation of the selected board.");
     m_view->setLeads(JPIconButton::Leads::Elsewhere);
     m_view->onClicked.connect([this] {
         if (m_board && onViewBoard) onViewBoard();
     });
-    JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
-    bar->add(toolSeparator(graph));
-    JLabel* revisionLabel = bar->add(std::make_unique<JLabel>(graph, "Revision"));
+    add(toolSeparator(graph));
+    JLabel* revisionLabel = add(std::make_unique<JLabel>(graph, "Revision"));
     revisionLabel->setFixedSize(JTextHelper::measureWidth("Revision") + st.spacing, st.controlHeight);
-    m_revision = bar->add(std::make_unique<JComboBox>(graph, std::vector<std::string> {}));
+    m_revision = add(std::make_unique<JComboBox>(graph, std::vector<std::string> {}));
     m_revision->setFixedSize(JTextHelper::measureWidth("M") * kRevisionColumns, st.controlHeight);
     m_revision->onIndexChanged.connect([this](int i) {
         if (!m_fillingRevisions) switchRevision(i);
     });
-    bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
-    m_search = JPUiParts::search(graph, *bar, kSearchColumns);
-    add(std::move(bar));
-
-    m_table = add(std::make_unique<JPTable>(graph));
-    m_table->setStateKey("board.placements");
-    m_table->setModel(&m_model);
-    tools->attach(*m_table);
-    m_search->attach(*m_table);
-    m_table->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
-    m_table->onSelectionChanged.connect([this] {
-        updateActions();
-        const auto s = selections();
-        if (s.size() <= 1 && onPlacementChosen) onPlacementChosen(s.empty() ? nullptr : s.front());
-    });
-    m_table->onEditRefused = [](const std::string&) {};
-    // Space turns the (first) chosen placement on or off.
-    m_table->onKey = [this](const JKeyEvent& ke) {
-        if (ke.key != JKeyEvent::JKey::Space || ke.ctrl || ke.alt) return false;
-        const auto chosen = selections();
-        if (chosen.empty()) return false;
-        const bool on = !chosen.front()->enabled;
-        m_model.edit(chosen.front()->id, [on](JPPlacement& p) { p.enabled = on; });
-        m_table->refresh();
-        return true;
-    };
-    buildContextMenu();
-    m_table->setContextMenu(m_contextMenu.get());
-    m_table->onContextMenu = [this](int) { updateActions(); };
     setBoard(nullptr);
 }
 
-void JPBoardPlacementsPanel::buildContextMenu() {
-    JSceneGraph& g = m_graph;
-    m_contextMenu = std::make_unique<JMenu>("Placements");
-    // OpenPnP's descriptions as tooltips: the submenu's, and each value's ("Set placement side(s) to Top").
-    auto sub = [&](const std::string& title, const std::string& tip) {
-        m_subMenus.push_back(std::make_unique<JMenu>(title));
-        m_contextMenu->add(g, title, {}, m_subMenus.back().get())->setTooltip(tip + "...");
-        return m_subMenus.back().get();
-    };
-    auto value = [&](JMenu* on, const std::string& name, const std::string& tip) {
-        JMenuItem* item = on->add(g, name);
-        item->setTooltip(tip + " " + name);
-        return item;
-    };
-    auto forChosen = [this](std::function<void(JPPlacement&)> set) {
-        return [this, set] {
-            std::vector<std::string> ids;
-            for (const JPPlacement* p : selections()) ids.push_back(p->id);
-            m_model.editEach(ids, set);
-            m_table->refresh();
-        };
-    };
-    JMenu* type = sub("Set Type", "Set placement type(s) to");
-    for (JPPlacement::Type t : { JPPlacement::Type::Placement, JPPlacement::Type::Fiducial })
-        value(type, JPPlacement::typeName(t), "Set placement type(s) to")->onTriggered.connect(forChosen([t](JPPlacement& p) { p.type = t; }));
-    JMenu* side = sub("Set Side", "Set placement side(s) to");
-    for (JPSide s : { JPSide::Bottom, JPSide::Top })
-        value(side, JPSides::name(s), "Set placement side(s) to")->onTriggered.connect(forChosen([s](JPPlacement& p) { p.side = s; }));
-    JMenu* enabled = sub("Set Enabled", "Set placement enable(s) to");
-    for (bool on : { true, false })
-        value(enabled, on ? "Enabled" : "Disabled", "Set placement enable(s) to")->onTriggered.connect(forChosen([on](JPPlacement& p) { p.enabled = on; }));
-    JMenu* errors = sub("Set Error Handling", "Set placement error handling(s) to");
-    for (JPPlacement::ErrorHandling e :
-         { JPPlacement::ErrorHandling::Default, JPPlacement::ErrorHandling::Alert, JPPlacement::ErrorHandling::Defer })
-        value(errors, JPPlacement::errorHandlingName(e), "Set placement error handling(s) to")
-            ->onTriggered.connect(forChosen([e](JPPlacement& p) { p.errorHandling = e; }));
-}
-
-void JPBoardPlacementsPanel::setBoard(JPBoard* board) {
+void JPBoardTools::setBoard(JPBoard* board) {
     m_board = board;
-    m_model.setHolder(board);
-    m_table->refresh();
-    updateActions();
+    refresh();
 }
 
-void JPBoardPlacementsPanel::refresh() {
-    m_table->refresh();
-    updateActions();
+void JPBoardTools::refresh() {
+    fillRevisions();
+    for (JPIconButton* b : { m_import, m_parts, m_view }) b->setEnabled(m_board != nullptr);
 }
 
-void JPBoardPlacementsPanel::fillRevisions() {
+void JPBoardTools::fillRevisions() {
     m_fillingRevisions = true;
     std::vector<std::string> labels;
     if (m_board)
@@ -191,7 +91,7 @@ void JPBoardPlacementsPanel::fillRevisions() {
     m_fillingRevisions = false;
 }
 
-void JPBoardPlacementsPanel::switchRevision(int index) {
+void JPBoardTools::switchRevision(int index) {
     if (!m_board || index < 0 || size_t(index) == m_board->revision()) return;
     JPBoard* board = m_board;
     const std::string to = board->revisions()[size_t(index)].label;
@@ -221,75 +121,16 @@ void JPBoardPlacementsPanel::switchRevision(int index) {
     });
 }
 
-void JPBoardPlacementsPanel::selectPlacement(const std::string& id) {
-    m_table->selectRow(id.empty() ? -1 : m_model.rowOf(id));
-}
 
-std::vector<JPPlacement*> JPBoardPlacementsPanel::selections() const {
-    std::vector<JPPlacement*> out;
-    for (const int r : m_table->selectedRows())
-        if (JPPlacement* p = m_model.placement(r)) out.push_back(p);
-    return out;
-}
 
-void JPBoardPlacementsPanel::updateActions() {
-    const bool any = !selections().empty();
-    fillRevisions();
-    m_new->setEnabled(m_board != nullptr);
-    m_import->setEnabled(m_board != nullptr);
-    m_view->setEnabled(m_board != nullptr);
-    // As OpenPnP's action groups: removing and the right-click menu's entries want a placement chosen.
-    m_remove->setEnabled(any);
-    for (size_t i = 0; i < m_contextMenu->items().size(); ++i) m_contextMenu->items()[i]->setEnabled(any);
-}
 
-void JPBoardPlacementsPanel::changed() {
+void JPBoardTools::changed() {
     if (onChanged) onChanged();
 }
 
-void JPBoardPlacementsPanel::newPlacement() {
-    if (!m_board) return;
-    if (m_config.parts().empty()) {
-        JDialog::message("Error", "There are currently no parts defined in the system. Please create at least one "
-                                  "part before creating a placement.");
-        return;
-    }
-    JPBoard* board = m_board;
-    JDialog::input("Input", "Please enter an ID for the new placement.", [this, board](std::string text) {
-        const std::string id = trimmed(text);
-        if (id.empty() || board != m_board) return;
-        if (board->find(id)) {
-            JDialog::message("Error", "The ID for the new placement already exists");
-            return;
-        }
-        JPPlacement p;
-        p.id = id;
-        // As OpenPnP: the library's first part, as one of the board's parts.
-        if (!m_config.parts().empty()) {
-            p.partId = m_config.parts().front()->id;
-            p.boardPart = board->useLibraryPart(p.partId);
-        }
-        p.location = JPLocation(JPLengthUnit::Millimeters);
-        p.side = JPSide::Top;
-        JPDefinitionChanges(m_config, m_job()).added(*board, p);
-        m_table->refresh();
-        // As OpenPnP: the last row shown is chosen.
-        m_table->selectRow(m_table->modelRowAt(m_table->viewRowCount() - 1));
-        changed();
-    });
-}
 
-void JPBoardPlacementsPanel::removePlacements() {
-    if (!m_board) return;
-    std::vector<std::string> ids;
-    for (const JPPlacement* p : selections()) ids.push_back(p->id);
-    JPDefinitionChanges changes(m_config, m_job());
-    for (const std::string& id : ids) changes.removed(*m_board, id);
-    m_table->refresh();
-    changed();
-}
 
-void JPBoardPlacementsPanel::showImportMenu() {
+void JPBoardTools::showImportMenu() {
     if (!openMenu) return;
     m_importMenu = std::make_unique<JMenu>("Import Placements");
     m_importMenu->add(m_graph, "CPL and BOM…")->onTriggered.connect([this] { importCplBom(); });
@@ -302,7 +143,7 @@ void JPBoardPlacementsPanel::showImportMenu() {
     openMenu(m_importMenu.get(), b.x, b.y + b.height);
 }
 
-void JPBoardPlacementsPanel::importBoard(const JPBoardImporter& importer) {
+void JPBoardTools::importBoard(const JPBoardImporter& importer) {
     if (!m_board) {
         JDialog::message("Import Failed", "Please select a board to import into.");
         return;
@@ -317,7 +158,7 @@ void JPBoardPlacementsPanel::importBoard(const JPBoardImporter& importer) {
     });
 }
 
-void JPBoardPlacementsPanel::importCplBom() {
+void JPBoardTools::importCplBom() {
     if (!m_board) {
         JDialog::message("Import Failed", "Please select a board to import into.");
         return;
@@ -332,7 +173,7 @@ void JPBoardPlacementsPanel::importCplBom() {
     });
 }
 
-void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
+void JPBoardTools::take(JPBoard* board, JPBoard& imported) {
     if (board != m_board) return;
     auto shared = std::make_shared<JPBoard>(imported);
     if (board->placements.empty() || !askChoice) {
@@ -374,7 +215,7 @@ void JPBoardPlacementsPanel::take(JPBoard* board, JPBoard& imported) {
               });
 }
 
-void JPBoardPlacementsPanel::takeMade(const JPBoard& imported) {
+void JPBoardTools::takeMade(const JPBoard& imported) {
     int packages = 0;
     const int parts = m_config.takeMade(imported, packages);
     if (parts > 0 || packages > 0)
@@ -383,7 +224,7 @@ void JPBoardPlacementsPanel::takeMade(const JPBoard& imported) {
     if (onImportTaken) onImportTaken(imported);
 }
 
-void JPBoardPlacementsPanel::upgrade(JPBoard* board, std::shared_ptr<JPBoard> files) {
+void JPBoardTools::upgrade(JPBoard* board, std::shared_ptr<JPBoard> files) {
     openUpgrade(*board, files, [this, board, files](JPBoardRevision r, std::string current) {
         if (board != m_board) return;
         takeMade(*files);   // the parts it made the library's, as the revision is made
@@ -406,7 +247,7 @@ void JPBoardPlacementsPanel::upgrade(JPBoard* board, std::shared_ptr<JPBoard> fi
     });
 }
 
-void JPBoardPlacementsPanel::merge(JPBoard& imported) {
+void JPBoardTools::merge(JPBoard& imported) {
     if (!m_board) return;
     takeMade(imported);   // the parts and packages it made, the library's
     JPDefinitionChanges changes(m_config, m_job());
@@ -453,7 +294,6 @@ void JPBoardPlacementsPanel::merge(JPBoard& imported) {
         m_board->solderPastePads.push_back(pad);
     }
     m_board->dirty = true;
-    m_table->refresh();
     changed();
 }
 

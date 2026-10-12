@@ -19,10 +19,9 @@ class JPPartsPanel;
 class JPVisionSettingsPanel;
 
 // OpenPnP's View > Selections in Tables, Linked: what is chosen in one tab's
-// table chooses what goes with it in the others. A placement of the job (on
-// the Job tab's Placements, or its board's on its Board tab, or a panel's
-// fiducial on its Panel tab) chooses the same placement on the other, and its
-// part on the Parts tab; a part chooses its package, its feeder and the
+// table chooses what goes with it in the others. A placement of the job
+// chooses its part on the Parts tab (and a panel's fiducial chosen there the
+// same on its Panel tab, and the other way round); a part chooses its package, its feeder and the
 // vision settings it uses; a feeder chooses its part, and so on from there.
 // Only what is chosen on the tab in front leads (OpenPnP's selected tab), so
 // what a link chooses leads nowhere further.
@@ -50,7 +49,6 @@ private:
     void choose(const std::function<void()>& linkedChoices);
 
     void jobPlacementChosen(const JPPlacement* p);
-    void boardPlacementChosen(const JPPlacement* p);
     void panelFiducialChosen(const JPPlacement& f);
 
     Tabs                  m_tabs;

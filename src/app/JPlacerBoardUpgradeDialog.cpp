@@ -116,7 +116,7 @@ void JPlacerBoardUpgradeDialog::fill() {
     m_make->setTooltip(label.empty() ? "Give the new revision a label"
                        : !free || (m_current && m_current->text() == label)
                            ? "The board has a revision called " + label + " already"
-                           : "Keep the revision shown now and show the new one; switch between them on the Job tab's Board tab");
+                           : "Keep the revision shown now and show the new one; switch between them with Revision, on the Job tab's Placements");
 }
 
 void JPlacerBoardUpgradeDialog::make() {
