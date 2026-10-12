@@ -28,6 +28,7 @@ int main() {
     config.addPackage(pkg);
     auto part = std::make_shared<JPPart>();
     part->id = "FID";
+    part->label = "Fiducial 1.5";
     part->packageId = pkg->id;
     config.addPart(part);
     JPVisionSettings fvs = JPVisionSettings::create(JPVisionSettings::Kind::Fiducial, "FVS_Default");
@@ -41,7 +42,7 @@ int main() {
     // By its pipeline (fiducials are always), averaging: the stock fiducial pipeline, prepared for FID.
     vision.enabledAveraging = true;
     assert(JPFiducialLocator::partLook(config, *part, vision, diameter, look, settings) == JPFiducialLocator::PartProblem::None);
-    assert(std::abs(diameter - 1.5) < 1e-9 && look.pipeline && look.partId == "FID" && look.averaging);
+    assert(std::abs(diameter - 1.5) < 1e-9 && look.pipeline && look.partName == "Fiducial 1.5" && look.averaging);
     JPPipeline& p = *look.pipeline;
     assert(p.stage("results") && p.context().configurationDirectory == dir.string());
     assert(std::abs(std::get<JPPipelineValue::LengthMm>(p.property("fiducial.diameter")->value).mm - 1.5) < 1e-9);

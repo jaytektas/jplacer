@@ -3,7 +3,8 @@
 
 // DetectCircularSymmetry finds a nozzle tip's ring off the picture's centre,
 // to the pixel, its diameter about the ring's; given a diameter by the
-// caller, it searches about it, and says so; asked for three targets it
+// caller, it searches about it, and says so; none round enough, it says how
+// near the roundest came; asked for three targets it
 // finds three discs in a noisy picture, best first. DetectRectlinearSymmetry finds a part turned
 // 10°: its centre, its angle, its size.
 // Tests check with assert(); a Release build must not compile it away.
@@ -59,6 +60,17 @@ int main() {
     // The diagnostics drawn on the picture: the cross hairs green.
     const cv::Vec3b hair = one.workingImage().at<cv::Vec3b>(228, 300);
     assert(hair[1] > hair[2]);
+
+    assert(one.notes().empty());   // found: nothing to say
+
+    // None round enough (the bar set above the tip's score): none found, and how near the roundest came.
+    std::string high = circular;
+    high.replace(high.find("min-symmetry=\"1.2\""), std::string("min-symmetry=\"1.2\"").size(), "min-symmetry=\"1000\"");
+    JPPipeline none = make(high, tip);
+    assert(none.process(why));
+    assert(std::get_if<std::vector<JPPipelineModel::Circle>>(&none.expectedResult("c").model.value)->empty());
+    assert(none.notes().size() == 1 && none.notes()[0].find("nothing round enough: the roundest scored ") == 0
+           && none.notes()[0].find("Min. Symmetry 1000.00") != std::string::npos);
 
     // The caller's diameter: searched about it (−40 %, +20 %).
     JPPipeline told = make(circular, tip);

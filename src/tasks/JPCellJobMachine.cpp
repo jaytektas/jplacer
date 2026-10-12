@@ -999,7 +999,9 @@ bool JPCellJobMachine::lookByPipeline(double viewX, double viewY, double x, doub
         return false;
     }
     if (points->empty()) {
-        why = lookAt.partId + " no matches found.";
+        // What the stages said of what they found (a search's roundest, too little).
+        why = (lookAt.partName.empty() ? std::string("The fiducial") : lookAt.partName) + ": no matches found";
+        for (const std::string& note : p.notes()) why += "; " + note;
         return false;
     }
     double best = INFINITY;
@@ -1020,7 +1022,7 @@ bool JPCellJobMachine::lookByPipeline(double viewX, double viewY, double x, doub
     char text[64];
     std::snprintf(text, sizeof text, "%.3f, %.3f mm", foundX, foundY);
     showWorking(p, feed, text, kShownPipelineMs);
-    JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << lookAt.partId << " located at " << foundX << ", " << foundY;
+    JLOGC(JPlacerLog::kJob, JLogLevel::Debug) << lookAt.partName << " located at " << foundX << ", " << foundY;
     return true;
 }
 

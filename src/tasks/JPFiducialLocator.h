@@ -46,6 +46,7 @@ public:
     };
     using OnMain = std::function<void(const std::function<void()>&)>;
 
+    // A check of `locations` by their fiducials; one that fails says why (and logs it).
     static Result locate(JPConfiguration& config, JPJobMachine& machine, const OnMain& onMain,
                          const std::vector<JPPlacementsHolderLocation*>& locations, const Tolerances& tolerances);
     // How a fiducial part is looked at: its size (its package's footprint's
@@ -60,6 +61,11 @@ public:
                                std::string& settingsName);
     static PartProblem partLook(JPConfiguration& config, const JPPart& part, const JPVisionConfig& vision,
                                 double& diameterMm, JPJobMachine::FiducialLook& look, std::string& settingsName);
+
+private:
+    // locate()'s check, its failure not logged.
+    static Result check(JPConfiguration& config, JPJobMachine& machine, const OnMain& onMain,
+                        const std::vector<JPPlacementsHolderLocation*>& locations, const Tolerances& tolerances);
 };
 
 } // inline namespace jf

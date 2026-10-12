@@ -59,7 +59,7 @@ JPFiducialLocator::PartProblem JPFiducialLocator::partLook(JPConfiguration& conf
     if (diameterMm <= 0) return PartProblem::NoSize;
     // Looked at as its fiducial vision settings say (the part's, its package's, the machine's).
     look = {};
-    look.partId = part.id;   // whose the look is, named in what is said of it
+    look.partName = part.shownName();   // whose the look is, named in what is said of it
     look.averaging = vision.enabledAveraging;
     if (const JPVisionSettings* v = config.inheritedVision(part, JPVisionSettings::Kind::Fiducial, vision.fiducialVisionId)) {
         settingsName = v->name;
@@ -110,6 +110,15 @@ JPFiducialLocator::PartProblem JPFiducialLocator::lookFor(JPConfiguration& confi
 JPFiducialLocator::Result JPFiducialLocator::locate(JPConfiguration& config, JPJobMachine& machine, const OnMain& onMain,
                                                     const std::vector<JPPlacementsHolderLocation*>& locations,
                                                     const Tolerances& tolerances) {
+    Result r = check(config, machine, onMain, locations, tolerances);
+    // Said where it is shown (a dialog, a job's error), and kept in the log.
+    if (!r.ok) JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "fiducial check: " << r.message;
+    return r;
+}
+
+JPFiducialLocator::Result JPFiducialLocator::check(JPConfiguration& config, JPJobMachine& machine, const OnMain& onMain,
+                                                   const std::vector<JPPlacementsHolderLocation*>& locations,
+                                                   const Tolerances& tolerances) {
     machine.startFiducialCheck();   // one check: the head camera tuned once, on its first fiducial
     Result r;
     auto main = [&](const std::function<void()>& fn) {

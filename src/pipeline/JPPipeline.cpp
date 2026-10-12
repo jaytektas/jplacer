@@ -119,6 +119,7 @@ bool JPPipeline::process(std::string& why) {
         r.colorSpace = out.colorSpace ? *out.colorSpace : m_colorSpace;
         r.model = std::move(out.model);
         r.milliseconds = ms;
+        r.note = std::move(out.note);
         m_results[stage.name()] = std::move(r);
     }
     // Vision debugging: each stage's picture kept (JPVisionDebug).
@@ -126,6 +127,13 @@ bool JPPipeline::process(std::string& why) {
     if (terminal.empty()) return true;
     why = terminal;
     return false;
+}
+
+std::vector<std::string> JPPipeline::notes() const {
+    std::vector<std::string> out;
+    for (const JPPipelineStage& s : m_stages)
+        if (const Result* r = result(s.name()); r && !r->note.empty()) out.push_back(r->note);
+    return out;
 }
 
 const JPPipeline::Result* JPPipeline::result(const std::string& stageName) const {

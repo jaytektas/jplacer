@@ -37,6 +37,9 @@ struct JPStageType {
         cv::Mat                     image;
         std::optional<std::string>  colorSpace;
         JPPipelineModel             model;
+        // What the stage says of what it found, where that is not in its model (a search's best when it found
+        // none); empty: nothing.
+        std::string                 note;
     };
     // The stage may set its own settings (a MaskHsv found its limits itself).
     using Process = std::function<Output(JPPipeline& pipeline, JPPipelineStage& stage)>;

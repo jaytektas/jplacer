@@ -12,6 +12,7 @@
 #include "JPStageUtil.h"
 
 #include <cmath>
+#include <cstdio>
 
 inline namespace jf {
 
@@ -102,7 +103,15 @@ void JPStageRegistry::addSymmetryStages(std::vector<JPStageType>& types) {
                           q.heatMap = s.flag("heat-map");
                           JPCircularSymmetry::ScoreRange range;
                           Output out;
-                          out.model.value = JPCircularSymmetry::inPixels(JPCircularSymmetry::find(mat, q, range));
+                          std::vector<JPPipelineModel::Circle> found = JPCircularSymmetry::inPixels(JPCircularSymmetry::find(mat, q, range));
+                          // None: how near the roundest came (Min. Symmetry the bar).
+                          if (found.empty() && std::isfinite(range.finalScore)) {
+                              char said[96];
+                              std::snprintf(said, sizeof said, "nothing round enough: the roundest scored %.2f, Min. Symmetry %.2f",
+                                            range.finalScore, q.minSymmetry);
+                              out.note = said;
+                          }
+                          out.model.value = std::move(found);
                           return out;
                       } });
     types.push_back({ std::string(kStages) + "DetectRectlinearSymmetry", "",

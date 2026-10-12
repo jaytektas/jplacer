@@ -73,6 +73,7 @@ public:
         std::string     colorSpace;   // FluentCv.ColorSpace's name ("Bgr", "Gray", "HsvFull"…)
         JPPipelineModel model;
         double          milliseconds = 0;
+        std::string     note;   // the stage's (JPStageType::Output::note)
     };
 
     JPPipeline() = default;
@@ -89,6 +90,8 @@ public:
     // Run every stage in order. False, and why, when a stage stopped it.
     bool process(std::string& why);
     const Result* result(const std::string& stageName) const;
+    // The notes the stages left in the last run, in their order.
+    std::vector<std::string> notes() const;
     // A stage's result that must be there (OpenPnP's getExpectedResult): throws, saying why, when not.
     const Result& expectedResult(const std::string& stageName) const;
     double        totalMilliseconds() const { return m_totalMs; }
