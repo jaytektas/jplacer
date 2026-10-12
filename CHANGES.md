@@ -10,10 +10,11 @@ notes.
 
 ## Unreleased
 
+## 0.1.57
+
 - A feeder is known for good by a GUID, shown in the Feeders table's new **ID** column. Feeders brought in from
   an OpenPnP machine get one (OpenPnP's `FDR…` is not kept), as do those of an older `feeders.json` as it is
   read, any stock lot on one following it.
-
 - A package is known for good by a GUID, as a part is, and has a **Name**, shown wherever it is (a part's
   **Package**, the import) and changed in place on the Packages tab. **New Package…** asks for a name. A library
   of 0.1.56 or before is brought up to this as it opens, keeping every part's package.
@@ -22,7 +23,6 @@ notes.
 - The library's **Undo** names parts and packages by their names ("Undo Delete Part R0603-10k"), and a vision
   setting's **Assigned To** lists parts by their names (they had shown GUIDs). Template images for vision are
   found by the part's and the package's names, as OpenPnP names them.
-
 - The table a feeder's **Part** or a part's **Package** drops has views too (**Standard**, **All Fields**, and
   more made with **New View…**), its buttons beside its filter. A table in a window of its own is a plain table:
   it offers no views and no fields to add or edit, only its columns to show and hide.
