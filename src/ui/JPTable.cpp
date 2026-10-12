@@ -294,6 +294,27 @@ void JPTable::setViewKeepsSearch(int i, bool on) {
     saveViews();
 }
 
+void JPTable::showInEveryView(const std::string& key) {
+    for (size_t i = 0; i < m_views.size(); ++i) {
+        View& v = m_views[i];
+        if (v.all || int(i) == m_current) continue;
+        // Out of its hidden, and among its order (one it never had would be hidden until chosen).
+        JJson layout = v.layout.isObject() ? v.layout : JJson::object();
+        JJson hidden = JJson::array();
+        for (const JJson& h : std::as_const(layout)["hidden"].arr())
+            if (h.str() != key) hidden.push(h);
+        layout["hidden"] = hidden;
+        JJson order = std::as_const(layout)["order"].isArray() ? std::as_const(layout)["order"] : JJson::array();
+        bool known = false;
+        for (const JJson& o : order.arr()) known = known || o.str() == key;
+        if (!known) order.push(JJson(key));
+        layout["order"] = order;
+        v.layout = layout;
+    }
+    setColumnShown(key, true);   // the one shown, kept as it is (saved with the rest)
+    saveViews();
+}
+
 void JPTable::revertView() {
     if (m_views.empty()) return;
     m_viewChanged = false;
@@ -1529,6 +1550,10 @@ void JPTable::buildHeaderMenu(int column) {
         hide->setTooltip("Not shown in this table (Columns… shows it again)");
         hide->setEnabled(order().size() > 1);
         hide->onTriggered.connect([this, key] { setColumnShown(key, false); });
+        JMenuItem* everywhere = m_headerMenu->add(m_graph, "Show in Every View");
+        everywhere->setTooltip("Shown in each of this table's views, not only this one");
+        everywhere->setEnabled(m_views.size() > 1);
+        everywhere->onTriggered.connect([this, key] { showInEveryView(key); });
         if (of) {
             m_headerMenu->addSeparator(m_graph);
             JMenuItem* add = m_headerMenu->add(m_graph, "Add Field After \"" + name + "\"…");

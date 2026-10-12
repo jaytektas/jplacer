@@ -83,10 +83,11 @@ footprint's pads too, and the table a feeder's **Part** drops keeps its own layo
 
 <!-- src: src/ui/JPUiParts.cpp (tableTools); src/ui/JPTableTools.cpp; src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPIssuesPanel.cpp; src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPPlacementsHoldersGroup.cpp; src/ui/JPBoardPlacementsPanel.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
 
-Right-click a heading for that column's menu: **Hide "*name*"**, **Add Field After "*name*"…**, **Edit Field
-"*name*"…** and **Reset Columns**.
+Right-click a heading for that column's menu: **Hide "*name*"**, **Show in Every View** (shown in each of
+the table's views, not only the one shown), **Add Field After "*name*"…**, **Edit Field "*name*"…** and
+**Reset Columns**.
 
-<!-- src: src/ui/JPTable.cpp (buildHeaderMenu, prepareContextMenu) -->
+<!-- src: src/ui/JPTable.cpp (buildHeaderMenu, prepareContextMenu, showInEveryView) -->
 
 ## Editing many rows, pasting and undo
 

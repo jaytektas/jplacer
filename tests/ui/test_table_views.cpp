@@ -134,5 +134,18 @@ int main() {
         t.deleteView(0);
         assert(t.views().size() == 1);
     }
+    {
+        // Show in Every View: out of every view's hidden, the one shown's too.
+        JPTable t(graph);
+        t.setModel(&model);
+        t.setStateKey("every");
+        t.setColumnShown("B", false);
+        t.addView("Other");
+        assert((shown(t) == Names{ "A" }));   // C hidden until chosen, B hidden as made
+        t.showInEveryView("C");
+        assert((shown(t) == Names{ "A", "C" }));
+        t.showView(0);
+        assert((shown(t) == Names{ "A", "C" }));
+    }
     return 0;
 }

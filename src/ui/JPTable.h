@@ -149,6 +149,8 @@ public:
     void setViewKeepsSearch(int i, bool on);
     // The one shown put back as it was kept (a locked one's changes undone).
     void revertView();
+    // The column `key` shown in every view (All Fields shows it anyway).
+    void showInEveryView(const std::string& key);
     // The menu of a view's own actions (rename, icon, duplicate, lock, keep search, delete; a view button's
     // right-click), made afresh each time it is asked for.
     JMenu* viewMenu(int i);
