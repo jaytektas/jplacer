@@ -104,7 +104,7 @@ void runSampleJob(const char* name, const char* jobFile) {
         if (h.visualHoming) {
             JPCameraFeed* feed = host.headCameraFeed();
             assert(feed);
-            const auto look = JPVisualHoming::homeLook(config, cell.config().vision);
+            const auto look = JPVisualHoming::homeLook(config, cell.config().vision, h);
             const JPVisualHoming::Result r = JPVisualHoming::run(cell, *feed, h, 1.0, look ? &*look : nullptr);
             if (!r.ok) std::fprintf(stderr, "visual homing: %s\n", r.why.c_str());
             assert(r.ok);

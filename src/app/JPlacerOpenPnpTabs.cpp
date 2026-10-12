@@ -937,9 +937,11 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // Machine Setup's vision nodes: their default settings' page, as the Vision tab's.
     m_machine.setSetupVisionTests(m_visionTests->tests());
     m_machine.onSetupVisionAction = [this](const std::string& id, const std::string& action) { m_vision->act(id, action); };
-    // OpenPnP's visual homing: the FIDUCIAL-HOME part, looked for as the Fiducial Locator looks for a fiducial.
-    m_machine.homeFiducialLook = [this]() -> std::optional<JPVisualTest::Look> {
-        return JPVisualHoming::homeLook(m_job.configuration(), m_machine.cell() ? m_machine.cell()->config().vision : JPVisionConfig {});
+    // OpenPnP's visual homing: the head's Homing Fiducial Part (else the FIDUCIAL-HOME part), looked for as the
+    // Fiducial Locator looks for a fiducial.
+    m_machine.homeFiducialLook = [this](const JPHeadConfig& head) -> std::optional<JPVisualTest::Look> {
+        return JPVisualHoming::homeLook(m_job.configuration(), m_machine.cell() ? m_machine.cell()->config().vision : JPVisionConfig {},
+                                        head);
     };
     // A camera's calibration pipeline in the editor, run on that camera (its own, or OpenPnP's default).
     m_machine.onEditCalibrationPipeline = [this](const std::string& cameraId) {

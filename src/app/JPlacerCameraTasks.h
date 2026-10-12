@@ -47,7 +47,8 @@ public:
     std::function<void(const std::string& cameraId, const JPCameraCalibration&)> onCalibrated;
     // How the homing fiducial is looked for, as OpenPnP's visual homing: the FIDUCIAL-HOME part's size and
     // its fiducial vision pipeline (none: there is no such part). Asked on the main thread.
-    std::function<std::optional<JPVisualTest::Look>()> homeFiducialLook;
+    // How a head's homing fiducial is looked for (its Homing Fiducial Part's look).
+    std::function<std::optional<JPVisualTest::Look>(const JPHeadConfig& head)> homeFiducialLook;
     // A camera was auto-tuned when homing: its properties kept in the cell and saved (for what shows them).
     std::function<void(const std::string& cameraId, const JJson& controls)> onTuned;
 

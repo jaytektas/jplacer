@@ -11,6 +11,7 @@ JPHeadConfig JPHeadConfig::fromJson(const JJson& j) {
     h.name                  = j["name"].str();
     h.homingFiducial        = JPMachineLocation::fromJson(j["homingFiducial"]);
     h.homingFiducialDiameter = j["homingFiducialDiameter"].number();
+    h.homingFiducialPart     = j["homingFiducialPart"].str();
     h.visualHoming          = j["visualHoming"].boolean();
     h.park                  = JPMachineLocation::fromJson(j["park"]);
     const JJson& rig        = j["calibrationRig"];
@@ -35,6 +36,7 @@ JJson JPHeadConfig::toJson() const {
         j["homingFiducial"] = homingFiducial->toJson();
         j["homingFiducialDiameter"] = homingFiducialDiameter;
     }
+    if (!homingFiducialPart.empty()) j["homingFiducialPart"] = homingFiducialPart;
     j["visualHoming"] = visualHoming;
     if (park) j["park"] = park->toJson();
     if (rigPrimary || rigSecondary) {

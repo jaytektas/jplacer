@@ -21,6 +21,9 @@ struct JPHeadConfig {
     // are reset so that place is where it really is.
     std::optional<JPMachineLocation> homingFiducial;
     double                    homingFiducialDiameter = 0;
+    // The library part the homing fiducial is looked for as (its package's footprint, its fiducial vision), by
+    // its id (a GUID: renaming it changes nothing); empty: the part named FIDUCIAL-HOME, as OpenPnP has it.
+    std::string               homingFiducialPart;
     bool                      visualHoming = false;
     // Where Park takes the head.
     std::optional<JPMachineLocation> park;

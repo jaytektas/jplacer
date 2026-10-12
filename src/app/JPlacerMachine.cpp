@@ -416,8 +416,8 @@ void JPlacerMachine::buildCameras() {
         m_failure = failure;
         showState();
     };
-    m_cameraTasks->homeFiducialLook = [this]() -> std::optional<JPVisualTest::Look> {
-        return homeFiducialLook ? homeFiducialLook() : std::nullopt;
+    m_cameraTasks->homeFiducialLook = [this](const JPHeadConfig& head) -> std::optional<JPVisualTest::Look> {
+        return homeFiducialLook ? homeFiducialLook(head) : std::nullopt;
     };
     // Machine Setup shows it (the cell keeps it: JPlacerMachine::applySetup).
     // On the next frame: recorded in Machine Setup, a camera's calibration (or a fixed camera's place) remakes the

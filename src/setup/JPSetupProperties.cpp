@@ -13,6 +13,7 @@
 #include "camera/JPSimulatedUpCamera.h"
 #include "camera/JPWhiteBalance.h"
 
+#include "JPLibrarySearch.h"
 #include "JPVisionForms.h"
 
 #include "JPFormBuilder.h"
@@ -985,7 +986,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     if (const auto& k = a().backlashCalibration) backlashResults(add, *k);
 }
 
-void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
+void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f, JPConfiguration* config) {
     auto h = finder(cell.heads, id);
     f.title = "Head " + h().name;
     JPFormBuilder add(f);
@@ -1022,6 +1023,17 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     place("homingFiducial", "Homing Fiducial", [h]() -> std::optional<JPMachineLocation>& { return h().homingFiducial; }, true);
     if (h().homingFiducial) {
         add.length("homingFiducialDiameter", "Fiducial Diameter", [h]() -> double& { return h().homingFiducialDiameter; });
+        // The part the mark is looked for as: the library's, by its id; none chosen, the part named FIDUCIAL-HOME.
+        if (config) {
+            JPFormBuilder::Named parts;
+            parts.add("FIDUCIAL-HOME (the part of that name)", "");
+            for (const auto& p : config->parts()) parts.add(p->shownName(), p->id);
+            add.byName("homingFiducialPart", "Homing Fiducial Part", parts, [h]() -> std::string& { return h().homingFiducialPart; });
+            add.searchable(JPLibrarySearch::parts(*config, parts.ids), JPLibrarySearch::kPartsTable);
+            add.tip("The library's part the homing mark is looked for as: its package's footprint and its fiducial vision "
+                    "settings. Kept by the part itself, so renaming it changes nothing; not chosen, the part named "
+                    "FIDUCIAL-HOME, as OpenPnP has it.");
+        }
         add.row("Homing Method");
         add.choice("visualHoming", "Homing Method", { "Switches", "ResetToFiducialLocation" },
                    [h] { return std::string(h().visualHoming ? "ResetToFiducialLocation" : "Switches"); },
@@ -3428,7 +3440,7 @@ JPSetupProperties::Form JPSetupProperties::forNode(JPCellConfig& cell, const std
     else if (p.kind == "vision" && p.id == "fiducial") fiducialLocatorForm(cell, f, config, tests);
     else if (p.kind == "driver" && has(cell.drivers, p.id)) driverForm(cell, p.id, profiles, f, live);
     else if (p.kind == "axis" && has(cell.axes, p.id)) axisForm(cell, p.id, f, live);
-    else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f);
+    else if (p.kind == "head" && has(cell.heads, p.id)) headForm(cell, p.id, f, config);
     else if (p.kind == "nozzle" && has(cell.nozzles, p.id)) nozzleForm(cell, p.id, f);
     else if (p.kind == "nozzletip" && has(cell.nozzleTips, p.id)) nozzleTipForm(cell, p.id, f, live);
     else if (p.kind == "camera" && has(cell.cameras, p.id)) cameraForm(cell, p.id, f, live);

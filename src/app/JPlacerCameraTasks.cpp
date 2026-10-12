@@ -889,7 +889,7 @@ void JPlacerCameraTasks::visualTest(JPCameraPanel& camera) {
     }
     JPCameraFeed* feed = &camera.feed();
     const JPHeadConfig h = *head(feed->config());
-    const auto look = homeFiducialLook ? homeFiducialLook() : std::nullopt;
+    const auto look = homeFiducialLook ? homeFiducialLook(h) : std::nullopt;
     showLookFootprint(camera, look);
     run(camera, "Visual Test", [this, feed, h, look](std::string& words, const auto& progress) {
         progress("looking at the homing mark");
@@ -982,7 +982,7 @@ void JPlacerCameraTasks::visualHome(std::function<void(bool)> done) {
     }
     JPCameraFeed* feed = &camera->feed();
     const JPHeadConfig h = *homing;
-    const auto look = homeFiducialLook ? homeFiducialLook() : std::nullopt;
+    const auto look = homeFiducialLook ? homeFiducialLook(h) : std::nullopt;
     // Auto-Tune when homing: over the head's primary fiducial (else its homing fiducial), the light on as run()
     // switches it for vision, before the homing fiducial is looked for.
     const std::optional<JPMachineLocation> tuneAt =

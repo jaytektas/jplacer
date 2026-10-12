@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A head's **Homing Fiducial Part** (Machine Setup, beside Homing Fiducial) chooses the library part visual
+  homing looks for the mark as, kept by the part itself so renaming it changes nothing; not chosen, the part
+  named FIDUCIAL-HOME, as before.
+
 ## 0.1.57
 
 - A feeder is known for good by a GUID, shown in the Feeders table's new **ID** column. Feeders brought in from

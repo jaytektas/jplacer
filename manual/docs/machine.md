@@ -240,8 +240,9 @@ machine imported from OpenPnP homes the way it did in OpenPnP, with the same com
 The switches put the head within a fraction of a millimetre. Where the head is set to home visually (an
 imported head that did so in OpenPnP is), Home then finishes with the camera: the calibrated camera on
 the head is brought to the front, looks at the homing mark, and the coordinates are corrected so the mark measures
-exactly where the head's settings say it is (the **FIDUCIAL-HOME** part's footprint drawn on the camera
-while it looks). As OpenPnP's, it looks again, up to the **FIDUCIAL-HOME**
+exactly where the head's settings say it is (the homing part's footprint drawn on the camera while it
+looks). The homing part is the head's **Homing Fiducial Part** in Machine Setup; not chosen, the part named
+**FIDUCIAL-HOME**, as OpenPnP has it. As OpenPnP's, it looks again, up to the homing
 part's fiducial vision settings' **Max Vision Passes** (3 to begin with), until a look corrects it by less
 than their **Max Linear Offset** (0.2 mm to begin with); the last look's correction stands. With the camera's
 **Auto-Tune when homing?** ticked, the camera is first tuned over the head's primary fiducial (see Machine
@@ -846,10 +847,13 @@ mirrored.
 
 **Visual Test** (the tick in a ring) moves a calibrated head camera to look where the head's settings say the homing mark is,
 finds the mark, and says how far it really is from there, in mm in X and Y. As OpenPnP's visual homing, the
-mark is the **FIDUCIAL-HOME** part: its size is its package's pad, and it is found by that part's fiducial
+mark is the head's homing part (its **Homing Fiducial Part**, else the part named **FIDUCIAL-HOME**): its size
+is its package's pad, and it is found by that part's fiducial
 vision settings' pipeline (the Fiducial Locator's; with no fiducial vision settings, the stock one), on the
 camera's picture in colour and straightened, as OpenPnP's pipelines are given it, up to the Fiducial Locator's
-**Max. Distance** (4 mm to begin with) from where it should be, as OpenPnP's visual homing allows; without the part, "Visual homing is missing the FIDUCIAL-HOME part. Please create it."
+**Max. Distance** (4 mm to begin with) from where it should be, as OpenPnP's visual homing allows; without the
+part, "Visual homing has no part to look for the homing fiducial as: choose the head's Homing Fiducial Part (or
+make a part named FIDUCIAL-HOME), with a package and fiducial vision."
 Visual homing finds it the same way. Nothing is changed: right
 after a visual home it reads within a few hundredths of a millimetre, and any time later it shows whether
 the machine has lost its place.

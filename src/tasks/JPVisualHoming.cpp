@@ -16,7 +16,7 @@ inline namespace jf {
 
 namespace {
 
-// OpenPnP's homing fiducial: the part of this name.
+// OpenPnP's homing fiducial: the part of this name (a head's Homing Fiducial Part not chosen).
 constexpr const char* kHomePart = "FIDUCIAL-HOME";
 
 } // namespace
@@ -46,15 +46,21 @@ JPVisualHoming::Result JPVisualHoming::run(JPCell& cell, JPCameraFeed& feed, con
     return r;
 }
 
-std::optional<JPFootprint> JPVisualHoming::homeFootprint(JPConfiguration& configuration) {
-    const JPPart* part = configuration.partNamed(kHomePart);
+const JPPart* JPVisualHoming::homePart(const JPConfiguration& configuration, const JPHeadConfig& head) {
+    if (!head.homingFiducialPart.empty()) return configuration.part(head.homingFiducialPart);
+    return configuration.partNamed(kHomePart);
+}
+
+std::optional<JPFootprint> JPVisualHoming::homeFootprint(JPConfiguration& configuration, const JPHeadConfig& head) {
+    const JPPart* part = homePart(configuration, head);
     const JPPackage* k = part ? configuration.package(part->packageId) : nullptr;
     if (!k || k->footprint.pads.empty()) return std::nullopt;
     return k->footprint;
 }
 
-std::optional<JPVisualTest::Look> JPVisualHoming::homeLook(JPConfiguration& configuration, const JPVisionConfig& vision) {
-    const JPPart* part = configuration.partNamed(kHomePart);
+std::optional<JPVisualTest::Look> JPVisualHoming::homeLook(JPConfiguration& configuration, const JPVisionConfig& vision,
+                                                           const JPHeadConfig& head) {
+    const JPPart* part = homePart(configuration, head);
     if (!part) return std::nullopt;
     double diameter = 0;
     JPJobMachine::FiducialLook look;
@@ -62,7 +68,7 @@ std::optional<JPVisualTest::Look> JPVisualHoming::homeLook(JPConfiguration& conf
     if (JPFiducialLocator::partLook(configuration, *part, vision, diameter, look, settings) != JPFiducialLocator::PartProblem::None)
         return std::nullopt;
     return JPVisualTest::Look { diameter, look.pipeline, look.passes, look.maxLinearOffsetMm, vision.fiducialMaxDistanceMm,
-                                homeFootprint(configuration) };
+                                homeFootprint(configuration, head) };
 }
 
 } // inline namespace jf

@@ -35,11 +35,15 @@ public:
 
     // `look`: how the homing fiducial is looked for (JPVisualTest::Look, the FIDUCIAL-HOME part's).
     static Result run(JPCell& cell, JPCameraFeed& feed, const JPHeadConfig& head, double speed, const JPVisualTest::Look* look);
-    // How the FIDUCIAL-HOME part says the homing fiducial is looked for (its package's fiducial, its vision
-    // settings), by the machine's `vision`; none when there is no such part or it cannot be looked for.
-    static std::optional<JPVisualTest::Look> homeLook(JPConfiguration& configuration, const JPVisionConfig& vision);
-    // The FIDUCIAL-HOME part's package's footprint (drawn while it is looked for); none without one.
-    static std::optional<JPFootprint> homeFootprint(JPConfiguration& configuration);
+    // The part the head's homing fiducial is looked for as: its Homing Fiducial Part (by its id), else the part
+    // named FIDUCIAL-HOME (OpenPnP's); null when there is none.
+    static const JPPart* homePart(const JPConfiguration& configuration, const JPHeadConfig& head);
+    // How that part says the homing fiducial is looked for (its package's fiducial, its vision settings), by the
+    // machine's `vision`; none when there is no such part or it cannot be looked for.
+    static std::optional<JPVisualTest::Look> homeLook(JPConfiguration& configuration, const JPVisionConfig& vision,
+                                                      const JPHeadConfig& head);
+    // That part's package's footprint (drawn while it is looked for); none without one.
+    static std::optional<JPFootprint> homeFootprint(JPConfiguration& configuration, const JPHeadConfig& head);
 };
 
 } // inline namespace jf
