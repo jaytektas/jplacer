@@ -22,6 +22,11 @@ constexpr double kScoreFloor = 0;
 constexpr double kAbsoluteMinSymmetry = 0.1;
 // Candidates kept to search finer, for each target wanted.
 constexpr int kIterationTargetsFactor = 2;
+// One target wanted: this many of the coarse pass's best searched finer, the best of them kept. OpenPnP searches
+// only the single best finer, and a coarse pass can score the target below a speck of bare board (sampled every
+// 4 px, a 1 mm fiducial at 19 px scored 1.4 where it lies, refined to 6.3, against 1.4 for board 51 px away:
+// bench, 2026-10-13).
+constexpr int kSingleTargetCandidates = 4;
 // Keeps a variance ratio of perfect pictures finite.
 constexpr double kDiv0Guard = 0.1;
 
@@ -101,10 +106,12 @@ std::vector<Circle> JPCircularSymmetry::find(cv::Mat& image, Search q, ScoreRang
     double scoreBest = -INFINITY, xBest = 0, yBest = 0;
     int rContrastBest = 0;
     const bool showDiagnostics = (q.diagnostics || q.heatMap) && offsets.size() == 1;
+    // How many to search finer: those wanted, or for one wanted, a few (the final pass has nothing finer to go to).
+    const int candidates = q.maxTargetCount > 1 || !finalPass ? std::max(q.maxTargetCount, kSingleTargetCandidates) : 1;
     const int wMap = wRange / sub, hMap = hRange / sub;
     std::vector<double> scoreMap, xOffsetMap, yOffsetMap;
     std::vector<int> radiusMap;
-    if (showDiagnostics || q.maxTargetCount > 1) {
+    if (showDiagnostics || candidates > 1) {
         scoreMap.assign(size_t(wMap) * size_t(hMap), -INFINITY);
         radiusMap.assign(scoreMap.size(), 0);
         xOffsetMap.assign(scoreMap.size(), 0);
@@ -268,7 +275,7 @@ std::vector<Circle> JPCircularSymmetry::find(cv::Mat& image, Search q, ScoreRang
         local.maxDiameter = maxDiameter;
         return find(image, local, scoreRange);
     };
-    if (q.maxTargetCount > 1) {
+    if (candidates > 1) {
         const double minSymmetryEff = sub == 1 ? q.minSymmetry : kAbsoluteMinSymmetry;
         if (scoreBest > minSymmetryEff) {
             // The score map's peaks.
@@ -301,7 +308,7 @@ std::vector<Circle> JPCircularSymmetry::find(cv::Mat& image, Search q, ScoreRang
                     }
                 if (alone) filtered.push_back(cand);
             }
-            filtered = sortAndLimit(filtered, q.maxTargetCount * kIterationTargetsFactor, q.corrSymmetry);
+            filtered = sortAndLimit(filtered, candidates * kIterationTargetsFactor, q.corrSymmetry);
             std::vector<Circle> sampled;
             if (finalPass) {
                 sampled = filtered;
@@ -313,10 +320,8 @@ std::vector<Circle> JPCircularSymmetry::find(cv::Mat& image, Search q, ScoreRang
             }
             ret = sortAndLimit(sampled, q.maxTargetCount, q.corrSymmetry);
         }
-    } else if (finalPass) {
-        if (scoreBest > q.minSymmetry) ret.push_back({ xBest, yBest, double(rContrastBest * 2), scoreBest });
     } else {
-        ret = finer(xBest, yBest, 1);
+        if (scoreBest > q.minSymmetry) ret.push_back({ xBest, yBest, double(rContrastBest * 2), scoreBest });
     }
 
     if (showDiagnostics) {

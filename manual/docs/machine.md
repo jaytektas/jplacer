@@ -869,10 +869,13 @@ pipeline, a nozzle's tip by its nozzle tip calibration pipeline, and a camera's 
 calibration, backlash calibration, the homing mark's capture) by the camera's calibration pipeline, OpenPnP's
 DetectCircularSymmetry to begin with. jplacer does not measure again what a pipeline found: DetectCircularSymmetry
 finds a centre to an eighth of a pixel. A pipeline is told where the mark should be, how far from there to look
-and, where it is known, the mark's size in pixels.
+and, where it is known, the mark's size in pixels. DetectCircularSymmetry looks over the whole search area coarsely
+first, then finer round the best places it found there; looking for one mark, it takes the best four of them
+further (OpenPnP takes only the best one), so a small mark the coarse look scores no higher than bare board is
+still found.
 
 Where a calibration knows the mark's size only roughly (its size in millimetres at the camera's rough scale), the
 camera's calibration pipeline is run at every size about it and the most symmetrical mark taken, as a size a fifth
 out finds the mark's edge off centre.
 
-<!-- src: src/tasks/JPPipelineMarkFinder.cpp (find, findAnySize, onMachine); src/tasks/JPCameraCalibrator.cpp; src/tasks/JPBacklashCalibrator.cpp; src/pipeline/JPDefaultPipelines.cpp (cameraCalibration) -->
+<!-- src: src/pipeline/JPCircularSymmetry.cpp (find); src/tasks/JPPipelineMarkFinder.cpp (find, findAnySize, onMachine); src/tasks/JPCameraCalibrator.cpp; src/tasks/JPBacklashCalibrator.cpp; src/pipeline/JPDefaultPipelines.cpp (cameraCalibration) -->
