@@ -362,7 +362,10 @@ bool JPCellJobMachine::calibrateTip(const std::string& nozzleId, std::string& wh
     }
     prepare(*c, *feed);
     std::optional<JPBackgroundCalibration::Result> background;
-    const auto r = m_host.measureRunout(*c, *feed, *nozzle, *tip, why, background);
+    // Each find shown on the camera (the circle the pipeline found, where), as a calibration asked for by hand shows it.
+    JPRunoutCalibrator::Found found;
+    m_onMain([&] { found = m_host.runoutFinds(*feed); });
+    const auto r = m_host.measureRunout(*c, *feed, *nozzle, *tip, why, background, found);
     if (!r) return false;
     m_onMain([&] { m_host.keepRunout(tip->id, nozzleId, *r, background); });
     return true;

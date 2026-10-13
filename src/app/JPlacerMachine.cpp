@@ -1321,6 +1321,16 @@ JPCameraView* JPlacerMachine::visionResultView(const JPCameraFeed* feed) {
     return nullptr;
 }
 
+JPRunoutCalibrator::Found JPlacerMachine::runoutFinds(const JPCameraFeed& feed) {
+    if (!m_cameraTasks) return nullptr;
+    for (const CameraDock& d : m_cameras)
+        if (&d.panel->feed() == &feed) {
+            if (d.panel->camera().autoCameraView) bringForward(*d.panel);
+            return m_cameraTasks->showFinds(*d.panel);
+        }
+    return nullptr;
+}
+
 JPlacerMachine::Where JPlacerMachine::whereIs(JPSetupForm::Tool tool) const {
     return whereIsMount(toolMount(tool));
 }

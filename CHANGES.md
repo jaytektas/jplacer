@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A job's nozzle tip calibration shows each circle it finds on the bottom camera, as one from the Jog panel does.
+
 - Auto tool select follows a running job: the Jog panel chooses the nozzle or camera the job moves, so the
   footprint drawn on a camera turns with the part being placed. A job's messages and the feeder-loading
   window name parts by their names, not by long codes.

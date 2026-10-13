@@ -9,6 +9,7 @@
 #include "machine/JPRunout.h"
 #include "model/JPLocation.h"
 #include "tasks/JPBackgroundCalibration.h"
+#include "tasks/JPRunoutCalibrator.h"
 
 #include <optional>
 #include <string>
@@ -47,10 +48,14 @@ public:
     virtual std::string cellPath() const = 0;
     virtual void        slotScored(const std::string& tipId, double score) = 0;
     // A tip's runout measured on the camera looking up (`words`: what it says), and kept, with what it found of
-    // the background.
+    // the background; `found` told each find, to show it.
     virtual std::optional<JPRunout> measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle,
                                                   const JPNozzleTipConfig& tip, std::string& words,
-                                                  std::optional<JPBackgroundCalibration::Result>& background) = 0;
+                                                  std::optional<JPBackgroundCalibration::Result>& background,
+                                                  const JPRunoutCalibrator::Found& found) = 0;
+    // What shows a runout calibration's finds on `feed`'s camera, as one asked for by hand does (the circle found,
+    // where): asked on the screen's thread. None: not shown.
+    virtual JPRunoutCalibrator::Found runoutFinds(const JPCameraFeed&) { return nullptr; }
     // Kept together (one change to the machine): the runout and the background measured with it.
     virtual void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout,
                             const std::optional<JPBackgroundCalibration::Result>& background) = 0;

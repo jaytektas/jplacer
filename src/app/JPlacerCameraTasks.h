@@ -33,6 +33,8 @@ inline namespace jf {
 // its file.
 class JPlacerCameraTasks {
 public:
+    // A calibration's finds shown on `camera`'s view as they come (JPCameraCalibrator::Options::found).
+    std::function<void(const cv::Mat&, double, double, double, const std::string&)> showFinds(JPCameraPanel& camera);
     // `cameras`: a panel for each of the cell's cameras. `bringForward`: show
     // a panel (the front tab of its dock group).
     JPlacerCameraTasks(JAppWindow& window, JPCell& cell, std::vector<JPCameraPanel*> cameras,
@@ -225,8 +227,6 @@ private:
     // diameter, Auto-Detect Next): the precise nozzle offsets' test object is looked for there first.
     std::optional<std::pair<double, double>> m_featureAt;
     std::optional<std::pair<double, double>> cameraAt(const JPCameraPanel& camera) const;
-    // A calibration's finds shown on `camera`'s view as they come (JPCameraCalibrator::Options::found).
-    std::function<void(const cv::Mat&, double, double, double, const std::string&)> showFinds(JPCameraPanel& camera);
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };
 

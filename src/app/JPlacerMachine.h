@@ -285,6 +285,8 @@ public:
     // to the front only when the camera has Auto Camera View? (OpenPnP's CameraView.setCameraViewFilter).
     JPCameraView* cameraViewOf(const JPCameraFeed* feed);
     JPCameraView* visionResultView(const JPCameraFeed* feed);
+    // What shows a runout calibration's finds on `feed`'s camera, as one from the Jog panel shows them; none: no panel.
+    JPRunoutCalibrator::Found runoutFinds(const JPCameraFeed& feed);
     // While it is held the machine is there (for what is posted to the main thread to be done later).
     std::weak_ptr<bool> alive() const { return m_alive; }
     // For a job (JPCellJobMachine): the open cell, the head camera's

@@ -34,9 +34,12 @@ void JPlacerJobHost::slotScored(const std::string& tipId, double score) { m_mach
 
 std::optional<JPRunout> JPlacerJobHost::measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle,
                                                       const JPNozzleTipConfig& tip, std::string& words,
-                                                      std::optional<JPBackgroundCalibration::Result>& background) {
-    return JPRunoutCalibrator::measure(cell, feed, nozzle, tip, &m_machine.scripting(), words, nullptr, background);
+                                                      std::optional<JPBackgroundCalibration::Result>& background,
+                                                      const JPRunoutCalibrator::Found& found) {
+    return JPRunoutCalibrator::measure(cell, feed, nozzle, tip, &m_machine.scripting(), words, nullptr, background, found);
 }
+
+JPRunoutCalibrator::Found JPlacerJobHost::runoutFinds(const JPCameraFeed& feed) { return m_machine.runoutFinds(feed); }
 
 void JPlacerJobHost::keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout,
                                 const std::optional<JPBackgroundCalibration::Result>& background) {

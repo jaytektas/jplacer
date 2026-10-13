@@ -281,7 +281,9 @@ axis's own offset is taken to be the camera's, so the place found is where the c
 a job measures it before the nozzle's first pick), **MachineHome** (once homed, and on a load when not yet
 measured on that nozzle) or **Manual**. A load while the machine is not homed is measured once it is homed. A
 load a running job makes is measured by the job itself, in its Calibrate Nozzle Tip step before the nozzle's
-next pick, and not again beside it. Once homed, a tip set to NozzleTipChange or MachineHome is measured
+next pick, and not again beside it. However it is measured, the camera shows each find as it comes: the picture
+with a green circle and cross where the tip was found and the size it was found, and which turn of how many, so a
+wrong find shows at once. Once homed, a tip set to NozzleTipChange or MachineHome is measured
 on the nozzle it is on (after visual homing, before Machine.AfterHoming and the park), and forgotten on the
 nozzles it fits but is not on; with **Fail Homing?**, a measurement failing then leaves the machine not homed.
 A job measures any tip it uses that is to be compensated and not yet measured on its nozzle (Calibrate

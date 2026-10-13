@@ -102,8 +102,9 @@ public:
     void slotScored(const std::string&, double) override {}
     std::optional<jf::JPRunout> measureRunout(jf::JPCell& cell, jf::JPCameraFeed& feed, const jf::JPNozzleConfig& nozzle,
                                               const jf::JPNozzleTipConfig& tip, std::string& words,
-                                              std::optional<jf::JPBackgroundCalibration::Result>& background) override {
-        return jf::JPRunoutCalibrator::measure(cell, feed, nozzle, tip, nullptr, words, nullptr, background);
+                                              std::optional<jf::JPBackgroundCalibration::Result>& background,
+                                              const jf::JPRunoutCalibrator::Found& found) override {
+        return jf::JPRunoutCalibrator::measure(cell, feed, nozzle, tip, nullptr, words, nullptr, background, found);
     }
     void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<jf::JPRunout>& runout,
                     const std::optional<jf::JPBackgroundCalibration::Result>& b) override {

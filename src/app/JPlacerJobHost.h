@@ -28,7 +28,9 @@ public:
     std::string cellPath() const override;
     void        slotScored(const std::string& tipId, double score) override;
     std::optional<JPRunout> measureRunout(JPCell& cell, JPCameraFeed& feed, const JPNozzleConfig& nozzle, const JPNozzleTipConfig& tip,
-                                          std::string& words, std::optional<JPBackgroundCalibration::Result>& background) override;
+                                          std::string& words, std::optional<JPBackgroundCalibration::Result>& background,
+                                          const JPRunoutCalibrator::Found& found) override;
+    JPRunoutCalibrator::Found runoutFinds(const JPCameraFeed& feed) override;
     void keepRunout(const std::string& tipId, const std::string& nozzleId, const std::optional<JPRunout>& runout,
                     const std::optional<JPBackgroundCalibration::Result>& background) override;
 
