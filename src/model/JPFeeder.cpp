@@ -751,8 +751,10 @@ std::optional<JPLocation> JPFeeder::visionExpected(int n) const {
     if (!visionLocation) return expected;
     const JPLocation e = expected.convertToUnits(JPLengthUnit::Millimeters), v = visionLocation->convertToUnits(JPLengthUnit::Millimeters);
     const double toVision = std::hypot(e.x() - v.x(), e.y() - v.y());
-    // The same hole (within half a pitch): not again.
-    if (toVision < holePitchMm * 0.5) return std::nullopt;
+    // The same hole (within half a pitch, the second part of a pair under 4 mm): looked at again unless an
+    // Extrapolation Distance says looks may be skipped. OpenPnP skips it whatever, so with vision on a 2 mm pitch
+    // tape (an 0402's) was seen only every second pick, the strip free to have shifted as the first was taken.
+    if (toVision < holePitchMm * 0.5) return mmOf(s->extrapolationDistance) > 0 ? std::nullopt : std::optional<JPLocation>(expected);
     // Far enough from the last found: looked at. Near the strip's start the
     // distance grows with the span measured (OpenPnP's geometric progression).
     const JPLocation aa = a.convertToUnits(JPLengthUnit::Millimeters), bb = b.convertToUnits(JPLengthUnit::Millimeters);

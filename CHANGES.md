@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A strip feeder with vision on a 2 mm pitch tape (0402s) looks at the tape on every pick, not every second
+  one, unless its Extrapolation Distance says looks may be skipped.
+
 - Bottom vision looks for a part only where it can be (the part's own size plus the pick tolerance), not across
   the nozzle tip's whole Max Part Diameter: a small part (an 0402) is no longer boxed with whatever else shines
   round the tip. On a paused run, a Test Alignment of the part on the nozzle replaces the run's alignment.

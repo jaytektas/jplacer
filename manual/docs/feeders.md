@@ -212,8 +212,9 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   tape's height (the Reference Hole Location's Z and its Z Along Strip %, the camera calibrated at two heights),
   and the hole is the one nearest where it should be, within half a hole pitch; not found, or found more than
   2 mm off, the strip is taken as finished ("Unable to locate reference hole. End of strip?").
-  **Extrapolation Distance**: how far along the strip to go before looking again (0: every hole; near the
-  strip's start it looks more often). **Parallax Diameter** and **Parallax Angle**: instead, look at the hole
+  **Extrapolation Distance**: how far along the strip to go before looking again (0: every pick, the second
+  part of a hole's pair on a tape under 4 mm pitch included, as the strip may have moved as the first was taken;
+  more than 0: the second part of a pair goes by the first's look; near the strip's start it looks more often). **Parallax Diameter** and **Parallax Angle**: instead, look at the hole
   from either side of it, that far apart and turned that way, and take the middle. **Reset Vision** forgets the
   holes found. **Edit Pipeline...** opens the strip's OpenPnP pipeline in the [Pipeline Editor](pipeline-editor.md),
   and **Reset Pipeline** puts the default back.
