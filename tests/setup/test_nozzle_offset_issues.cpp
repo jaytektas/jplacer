@@ -221,10 +221,12 @@ int main() {
     precise->properties[3].action();
     assert(shownAgain && cell.heads[0].rigTestObjectZ && near(*cell.heads[0].rigTestObjectZ, -22.4) && near(objectZ.getNumber(), -22.4));
     assert(s.setState(*precise, S::State::Solved, why) && calibratedAt == 244);
+    // The result on its page at once, as it is now (not as when the issues were found, before it was calibrated).
+    assert(precise->described().find("Detected Nozzle Head Offsets: -19.3000, -62.5600 mm") != std::string::npos);
     s.find();
     s.publish();
     precise = find(s, "Calibrate precise camera ↔ nozzle LEFT offsets.");
-    assert(precise && precise->extendedDescription.find("Detected Nozzle Head Offsets: -19.3000, -62.5600 mm") != std::string::npos);
+    assert(precise && precise->described().find("Detected Nozzle Head Offsets: -19.3000, -62.5600 mm") != std::string::npos);
     assert(near(precise->properties[2].getNumber(), -22.4));   // found again: as captured
     return 0;
 }
