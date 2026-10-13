@@ -76,6 +76,9 @@ public:
     const std::vector<std::shared_ptr<JPPart>>& parts() const { return m_parts; }
     // A part by id (the library's: there are no others).
     JPPart* part(const std::string& id) const;
+    // What a part of that id is called where it is shown (its Name); one the library does not have, the id as it is
+    // (an OpenPnP file's part ids are names).
+    std::string partName(const std::string& id) const;
     // A part's height as it is placed: its own, else its package's; 0: neither knows it.
     JPLength partHeight(const JPPart& part) const;
     // The same with the depth it reaches through the board: what hangs below a nozzle (Dynamic Safe Z).
@@ -109,6 +112,8 @@ public:
     const std::vector<std::shared_ptr<JPPackage>>& packages() const { return m_packages; }
     // A package by its id, a GUID (the library's: there are no others).
     JPPackage* package(const std::string& id) const;
+    // A package's Name by its id, as partName says a part's.
+    std::string packageName(const std::string& id) const;
     // The library's package of that id only, or null.
     JPPackage* libraryPackage(const std::string& id) const;
     // The manufacturers the library knows, with their other names.

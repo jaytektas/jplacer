@@ -300,7 +300,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         m_window.openModal<JPlacerStockReceiveDialog>(m_job.configuration().stock(), part, std::move(changed));
     };
     m_parts->openLedger = [this](const std::string& lotUuid, const std::string& partId, std::function<void()> changed) {
-        m_window.openModal<JPlacerLotLedgerDialog>(m_job.configuration().stock(), lotUuid, partId, std::move(changed));
+        m_window.openModal<JPlacerLotLedgerDialog>(m_job.configuration().stock(), lotUuid, m_job.configuration().partName(partId),
+                                                   std::move(changed));
     };
     m_parts->onChanged = [this] { libraryChanged(); };
     m_parts->machineDefaults = [this] { return machineVisionDefaults(); };

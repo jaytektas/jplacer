@@ -725,7 +725,7 @@ void JPFeedersPanel::newFeeder(const std::string& partId) {
         return;
     }
     if (!chooseClass) return;
-    const std::string title = partId.empty() ? "Select Feeder..." : "Select Feeder for " + partId + "...";
+    const std::string title = partId.empty() ? "Select Feeder..." : "Select Feeder for " + m_config.partName(partId) + "...";
     chooseClass(title, "Please select a Feeder implementation from the list below.", JPFeeder::classNames(),
                 [this, partId](std::string className) {
                     if (className.empty()) return;

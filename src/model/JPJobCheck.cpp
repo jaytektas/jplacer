@@ -80,7 +80,9 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
                 if (bp && bp->state == JPBoardPart::State::Unmatched)
                     g.add(L::Stop, "No part chosen", where, "The Job tab's Placements: Board's Parts, or the placement's Part");
                 else
-                    g.add(L::Stop, "A part the library does not have", where + " (" + p.partId + ")",
+                    // By what the files called it: its id names a part since deleted (a GUID, nothing to read).
+                    g.add(L::Stop, "A part the library does not have",
+                          where + " (" + (bp && !bp->field("part").empty() ? bp->field("part") : p.partId) + ")",
                           "The Job tab's Placements: Board's Parts (choose one the library has, or Add to Library)");
                 continue;
             }
@@ -90,7 +92,7 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
             // The part's own checks, once.
             const JPPackage* package = config.package(part->packageId);
             if (!package) {
-                g.add(L::Stop, "No package", part->id, "Parts tab: the part's Package");
+                g.add(L::Stop, "No package", part->shownName(), "Parts tab: the part's Package");
                 continue;
             }
             const bool tip = std::any_of(machineTipIds.begin(), machineTipIds.end(), [package](const std::string& t) {
@@ -101,10 +103,10 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
                 g.add(L::Stop, "No nozzle tip on the machine fits its package", part->shownName() + " (" + package->shownName() + ")",
                       "Packages tab: the package's Nozzle Tips");
             if (!config.findFeeder(part->id, std::nullopt))
-                g.add(L::Note, "No feeder holds it yet (the run asks for it to be loaded when it gets to it)", part->id,
+                g.add(L::Note, "No feeder holds it yet (the run asks for it to be loaded when it gets to it)", part->shownName(),
                       "Load it when asked, or set a feeder up for it on the Feeders tab");
             if (config.isPartHeightUnknown(*part))
-                g.add(L::Check, "Height not known", part->id, "Parts tab: the part's Height, or its package's (or probe it)");
+                g.add(L::Check, "Height not known", part->shownName(), "Parts tab: the part's Height, or its package's (or probe it)");
             const JPLibraryFootprint* cad = bp ? config.footprintFor(*bp, *part) : nullptr;
             const bool footprint = (cad && !cad->geometry.pads.empty()) || !package->footprint.pads.empty();
             if (!footprint)
@@ -116,7 +118,7 @@ std::vector<JPJobCheck::Item> JPJobCheck::of(JPConfiguration& config, const JPJo
         // Only for parts whose stock is kept (a lot, open or closed): no lots at all is not keeping stock.
         if (s.shortBy > 0 && !config.stock().lots(s.partUuid, true).empty())
             g.add(L::Note, "Short of stock (a run asks for it as it goes)",
-                  s.partId + " (short " + std::to_string(s.shortBy) + ")", "Job > Shortages…; the Parts tab's Stock page");
+                  s.partName + " (short " + std::to_string(s.shortBy) + ")", "Job > Shortages…; the Parts tab's Stock page");
     return g.take();
 }
 

@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- The job's check before a run, and messages from a run (no feeder for a part, a part's height probe, bottom
+  vision), the Select Feeder title and a stock lot's ledger, name parts by their names, not by a long code.
+
 - **Board Nudge** in the Job tab's Boards: when every part is out the same way after a fiducial check, turn it
   on over a part, jog the camera onto it and Apply: the board moves by what you jogged, and every placement with it.
 

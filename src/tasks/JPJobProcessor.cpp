@@ -349,7 +349,7 @@ JPJobProcessor::Step JPJobProcessor::fiducialCheck() {
 
 JPFeeder* JPJobProcessor::feederFor(const std::string& partId, const std::string& preferredId) {
     JPFeeder* best = m_config.findFeeder(partId, m_machine.cameraLocation());
-    if (!best) fail(Source::Part, partId, "No compatible, enabled feeder found for part " + partId);
+    if (!best) fail(Source::Part, partId, "No compatible, enabled feeder found for part " + m_config.partName(partId));
     // The feeder planned stays, while it is still one of the best.
     if (JPFeeder* f = preferredId.empty() ? nullptr : m_config.feeder(preferredId))
         if (f->enabled() && f->partId() == partId && f->priority() == best->priority()) return f;
@@ -970,7 +970,7 @@ JPLocation JPJobProcessor::probedPlace(const std::string& nozzleId, JobPlacement
     if (unknown) {
         const double h = z - b.z();
         if (h <= 0)
-            fail(Source::Nozzle, nozzleId, "Part height " + j.partId + " probing by nozzle " + n->name
+            fail(Source::Nozzle, nozzleId, "Part height " + m_config.partName(j.partId) + " probing by nozzle " + n->name
                                                + " failed (returned negative height). Check PCB Z and probing adjustment.");
         setPartHeight(j.partId, h);
         JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Nozzle " << n->name << " probed part " << j.partId << " height at " << h;

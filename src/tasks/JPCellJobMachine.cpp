@@ -1287,10 +1287,10 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
             partTuned = true;
         }
         // The pipeline's ImageCapture settles the camera, as OpenPnP's.
-        if (!JPBottomVision::findByPipeline(*rq.pipeline, rq.partId, pipelineCal, camX, camY, nx, ny, expected,
+        if (!JPBottomVision::findByPipeline(*rq.pipeline, m_config.partName(rq.partId), pipelineCal, camX, camY, nx, ny, expected,
                                             settings.fullRotation ? 180 : JPBottomVision::kAdjustRange, seen, w))
             return false;
-        showWorking(*rq.pipeline, feed, rq.partId, kShownPipelineMs);
+        showWorking(*rq.pipeline, feed, m_config.partName(rq.partId), kShownPipelineMs);
         return true;
     };
     JPBottomVision::Offset offset;
@@ -1304,7 +1304,7 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     result.dy = o.y();
     result.nozzleAngle = offset.preRotated ? rq.imageAngle - o.rotation() : 0;
     result.partAngle = offset.preRotated ? rq.imageAngle : o.rotation();
-    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "aligned " << rq.partId << " on " << nozzle.name << (offset.preRotated ? " (pre-rotated)" : "")
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "aligned " << m_config.partName(rq.partId) << " on " << nozzle.name << (offset.preRotated ? " (pre-rotated)" : "")
                                              << ": offsets " << o.x() << ", " << o.y() << " mm, " << o.rotation() << " deg";
     return true;
 }
@@ -1335,8 +1335,9 @@ bool JPCellJobMachine::alignComposite(JPCell& cell, const JPMountConfig& nozzle,
     };
     JPCameraFeed* feed = nullptr;
     m_onMain([&] { feed = m_host.upCameraFeed(); });
-    const JPBottomVision::Composite k { pipeline, composite, tip, cal, camX, camY, partId, nozzleAt, moveTo,
-                                        [this, feed, &partId](JPPipeline& p) { showWorking(p, feed, partId, kShownPipelineMs); } };
+    // Said by its name (its id is a GUID).
+    const JPBottomVision::Composite k { pipeline, composite, tip, cal, camX, camY, m_config.partName(partId), nozzleAt, moveTo,
+                                        [this, feed, name = m_config.partName(partId)](JPPipeline& p) { showWorking(p, feed, name, kShownPipelineMs); } };
     return JPBottomVision::seeComposite(k, nx, ny, angle, seen, why);
 }
 

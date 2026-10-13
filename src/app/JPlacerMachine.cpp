@@ -1389,7 +1389,7 @@ bool JPlacerMachine::jogSafe(const JPMountConfig& tool, const std::map<std::stri
         if (!partId.empty()) {
             if (const JPPart* part = m_configuration ? m_configuration->part(partId) : nullptr)
                 m.partHeight = m_configuration->partHeightForSafeZ(*part).convertToUnits(JPLengthUnit::Millimeters).value();
-            m.subject += " holding " + partId;
+            m.subject += " holding " + (m_configuration ? m_configuration->partName(partId) : partId);
         }
         on.push_back(m);
     }

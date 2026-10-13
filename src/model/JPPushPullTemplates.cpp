@@ -185,7 +185,7 @@ std::string JPPushPullTemplates::cloneTemplateStatus(const JPConfiguration& conf
         for (const std::string& id : compatibleFeeders(config, feederId)) {
             const JPFeeder* t = config.feeder(id);
             status += n++ > 0 ? ",\n" : "\n";
-            status += t->name() + " " + t->partId();
+            status += t->name() + " " + config.partName(t->partId());
         }
         status += n == 0 ? "none." : "\n(Count: " + std::to_string(n) + ")";
         return status;
@@ -194,7 +194,7 @@ std::string JPPushPullTemplates::cloneTemplateStatus(const JPConfiguration& conf
     if (templ.empty()) return "None found";
     const JPFeeder* t = config.feeder(templ);
     status = t->name();
-    if (partOf(config, *t)) status += " with part " + t->partId();
+    if (partOf(config, *t)) status += " with part " + config.partName(t->partId());
     const JPPart* mine = partOf(config, *self);
     const JPPart* theirs = partOf(config, *t);
     if (mine && theirs && compatibleParts(config, self->partId(), t->partId())) {

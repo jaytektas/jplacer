@@ -57,11 +57,13 @@ int main() {
     r->height = JPLength(0.5, JPLengthUnit::Millimeters);
     config.addPart(r);
     auto q = std::make_shared<JPPart>();
-    q->id = "BC847";
+    q->id = "0b1c4e2a-guid-bc847";   // a part is known by a GUID, said by its name
+    q->label = "BC847";
     q->packageId = "SOT23";
     config.addPart(q);
     auto bare = std::make_shared<JPPart>();
-    bare->id = "BARE";
+    bare->id = "5d7f00c3-guid-bare";
+    bare->label = "BARE";
     config.addPart(bare);
     JPFeeder f = JPFeeder::create(JPFeeder::classNames().front(), "R0603-10k");
     f.setEnabled(true);
@@ -71,7 +73,12 @@ int main() {
     JPBoardPart unchosen;
     unchosen.key = "bp-1";
     unchosen.fields["part"] = "LM358";
-    board->parts() = { unchosen };
+    JPBoardPart deleted;   // matched to a library part since deleted
+    deleted.key = "bp-2";
+    deleted.fields["part"] = "OLD-PART";
+    deleted.state = JPBoardPart::State::Matched;
+    deleted.libraryPartId = "9e9e-guid-gone";
+    board->parts() = { unchosen, deleted };
     auto add = [&board](const std::string& id, const std::string& part, const std::string& key = "") {
         JPPlacement p;
         p.id = id;
@@ -82,10 +89,10 @@ int main() {
     };
     add("R1", "R0603-10k")->verified = { "operator", "2026-10-08 12:00:00" };
     add("R2", "R0603-10k");
-    add("Q1", "BC847");
+    add("Q1", q->id);
     add("U1", "LM358", "bp-1");
-    add("X1", "GONE");
-    add("Z1", "BARE");
+    add("X1", "9e9e-guid-gone", "bp-2");
+    add("Z1", bare->id);
     add("R3", "R0603-10k")->enabled = false;
     add("R4", "R0603-10k")->side = JPSide::Bottom;
     add("R5", "R0603-10k");
@@ -104,7 +111,7 @@ int main() {
     for (size_t i = 1; i < items.size(); ++i) assert(items[i - 1].level <= items[i].level);
     assert(has(find(items, "A placement ID used twice on a board"), at + "R1"));
     assert(has(find(items, "No part chosen"), at + "U1"));
-    assert(has(find(items, "A part the library does not have"), at + "X1 (GONE)"));
+    assert(has(find(items, "A part the library does not have"), at + "X1 (OLD-PART)"));
     assert(has(find(items, "No package"), "BARE"));
     assert(has(find(items, "No nozzle tip on the machine fits its package"), "BC847 (SOT23)"));
     const auto* noFeeder = find(items, "No feeder holds it yet (the run asks for it to be loaded when it gets to it)");

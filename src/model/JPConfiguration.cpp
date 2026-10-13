@@ -580,6 +580,16 @@ JPPart* JPConfiguration::part(const std::string& id) const {
     return libraryPart(id);
 }
 
+std::string JPConfiguration::partName(const std::string& id) const {
+    const JPPart* p = part(id);
+    return p ? p->shownName() : id;
+}
+
+std::string JPConfiguration::packageName(const std::string& id) const {
+    const JPPackage* k = package(id);
+    return k ? k->shownName() : id;
+}
+
 JPPart* JPConfiguration::libraryPart(const std::string& id) const {
     const auto it = m_partsById.find(upper(id));
     return it == m_partsById.end() ? nullptr : it->second.get();

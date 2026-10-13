@@ -33,10 +33,10 @@ const char* quantityTip(JPLedgerEntry::Kind k) {
 
 } // namespace
 
-JPlacerLotLedgerDialog::JPlacerLotLedgerDialog(JPStockStore& stock, const std::string& lotUuid, const std::string& partId,
+JPlacerLotLedgerDialog::JPlacerLotLedgerDialog(JPStockStore& stock, const std::string& lotUuid, const std::string& partName,
                                                std::function<void()> changed, JGpuHal& hal, int sx, int sy,
                                                NativeWinHandleType parent)
-    : JDialogWindow("Ledger of " + stock.lot(lotUuid).label + " (" + partId + ")", kW, kH, hal, sx, sy, parent)
+    : JDialogWindow("Ledger of " + stock.lot(lotUuid).label + " (" + partName + ")", kW, kH, hal, sx, sy, parent)
     , m_stock(stock)
     , m_lotUuid(lotUuid)
     , m_changed(std::move(changed)) {

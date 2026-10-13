@@ -28,7 +28,7 @@ public:
     static constexpr uint32_t kW = 900, kH = 560;
 
     // `changed`: an entry added, or the lot closed or reopened.
-    JPlacerLotLedgerDialog(JPStockStore& stock, const std::string& lotUuid, const std::string& partId,
+    JPlacerLotLedgerDialog(JPStockStore& stock, const std::string& lotUuid, const std::string& partName,
                            std::function<void()> changed, JGpuHal& hal, int sx, int sy, NativeWinHandleType parent);
 
 protected:
