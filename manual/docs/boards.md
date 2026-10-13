@@ -165,6 +165,10 @@ the library has is left as it is.
   inches`); and how its columns are read.
 - **Save Profile…** keeps the file's columns' meanings under a name; the next file of that kind whose
   header has the same columns is read by it, and it can be chosen for a file.
+- **As last imported**: on **Import**, each file's columns are kept as they were chosen, profile or not; the
+  next file of that kind with exactly the same columns is read the same way (ahead of a profile, a column
+  set to **Ignore** left so), and **As last imported** can be chosen for it again after changing a column.
+  The name is jplacer's own: a profile cannot be saved under it.
 - **The Board's and the Job's Fields** (when boards or jobs have fields of yours): each one's value for the
   whole import, as the files give it (a column's first row, or what a file says about itself, matched by the
   field's name or **Import matches**: a KiCad board's **Revision**, a tool's `Key = value` comment), and where

@@ -141,6 +141,9 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
         if (name.empty()) {
             s.guess(m_config.fields());
             s.profile.clear();
+        } else if (name == JPMappingProfiles::kLast) {
+            if (const JPMappingProfiles::Profile* p = m_profiles.lastFor(s.table.header, s.role))
+                JPMappingProfiles::apply(*p, s, m_config.fields());
         } else {
             for (const auto& p : m_profiles.profiles)
                 if (p.name == name && p.role == s.role) JPMappingProfiles::apply(p, s, m_config.fields());
@@ -300,7 +303,9 @@ void JPlacerCplBomImportDialog::addSource(const std::string& path, JPImportSourc
         JDialog::message("Cannot Read the File", fileName(path) + ": " + error);
         return;
     }
-    if (const JPMappingProfiles::Profile* p = m_profiles.best(s.table.header, role)) JPMappingProfiles::apply(*p, s, m_config.fields());
+    // Read as the last file of these columns was, else by the profile that fits, else guessed.
+    if (const JPMappingProfiles::Profile* p = m_profiles.lastFor(s.table.header, role)) JPMappingProfiles::apply(*p, s, m_config.fields());
+    else if (const JPMappingProfiles::Profile* q = m_profiles.best(s.table.header, role)) JPMappingProfiles::apply(*q, s, m_config.fields());
     else s.guess(m_config.fields());
     JLOGC(JPlacerLog::kBoardImport, JLogLevel::Info) << JPImportSource::roleLabel(role) << " " << path << ": "
                                                      << s.table.header.size() << " column(s), " << s.table.rows.size()
@@ -358,6 +363,10 @@ void JPlacerCplBomImportDialog::fillColumns() {
         if (kUnits[i].second == s.units) m_units->setCurrentIndex(int(i));
     std::vector<std::string> profiles { "Their names (guessed)" };
     int current = 0;
+    if (m_profiles.lastFor(s.table.header, s.role)) {
+        if (s.profile == JPMappingProfiles::kLast) current = int(profiles.size());
+        profiles.push_back(JPMappingProfiles::kLast);
+    }
     for (const auto& p : m_profiles.profiles)
         if (p.role == s.role) {
             if (p.name == s.profile) current = int(profiles.size());
@@ -525,6 +534,11 @@ void JPlacerCplBomImportDialog::saveProfile() {
                        if (const auto a = alive.lock(); !a || !*a) return;
                        if (name.empty()) name = suggested;   // the name shown in the empty field
                        if (name.empty() || size_t(chosen) >= m_import.sources.size()) return;
+                       if (name == JPMappingProfiles::kLast) {
+                           JDialog::message("Profile Not Saved", std::string("\"") + JPMappingProfiles::kLast +
+                                                                     "\" is what jplacer keeps by itself: please give the profile another name.");
+                           return;
+                       }
                        JPImportSource& src = m_import.sources[size_t(chosen)];
                        m_profiles.put(JPMappingProfiles::from(src, name));
                        std::string error;
@@ -550,6 +564,10 @@ void JPlacerCplBomImportDialog::runImport() {
                                                      << " part(s) (" << report.matched << " from the library, " << report.made
                                                      << " new for the library, " << report.unmatched << " to be chosen) from "
                                                      << m_import.sources.size() << " file(s)";
+    // Each file's columns as they were taken: the next file with the same columns is read so.
+    for (const JPImportSource& s : m_import.sources) m_profiles.remember(s);
+    if (!m_profiles.save(profilesFile(), error))
+        JLOGC(JPlacerLog::kBoardImport, JLogLevel::Warn) << error << ": the columns as imported not kept for next time";
     close();
     if (m_onImported) m_onImported(board);
     if (m_onJobValues && !report.job.empty()) m_onJobValues(report.job);

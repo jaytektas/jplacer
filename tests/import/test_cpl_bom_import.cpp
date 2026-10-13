@@ -283,6 +283,30 @@ int main() {
         assert(next.mapping[5] == JPImportField::target(I::Manufacturer) && next.profile == "My BOM" && next.mapping[9].empty());
         assert(!read.best({ "Comment", "Designator" }, JPImportSource::Role::Bom));
     }
+    // The columns as last imported: kept without a name, found again only for exactly the same columns (a column
+    // left out kept as left out), and taken over by the next import of them.
+    {
+        JPMappingProfiles profiles;
+        JPImportSource taken = source("Comment,Designator,Footprint\n10k,R1,0603\n", JPImportSource::Role::Bom, "a.csv");
+        taken.mapping[0] = JPImportField::target(I::Name);
+        taken.mapping[2] = {};
+        profiles.remember(taken);
+        const std::string path = (dir / JPMappingProfiles::kFile).string();
+        assert(profiles.save(path, error));
+        JPMappingProfiles read;
+        assert(read.load(path, error) && read.profiles.empty() && read.last.size() == 1);
+        JPImportSource next = source("Comment,Designator,Footprint\n1u,C1,0805\n", JPImportSource::Role::Bom, "b.csv");
+        const JPMappingProfiles::Profile* p = read.lastFor(next.table.header, JPImportSource::Role::Bom);
+        assert(p && !read.lastFor(next.table.header, JPImportSource::Role::Cpl));
+        assert(!read.lastFor({ "Comment", "Designator" }, JPImportSource::Role::Bom));
+        assert(!read.lastFor({ "Comment", "Designator", "Footprint", "Extra" }, JPImportSource::Role::Bom));
+        JPMappingProfiles::apply(*p, next, shipped());
+        assert(next.mapping[0] == JPImportField::target(I::Name) && next.mapping[2].empty());
+        assert(next.profile == JPMappingProfiles::kLast);
+        next.mapping[0] = JPImportField::target(I::Value);
+        read.remember(next);
+        assert(read.last.size() == 1 && read.last[0].columns.at("Comment") == JPImportField::target(I::Value).text());
+    }
     // The fields added: a placement's, a part's and its package's from their rows; the board's and the job's one
     // value for the whole import (a column's, else what a file says of itself, else as typed, over either).
     {

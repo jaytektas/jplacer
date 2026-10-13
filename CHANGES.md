@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Importing a CPL and BOM remembers each file's columns as you set them (a "Val" column read as the part's
+  **Name**, say): the next file with the same columns is read the same way, without saving a profile.
+- After an import, the dialog that follows (the parts to choose, or what to do with a board's existing
+  placements) stays in front of the main window instead of going behind it on Linux.
+
 - jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
   Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
   cameras are read through Windows' own camera support (Media Foundation), with the same camera settings

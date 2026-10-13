@@ -15,10 +15,13 @@ inline namespace jf {
 // profile): "KiCad 8 .pos", "JLCPCB BOM". A file whose header has every
 // column a profile maps is mapped by it (the profile mapping most of them,
 // where several fit), so the next file from the same tool maps itself.
-// Kept in a JSON file of their own beside the configuration.
+// Kept in a JSON file of their own beside the configuration, with each
+// file's columns as they were last imported (last): the next file with the
+// same columns is read as that one was, saved as a profile or not.
 class JPMappingProfiles {
 public:
     static constexpr const char* kFile = "import-profiles.json";
+    static constexpr const char* kLast = "As last imported";   // the name a remembered mapping goes by
 
     struct Profile {
         std::string                        name;
@@ -28,6 +31,7 @@ public:
     };
 
     std::vector<Profile> profiles;
+    std::vector<Profile> last;   // one a role and header, each called kLast
 
     // Read from / written to `path`; reading one that is not there is no profiles, not a fault.
     bool load(const std::string& path, std::string& error);
@@ -42,6 +46,10 @@ public:
     static Profile from(const JPImportSource& s, const std::string& name);
     // Kept, in place of one of the same name.
     void put(const Profile& p);
+    // The mapping a file of exactly this header and role was last imported by, or null; a source's kept as
+    // that, in place of the one before.
+    const Profile* lastFor(const std::vector<std::string>& header, JPImportSource::Role role) const;
+    void remember(const JPImportSource& s);
 };
 
 } // inline namespace jf
