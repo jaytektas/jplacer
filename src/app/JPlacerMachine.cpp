@@ -2606,6 +2606,20 @@ void JPlacerMachine::calibratePreciseNozzleOffsets(const std::string& nozzleId, 
                         }
                 });
                 m_setup->remakeForm();
+                // The correction made, said at once: the issue, solved, leaves the list (and its page was made before).
+                if (const auto r = nozzleOffsetsResult(nozzleId)) {
+                    std::string name = nozzleId;
+                    if (m_cell)
+                        for (const JPNozzleConfig& k : m_cell->config().nozzles)
+                            if (k.id == nozzleId) name = k.name;
+                    char text[400];
+                    std::snprintf(text, sizeof text,
+                                  "Nozzle %s's head offsets were corrected by %+.4f, %+.4f mm (%.4f mm).\n\n"
+                                  "Detected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm",
+                                  name.c_str(), r->afterX - r->beforeX, r->afterY - r->beforeY,
+                                  std::hypot(r->afterX - r->beforeX, r->afterY - r->beforeY), r->afterX, r->afterY, r->beforeX, r->beforeY);
+                    JDialog::message("Nozzle offsets calibrated", text);
+                }
             }
             if (finished) finished(ok);
         });

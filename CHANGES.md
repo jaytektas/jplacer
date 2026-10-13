@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Issues & Solutions' precise nozzle offsets calibration shows the correction it made as soon as it ends, in a
+  dialog: how far the nozzle's offsets moved, and the detected and previous offsets. The issue's own page shows
+  them too when looked at again.
+
 - A nozzle tip that fails to calibrate while homing says so in a dialog, with the reason, instead of only in the
   status line. In a run, a tip that fails to calibrate pauses the run whatever the placements' Error Handling;
   Resume or Step measures it again, and the run goes on only once it is calibrated.

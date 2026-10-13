@@ -60,6 +60,10 @@ public:
         std::string uri;              // more about it (OpenPnP's wiki), empty: none
         State       state = State::Open;
         std::string extendedDescription;
+        // Made each time it is shown, where it says what was just measured (OpenPnP's getExtendedDescription): in
+        // place of extendedDescription, which was made when the issues were found.
+        std::function<std::string()> extendedDescriptionNow;
+        std::string described() const { return extendedDescriptionNow ? extendedDescriptionNow() : extendedDescription; }
         std::vector<Property> properties;
         std::vector<Choice>   choices;
         std::string           choice;   // the value chosen

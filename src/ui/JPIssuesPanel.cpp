@@ -302,8 +302,9 @@ void JPIssuesPanel::showIssue() {
         add.note(issue->issue);
         add.group("Solution");
         add.note(issue->solution);
-        if (!issue->extendedDescription.empty() || !issue->properties.empty() || !issue->choices.empty()) add.group("");
-        if (!issue->extendedDescription.empty()) add.note(issue->extendedDescription);
+        const std::string described = issue->described();
+        if (!described.empty() || !issue->properties.empty() || !issue->choices.empty()) add.group("");
+        if (!described.empty()) add.note(described);
         for (const S::Property& p : issue->properties) {
             const std::string name = "issue.property." + p.label;
             switch (p.kind) {

@@ -1914,17 +1914,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     sp->solutionChanged();
                 };
                 i.properties.push_back(std::move(capture));
-                std::string results = "\n\nOffsets last calibrated: " + (n.offsetsWhen.empty() ? std::string("never, in jplacer")
-                                                                                   : JPWhen::withAgo(n.offsetsWhen) + ", " + n.offsetsHow) + ".";
-                if (const auto r = c.nozzleOffsetsResult ? c.nozzleOffsetsResult(nozzleId) : std::nullopt) {
-                    char buf[320];
-                    std::snprintf(buf, sizeof buf,
-                                  "\n\nResults:\nDetected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n"
-                                  "Difference: %+.4f, %+.4f mm",
-                                  r->afterX, r->afterY, r->beforeX, r->beforeY, r->afterX - r->beforeX, r->afterY - r->beforeY);
-                    results += buf;
-                }
-                i.extendedDescription =
+                const std::string instructions =
                     "To calibrate precision camera ↔ nozzle offsets, we let the nozzle pick, rotate and place a small test "
                     "object and then measure the resulting offsets using the camera.\n\nInstructions about suitable test objects "
                     "etc. must be obtained in the OpenPnP Wiki. Press the blue Info button (below) to open the Wiki.\n\nPlace the "
@@ -1934,7 +1924,27 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     "detected right in the camera view. A green circle and cross-hairs should appear and hug the test object "
                     "contour. Zoom the camera using the scroll-wheel.\n\nCAUTION The nozzle " + name + " will move to the test "
                     "object and perform the calibration pick & place pattern. Make sure to load the right nozzle tip and ready the "
-                    "vacuum system.\n\nWhen ready, press Accept." + results;
+                    "vacuum system.\n\nWhen ready, press Accept.";
+                // When they were last calibrated and, once calibrated here, the correction made (before, after, and the
+                // difference): as the cell has them now, so shown as soon as the calibration ends.
+                i.extendedDescriptionNow = [c, nozzleId, instructions] {
+                    std::string results;
+                    if (const JPCellConfig* cell = c.cell ? c.cell() : nullptr)
+                        for (const JPNozzleConfig& k : cell->nozzles)
+                            if (k.id == nozzleId)
+                                results = "\n\nOffsets last calibrated: "
+                                          + (k.offsetsWhen.empty() ? std::string("never, in jplacer") : JPWhen::withAgo(k.offsetsWhen) + ", " + k.offsetsHow)
+                                          + ".";
+                    if (const auto r = c.nozzleOffsetsResult ? c.nozzleOffsetsResult(nozzleId) : std::nullopt) {
+                        char buf[320];
+                        std::snprintf(buf, sizeof buf,
+                                      "\n\nResults:\nDetected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n"
+                                      "Difference: %+.4f, %+.4f mm",
+                                      r->afterX, r->afterY, r->beforeX, r->beforeY, r->afterX - r->beforeX, r->afterY - r->beforeY);
+                        results += buf;
+                    }
+                    return instructions + results;
+                };
                 const std::string cameraId = camera->id;
                 i.activate = [c, cameraId] {
                     if (c.showCamera) c.showCamera(cameraId);
