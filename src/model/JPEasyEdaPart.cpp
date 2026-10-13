@@ -52,6 +52,10 @@ std::string JPEasyEdaPart::url(const std::string& lcsc) {
     return "https://easyeda.com/api/products/" + lcsc + "/components?version=6.4.19.5";
 }
 
+std::string JPEasyEdaPart::modelUrl(const std::string& uuid) {
+    return "https://modules.easyeda.com/3dmodel/" + uuid;
+}
+
 bool JPEasyEdaPart::parse(const std::string& json, JPEasyEdaPart& out, std::string& why) {
     out = JPEasyEdaPart();
     const std::optional<JJson> parsed = JJson::tryParse(json);
@@ -83,6 +87,44 @@ bool JPEasyEdaPart::parse(const std::string& json, JPEasyEdaPart& out, std::stri
     const double oy = data["head"]["y"].isNumber() ? data["head"]["y"].number() : 0;
     for (size_t i = 0; i < data["shape"].size(); ++i) {
         const std::string shape = data["shape"][i].str();
+        // The 3D model: "SVGNODE~{…}", its attributes the model's id, the box it covers and how it is turned.
+        if (shape.rfind("SVGNODE~", 0) == 0) {
+            const std::optional<JJson> node = JJson::tryParse(shape.substr(8));
+            if (!node || !node->isObject()) continue;
+            const JJson& at = (*node)["attrs"];
+            if (at["c_etype"].str() != "outline3D" || at["uuid"].str().empty()) continue;
+            Model m;
+            m.uuid = at["uuid"].str();
+            const std::vector<std::string> turn = split(at["c_rotation"].str(), ',');
+            if (turn.size() == 3) {
+                m.rotationX = num(turn[0]);
+                m.rotationY = num(turn[1]);
+                m.rotationZ = num(turn[2]);
+            }
+            // The box it covers as placed: round the outline drawn of it. Its c_width and c_height are the model's
+            // own, before it is turned (an 0603 resistor's model turned a quarter about Z lies across its pads).
+            double minX = 1e300, minY = 1e300, maxX = -1e300, maxY = -1e300;
+            for (size_t c = 0; c < (*node)["childNodes"].size(); ++c) {
+                std::istringstream pts((*node)["childNodes"][c]["attrs"]["points"].str());
+                double x = 0, y = 0;
+                while (pts >> x >> y) {
+                    minX = std::min(minX, x);
+                    maxX = std::max(maxX, x);
+                    minY = std::min(minY, y);
+                    maxY = std::max(maxY, y);
+                }
+            }
+            if (maxX > minX && maxY > minY) {
+                m.widthMm = (maxX - minX) * kUnitMm;
+                m.lengthMm = (maxY - minY) * kUnitMm;
+            } else {
+                const bool across = std::lround(m.rotationZ / 90.0) % 2 != 0;
+                m.widthMm = num(at[across ? "c_height" : "c_width"].str()) * kUnitMm;
+                m.lengthMm = num(at[across ? "c_width" : "c_height"].str()) * kUnitMm;
+            }
+            out.model = m;
+            continue;
+        }
         if (shape.rfind("PAD~", 0) != 0) continue;
         const std::vector<std::string> f = split(shape, '~');
         if (f.size() <= kRotation) continue;

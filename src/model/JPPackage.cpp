@@ -18,6 +18,9 @@ JPPackage JPPackage::fromXml(const JPXmlElement& e) {
     p.id = e.attr("id");   // OpenPnP's file's: its name (the caller makes it the label)
     if (V::has(e, "description")) p.description = e.attr("description");
     if (V::has(e, "height")) p.height = JPLength(V::number(e, "height"), V::units(e, "height-units"));
+    p.padsSource = e.attr("pads-source");
+    p.bodySource = e.attr("body-source");
+    p.heightSource = e.attr("height-source");
     p.pickVacuumLevel = V::number(e, "pick-vacuum-level");
     p.placeBlowOffLevel = V::number(e, "place-blow-off-level");
     p.bottomVisionId = e.attr("bottom-vision-id");
@@ -39,6 +42,9 @@ JPXmlNode JPPackage::toXml() const {
     if (description) n.attr("description", *description);
     // jplacer's own (OpenPnP's packages have none): written only when known, so one without stays OpenPnP's.
     if (height.value() > 0) n.attr("height-units", V::units(height.units())).attr("height", V::number(height.value()));
+    if (!padsSource.empty()) n.attr("pads-source", padsSource);
+    if (!bodySource.empty()) n.attr("body-source", bodySource);
+    if (!heightSource.empty()) n.attr("height-source", heightSource);
     n.attr("pick-vacuum-level", V::number(pickVacuumLevel)).attr("place-blow-off-level", V::number(placeBlowOffLevel));
     n.add(footprint.toXml());
     if (visionCompositing) n.add(visionCompositing->toXml());

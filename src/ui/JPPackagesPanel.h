@@ -12,6 +12,7 @@
 
 #include "model/JPConfiguration.h"
 #include "model/JPEasyEdaPart.h"
+#include "model/JPLcscFetch.h"
 #include "setup/JPVisionForms.h"
 
 #include <j/core/JComboBox.h>
@@ -41,9 +42,12 @@ public:
 
     std::function<void()> onChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;
-    // The packages given pads from LCSC (JPLcscLookup), on a thread of their own: each of `packageIds` with no pads
-    // whose parts have an LCSC part number (empty: every such package), the status line saying how far.
-    void fetchFootprints(std::vector<std::string> packageIds);
+    // The packages given from LCSC (JPLcscFetch) their pads (`pads`: those with none) and dimensions from their 3D
+    // models (`dimensions`: those with no body or height): each of `packageIds` (empty: every package) whose parts
+    // have an LCSC part number, by openFetch; the status line saying when there is nothing to ask for.
+    void fetchFromLcsc(std::vector<std::string> packageIds, bool pads, bool dimensions);
+    // The asks made in view (JPlacerLcscFetchDialog), the cache they are kept in.
+    std::function<void(std::vector<JPLcscFetch::Ask>, const std::string& cacheDir)> openFetch;
     // The chosen package's footprint to draw over the cameras (null: none
     // chosen), as OpenPnP's PackageVisionWizard draws it: told when another
     // is chosen (here, or by linked tables) or it is edited, not when the
@@ -136,7 +140,6 @@ private:
     JPIconButton*                             m_padDelete = nullptr;
     JPIconButton*                             m_padMark = nullptr;
     std::string                               m_shown;   // the package whose tabs are shown
-    bool                                      m_fetching = false;   // fetchFootprints under way
     std::string                               m_footprintShown;   // the package onShowFootprint was last told of
     int                                       m_lastTab = 0;
     std::shared_ptr<bool>                     m_alive = std::make_shared<bool>(true);

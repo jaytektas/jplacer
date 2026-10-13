@@ -30,6 +30,7 @@
 #include "JPlacerPanelArrayDialog.h"
 #include "JPlacerPhotonSlotsDialog.h"
 #include "JPlacerImportDialog.h"
+#include "JPlacerLcscFetchDialog.h"
 #include "JPlacerJobFieldsDialog.h"
 #include "JPlacerMenuOpener.h"
 #include "JPlacerSettings.h"
@@ -147,12 +148,19 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     };
     // An import taken: the packages it uses with no pads given their footprints from LCSC, where asked.
     placements.onImportTaken = [this](const JPBoard& imported) {
-        if (!JSettings::instance().get<bool>(JPlacerSettings::kImportFetchLcsc, false) || !m_packages) return;
+        const bool pads = JSettings::instance().get<bool>(JPlacerSettings::kImportFetchLcsc, false);
+        const bool dims = JSettings::instance().get<bool>(JPlacerSettings::kImportFetchLcscDimensions, false);
+        if ((!pads && !dims) || !m_packages) return;
         std::vector<std::string> ids;
         for (const JPBoardPart& bp : imported.parts())
             if (bp.state == JPBoardPart::State::Matched)
                 if (const JPPart* p = m_job.configuration().libraryPartFor(bp)) ids.push_back(p->packageId);
-        if (!ids.empty()) m_packages->fetchFootprints(ids);
+        if (ids.empty()) return;
+        // Once the import's own windows are up (the parts to choose): the fetch's in front of them, to be seen.
+        jPostToNextFrame([this, ids, pads, dims, alive = std::weak_ptr<bool>(m_alive)] {
+            if (const auto a = alive.lock(); !a || !*a || !m_packages) return;
+            m_packages->fetchFromLcsc(ids, pads, dims);
+        });
     };
     placements.openUpgrade = [this](JPBoard& board, std::shared_ptr<JPBoard> files,
                                     std::function<void(JPBoardRevision, std::string)> made) {
@@ -318,6 +326,17 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     m_packages = std::make_unique<JPPackagesPanel>(graph, job.configuration(),
                                                    JSettings::instance().get<double>(JPlacerSettings::kPackagesSplit, kSplit));
     m_packages->openMenu = JPlacerMenuOpener::from(m_window, m_packages.get());
+    m_packages->openFetch = [this](std::vector<JPLcscFetch::Ask> asks, const std::string& cacheDir) {
+        m_window.openModal<JPlacerLcscFetchDialog>(
+            m_job.configuration(), cacheDir, std::move(asks),
+            [this] {
+                if (m_packages) m_packages->refresh();
+                libraryChanged();
+            },
+            [](const std::string& said) {
+                if (JPTable::s_status) JPTable::s_status(said);
+            });
+    };
     m_packages->nozzleTips = [this] { return m_machine.nozzleTips(); };
     m_packages->onShowFootprint = [this](const JPFootprint* f) {
         showFootprint(m_packages.get(), f);

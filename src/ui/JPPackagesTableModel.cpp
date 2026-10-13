@@ -171,6 +171,7 @@ bool JPPackagesTableModel::setText(int row, int c, const std::string& text, std:
             error = "'" + text + "' is not a length";
             return false;
         }
+        p->heightSource.clear();   // typed in
     }
     else return false;
     m_said.changed(onChanged);

@@ -10,6 +10,13 @@ notes.
 
 ## Unreleased
 
+- The CPL and BOM import can also **Fetch Dimensions from LCSC**: each package with no body size or height
+  is given them from its part's 3D model at LCSC. While footprints and dimensions are fetched, a window shows
+  how far it has got and lists anything that went wrong, with **Retry** and **Cancel** (Packages' **Fetch
+  Missing Footprints** uses it too). Parts and 3D models are kept, so each is fetched once.
+- A package's Footprint page says where its pads, body and height came from (LCSC, a KiCad file, a
+  generator).
+
 - Importing a CPL and BOM remembers each file's columns as you set them (a "Val" column read as the part's
   **Name**, say): the next file with the same columns is read the same way, without saving a profile.
 - After an import, the dialog that follows (the parts to choose, or what to do with a board's existing

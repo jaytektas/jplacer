@@ -15,6 +15,7 @@
 #include "JPUiParts.h"
 
 #include "JPIcons.h"
+#include "common/JPlacerLog.h"
 #include "model/JPKicadModImporter.h"
 #include "model/JPLcscLookup.h"
 #include "model/JPLengthUnits.h"
@@ -22,6 +23,7 @@
 #include "openpnp/JPXmlWriter.h"
 
 #include <j/core/JScrollArea.h>
+#include <j/core/Log.h>
 #include <j/core/Dialog.h>
 #include <j/core/FrameTimer.h>
 #include <j/core/JButton.h>
@@ -112,7 +114,7 @@ JPPackagesPanel::JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, do
     bar->add(std::make_unique<JPIconButton>(graph, "Fetch Missing Footprints", JPIcons::fetchPart,
                                             "Give every package with no pads its footprint from LCSC, by the LCSC part "
                                             "number of a part of it (only the part numbers are sent)"))
-        ->onClicked.connect([this] { fetchFootprints({}); });
+        ->onClicked.connect([this] { fetchFromLcsc({}, true, false); });
     JPTableTools* tools = JPUiParts::tableTools(graph, *bar, &openMenu);
     bar->add(std::make_unique<JContainer>(graph, 0.f, 0.f))->setHSizePolicy(JSizePolicyMode::Expanding, 1);
     // Show: every row, those an open board uses, or one board's.
@@ -400,6 +402,7 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
             JPPackage* k = m_config.package(id);
             if (!k || !toDouble(t, v)) return false;
             k->footprint.*field = v;
+            if (field == &JPFootprint::bodyWidth || field == &JPFootprint::bodyHeight) k->bodySource.clear();   // typed in
             changed();
             return true;
         });
@@ -480,6 +483,13 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
     number(*grid, "% Roundness",
            "Roundness of the pad in percent of its smaller dimension. If negative, only the inner side will be rounded.",
            &JPFootprint::padRoundness);
+    // Where its pads, body and height came from (LCSC, a KiCad file, a generator); typed in: not recorded.
+    for (const auto& [label, source] : { std::pair { "Pads From", &p.padsSource }, std::pair { "Body From", &p.bodySource },
+                                         std::pair { "Height From", &p.heightSource } }) {
+        auto said = std::make_unique<JLabel>(g, source->empty() ? "not recorded" : *source, 0.f);
+        said->setTooltip(source->empty() ? "Typed in, or from before jplacer kept where it came from" : *source);
+        grid->widget(label, std::move(said));
+    }
     page->add(JPFieldGrid::grouped(g, "Settings", std::move(grid)));
 
     // Pads: a toolbar and the table.
@@ -552,20 +562,27 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintTab(JPPackage& p) {
 
 void JPPackagesPanel::generatePads(JPFootprint::Generator type) {
     const std::string id = m_shown;
-    auto run = [this, id, type](std::vector<JPFootprint::Pad> imported) {
+    auto run = [this, id, type](std::vector<JPFootprint::Pad> imported, const std::string& file) {
         JPPackage* k = m_config.package(id);
         if (!k) return;
         k->footprint.pads.clear();
         std::string error;
-        if (type == JPFootprint::Generator::Kicad) k->footprint.pads = std::move(imported);
-        else if (!k->footprint.generate(type, error)) JDialog::message("Error", error);
+        if (type == JPFootprint::Generator::Kicad) {
+            k->footprint.pads = std::move(imported);
+            k->padsSource = "KiCad " + file;
+        } else if (!k->footprint.generate(type, error)) {
+            JDialog::message("Error", error);
+        } else {
+            k->padsSource = type == JPFootprint::Generator::Dual ? "Dual generator"
+                          : type == JPFootprint::Generator::Quad ? "Quad generator" : "BGA generator";
+        }
         refresh();
         changed();
     };
     // The pads there are go first, once asked; KiCad's come from a file chosen.
     auto start = [run, type] {
         if (type != JPFootprint::Generator::Kicad) {
-            run({});
+            run({}, "");
             return;
         }
         JDialog::openFile("Import KiCad Footprint", { "kicad_mod" }, [run](std::string path) {
@@ -575,7 +592,7 @@ void JPPackagesPanel::generatePads(JPFootprint::Generator type) {
                 JDialog::message("Error", error);
                 return;
             }
-            run(std::move(pads));
+            run(std::move(pads), std::filesystem::path(path).filename().string());
         });
     };
     const JPPackage* k = m_config.package(id);
@@ -673,7 +690,7 @@ void JPPackagesPanel::lcscFootprint(const std::string& packageId) {
         f->packageId = packageId;
         f->geometry.units = JPLengthUnit::Millimeters;
         f->geometry.pads = part.pads;
-        f->source = "LCSC " + part.lcsc + " (EasyEDA)";
+        f->source = JPLcscLookup::source(part);
         m_config.addFootprint(f);
         if (JPTable::s_status) JPTable::s_status(padsSaid(part));
         changed();
@@ -681,67 +698,21 @@ void JPPackagesPanel::lcscFootprint(const std::string& packageId) {
     });
 }
 
-void JPPackagesPanel::fetchFootprints(std::vector<std::string> packageIds) {
-    if (m_fetching) {
-        if (JPTable::s_status) JPTable::s_status("Footprints are being fetched from LCSC already");
-        return;
-    }
-    // Each package with no pads, by a part of it that has an LCSC part number.
-    std::vector<std::pair<std::string, std::string>> asks;   // package, LCSC part number
+void JPPackagesPanel::fetchFromLcsc(std::vector<std::string> packageIds, bool pads, bool dimensions) {
     int without = 0;
-    for (const auto& k : m_config.packages()) {
-        if (!packageIds.empty() && std::find(packageIds.begin(), packageIds.end(), k->id) == packageIds.end()) continue;
-        if (!k->footprint.pads.empty()) continue;
-        if (const std::string n = lcscOfPackage(k->id); !n.empty()) asks.emplace_back(k->id, n);
-        else ++without;
-    }
+    std::vector<JPLcscFetch::Ask> asks = JPLcscFetch::asksFor(m_config, packageIds, pads, dimensions, without);
+    const std::string wanting = pads && dimensions ? "with no pads, body or height" : pads ? "with no pads" : "with no body or height";
     if (asks.empty()) {
         if (JPTable::s_status)
-            JPTable::s_status(without ? std::to_string(without) + " package(s) with no pads, none with a part that has an LCSC part number"
-                                      : "Every package has its pads");
+            JPTable::s_status(without ? std::to_string(without) + " package(s) " + wanting + ", none with a part that has an "
+                                                                                        "LCSC part number"
+                                      : pads && !dimensions ? "Every package has its pads" : "No package " + wanting);
         return;
     }
-    m_fetching = true;
-    std::weak_ptr<bool> alive = m_alive;
-    const std::string cache = lcscCache();
-    std::thread([this, alive, cache, asks, without] {
-        int given = 0;
-        std::vector<std::string> failed;
-        for (size_t i = 0; i < asks.size(); ++i) {
-            JPEasyEdaPart part;
-            std::string why;
-            const bool ok = JPLcscLookup::find(cache, asks[i].second, part, why);
-            if (!ok) failed.push_back(asks[i].second + ": " + why);
-            else ++given;
-            const std::string packageId = asks[i].first;
-            const std::string said = "Fetching footprints from LCSC: " + std::to_string(i + 1) + " of " + std::to_string(asks.size());
-            JMainThreadDispatcher::instance().post([this, alive, ok, part, packageId, said] {
-                if (const auto a = alive.lock(); !a || !*a) return;
-                if (JPTable::s_status) JPTable::s_status(said);
-                if (!ok) return;
-                JPPackage* k = m_config.package(packageId);
-                if (!k || !k->footprint.pads.empty()) return;   // given pads meanwhile: kept
-                JPLcscLookup::giveFootprint(*k, part);
-                // Its parts' empty fields: what LCSC says of the part.
-                for (const auto& p : m_config.parts())
-                    if (p->packageId == packageId && JPLcscLookup::lcscOf(*p) == part.lcsc) JPLcscLookup::describe(*p, part);
-            });
-        }
-        JMainThreadDispatcher::instance().post([this, alive, given, failed, without] {
-            if (const auto a = alive.lock(); !a || !*a) return;
-            m_fetching = false;
-            refresh();
-            changed();
-            std::string s = std::to_string(given) + " footprint(s) fetched from LCSC";
-            if (without) s += "; " + std::to_string(without) + " package(s) have no part with an LCSC part number";
-            if (JPTable::s_status) JPTable::s_status(s);
-            if (!failed.empty()) {
-                std::string text;
-                for (const std::string& f : failed) text += (text.empty() ? "" : "\n") + f;
-                JDialog::message("Footprints Not Fetched", text);
-            }
-        });
-    }).detach();
+    if (without > 0)
+        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << without << " package(s) " << wanting
+                                                 << " have no part with an LCSC part number: not asked for";
+    if (openFetch) openFetch(std::move(asks), lcscCache());
 }
 
 void JPPackagesPanel::remakeLater() {
@@ -848,7 +819,7 @@ std::unique_ptr<JContainer> JPPackagesPanel::footprintsTab(JPPackage& p) {
             f->name = packageId + " (" + std::to_string(n) + ")";
         f->packageId = packageId;
         f->geometry = k->footprint;
-        f->source = "the package's own footprint";
+        f->source = k->padsSource.empty() ? "the package's own footprint" : "the package's own footprint, from " + k->padsSource;
         m_config.addFootprint(f);
         changed();
         remakeLater();
@@ -1055,7 +1026,11 @@ void JPPackagesPanel::copyPackage() {
     // As OpenPnP keeps a package: its id its name.
     JPPackage asOpenPnp = *k;
     asOpenPnp.id = k->shownName();
-    asOpenPnp.height = JPLength(0, JPLengthUnit::Millimeters);   // jplacer's own: OpenPnP refuses what it does not know
+    // jplacer's own: OpenPnP refuses what it does not know.
+    asOpenPnp.height = JPLength(0, JPLengthUnit::Millimeters);
+    asOpenPnp.padsSource.clear();
+    asOpenPnp.bodySource.clear();
+    asOpenPnp.heightSource.clear();
     std::string text = JPXmlWriter::text(asOpenPnp.toXml());
     if (!text.empty() && text.back() == '\n') text.pop_back();
     JWidget::clipboardSet(text);

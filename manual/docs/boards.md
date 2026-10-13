@@ -187,6 +187,10 @@ the library has is left as it is.
 - **Fetch Footprints from LCSC** (kept for the next import): once you **Import**, each package the board's
   parts are of that has no pads is given its footprint from LCSC, by the LCSC part number of its part (see
   [Footprints from LCSC](packages.md#footprints-from-lcsc)).
+- **Fetch Dimensions from LCSC** (kept for the next import): once you **Import**, each package the board's
+  parts are of that has no body size or no height is given them from its part's 3D model at LCSC (see
+  [Dimensions from LCSC](packages.md#dimensions-from-lcsc)). With either fetch ticked, a window shows how
+  far it has got and what went wrong.
 
 A BOM line's designators ("R1, R2, R5-R8") are each joined to the placement of that designator. Rows are one
 part by the surest they say of it: its manufacturer and MPN, else its supplier's part number, else its

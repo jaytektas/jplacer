@@ -56,7 +56,10 @@ Level** for placing.
 **Footprint** holds the footprint's **Settings** and its **Pads**:
 
 - **Units** the footprint is in: another unit chosen, its numbers are converted, so it keeps its size
-  (OpenPnP keeps the numbers); **Body Width** and **Body Length**.
+  (OpenPnP keeps the numbers); **Body Width** and **Body Length**. **Pads From**, **Body From** and
+  **Height From** say where each came from: LCSC (the part number, and for the body and height the 3D model's
+  id), a KiCad file, a generator; "not recorded" when it was typed in (typing a body or a height clears
+  where it came from) or is from before jplacer kept it.
 - **Generate** makes the pads from the numbers beside it: **Dual** (two rows; **Pad count** a multiple of
   2), **Quad** (four sides; a multiple of 4), **BGA** (a square grid; a square number, those within the
   **Inside dimension** left out), or **KiCad**, read from a KiCad footprint file (`.kicad_mod`): its SMD
@@ -145,7 +148,25 @@ package's parts with that LCSC part number where they have none: its description
 manufacturer), and its height where its 3D model's name gives one (`…-H0.8`). A package that has pads is
 left as it is; one given pads while the fetch ran keeps them.
 
-<!-- src: src/model/JPEasyEdaPart.cpp (parse, partNumber, url); src/model/JPLcscLookup.cpp (find, giveFootprint, describe, lcscOf); src/ui/JPPackagesPanel.cpp (lcscPads, lcscFootprint, askLcsc, fetchFootprints) -->
+### Dimensions from LCSC
+
+An import's **Fetch Dimensions from LCSC** gives each package with no body size its **Body Width** and
+**Body Length**, and each with no height its **Height**, from its part's 3D model at LCSC: the body is the
+box the model covers seen from above, as the footprint places it (turned as the footprint turns it), and the
+height is how high the model stands, turned as the footprint turns it about X and Y. Only the part number
+and the model's id are sent. Each model is kept too, in the `lcsc` folder's `3d` folder, so it is fetched
+once.
+
+### The fetch window
+
+**Fetch Missing Footprints** and an import's fetches run in a window that shows how far they have got and
+the package being asked for. Each package that did not get everything is listed with its LCSC part
+number, what it wanted and what went wrong. **Cancel** stops after the package being asked for, keeping
+what was given. Once done, **Retry** asks again for the packages listed, and **Close** leaves them as they
+are; with nothing gone wrong the window closes by itself, and the status line says how many packages were
+given what LCSC has and how many of those came from what was kept from before.
+
+<!-- src: src/model/JPEasyEdaPart.cpp (parse, partNumber, url, modelUrl); src/model/JPEasyEdaModel.cpp (height); src/model/JPLcscLookup.cpp (find, modelHeight, giveFootprint, giveDimensions, source, modelSource, describe, lcscOf); src/model/JPLcscFetch.cpp (asksFor, fetch, give); src/app/JPlacerLcscFetchDialog.cpp; src/model/JPPackage.cpp (padsSource, bodySource, heightSource); src/ui/JPPackagesPanel.cpp (lcscPads, lcscFootprint, askLcsc, fetchFromLcsc, footprintTab, generatePads) -->
 
 Every change to a package, its footprint and the library's footprints, a package made or deleted, can be
 taken back with **Edit ▸ Undo** and made again with **Edit ▸ Redo** (see [Parts](parts.md#undo-and-redo)).

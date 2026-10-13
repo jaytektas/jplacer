@@ -191,6 +191,14 @@ JPlacerCplBomImportDialog::JPlacerCplBomImportDialog(JPConfiguration& config, st
         JSettings::instance().set(JPlacerSettings::kImportFetchLcsc, on);
         JPlacerSettings::save();
     });
+    JCheckBox* dims = makes->add(std::make_unique<JCheckBox>(g, "Fetch Dimensions from LCSC", 0.f));
+    dims->setTooltip("Once you Import, each package the board uses with no body size or no height is given them from "
+                     "its part's 3D model at LCSC, by the LCSC part number of its part (only the part numbers are sent)");
+    dims->setChecked(JSettings::instance().get<bool>(JPlacerSettings::kImportFetchLcscDimensions, false));
+    dims->onStateChanged.connect([](bool on) {
+        JSettings::instance().set(JPlacerSettings::kImportFetchLcscDimensions, on);
+        JPlacerSettings::save();
+    });
     middle->add(std::move(makes));
     m_content->add(std::move(middle));
 

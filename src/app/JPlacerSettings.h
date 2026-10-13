@@ -112,6 +112,8 @@ public:
     // An import taken gives the packages it uses that have no pads their footprints from LCSC (the CPL and BOM
     // import's Fetch Footprints from LCSC).
     static constexpr const char* kImportFetchLcsc  = "import.fetchLcsc";
+    // And those with no body or height their dimensions from their parts' 3D models (Fetch Dimensions from LCSC).
+    static constexpr const char* kImportFetchLcscDimensions = "import.fetchLcscDimensions";
     // The Job tab's boards over its placements (JobPanel.dividerPosition).
     static constexpr const char* kJobSplit         = "job.split";
 

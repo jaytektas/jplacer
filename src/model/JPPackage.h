@@ -36,6 +36,9 @@ public:
     std::string                bottomVisionId;
     std::string                fiducialVisionId;
     JPFieldValues              custom;   // its values of the fields added to packages
+    // Where its footprint's pads, its body (the footprint's width and length) and its height came from ("LCSC C1634
+    // (EasyEDA)", "KiCad R_0603.kicad_mod", "Dual generator"); empty: typed in, or not recorded.
+    std::string                padsSource, bodySource, heightSource;
     // Made when first wanted, as OpenPnP makes it (and written from then on).
     std::optional<JPVisionCompositing> visionCompositing;
 
