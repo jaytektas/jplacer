@@ -2339,7 +2339,25 @@ void JPlacerMachine::recalibrateAfterHoming(std::vector<std::string> nozzles, st
         recalibrateAfterHoming(std::move(nozzles), std::move(done));
         return;
     }
-    calibrateTipRunout(nozzleId, [this, nozzles, done, failHoming](bool ok, const std::string& why) mutable {
+    std::string tipName = nozzleId, nozzleName = nozzleId;
+    if (nozzle) {
+        nozzleName = nozzle->name;
+        for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+            if (t.id == nozzle->tipId) tipName = t.name;
+    }
+    calibrateTipRunout(nozzleId, [this, nozzles, done, failHoming, tipName, nozzleName](bool ok, const std::string& why) mutable {
+        // Said in a dialog either way (OpenPnP's messageBoxOnExceptionLater when it does not fail the homing): left
+        // to the status line, an uncalibrated tip went unnoticed, every part it then placed off by its runout.
+        if (!ok) {
+            // The reason, which names the tip as a rule (the calibration's own words), else with it named.
+            std::string what = why.find(tipName) != std::string::npos ? why
+                             : "Nozzle tip " + tipName + " on nozzle " + nozzleName + " was not calibrated: " + why;
+            if (!what.empty() && what.back() != '.' && what.back() != ')') what += ".";
+            JDialog::message(failHoming ? "Homing failed" : "Nozzle tip not calibrated",
+                             failHoming ? what + "\n\nIts Fail Homing? is ticked, so the machine is not homed: home it again."
+                                        : what + "\n\nHoming went on, but the tip's runout is not compensated: calibrate it "
+                                                 "(Machine Setup, the tip's Calibrate) or home again before placing with it.");
+        }
         if (!ok && failHoming) {
             m_window.showStatus("Homing failed: " + why, kErrorMs);
             if (m_cell) m_cell->unhome();

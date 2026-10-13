@@ -844,7 +844,16 @@ void JPJobProcessor::calibrateNozzleTip(Planned& p) {
         if (id == tipId) tipName = name;
     status(format("Calibrate nozzle tip %s on nozzle %s", tipName.c_str(), nozzleName.c_str()));
     std::string why;
-    if (!m_machine.calibrateTip(p.nozzleId, why)) fail(Source::NozzleTip, tipId, why);
+    if (m_machine.calibrateTip(p.nozzleId, why)) return;
+    // The run pauses on it whatever the placement's Error Handling (with Defer, OpenPnP's errs the placement and goes
+    // on): the tip is the machine's, not the placement's, and uncalibrated every part it places is off by its runout.
+    // The step stays, so Resume or Step measures it again, until it is calibrated.
+    Failure f;
+    f.source = Source::NozzleTip;
+    f.id = tipId;
+    f.message = format("Nozzle tip %s on nozzle %s was not calibrated: %s", tipName.c_str(), nozzleName.c_str(), why.c_str());
+    f.interrupting = true;
+    throw JobError { f };
 }
 
 JPJobProcessor::Step JPJobProcessor::changeNozzleTip(Planned& p) {

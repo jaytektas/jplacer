@@ -148,8 +148,14 @@ public:
     // Nozzle tips not yet calibrated (their runout to measure), by nozzle.
     std::set<std::string> uncalibrated { "N1" };
     bool tipCalibrated(const std::string& n) const override { return !uncalibrated.count(n); }
-    bool calibrateTip(const std::string& n, std::string&) override {
+    int failCalibrations = 0;   // the next calibrations that fail
+    bool calibrateTip(const std::string& n, std::string& why) override {
         log.push_back("calibrate " + n);
+        if (failCalibrations > 0) {
+            --failCalibrations;
+            why = "the camera was not exposed";
+            return false;
+        }
         uncalibrated.erase(n);
         return true;
     }
@@ -457,6 +463,32 @@ int main() {
     }
     assert(config.feeder("FR")->summariseJobFaults().find('X') != std::string::npos ||
            config.feeder("FC")->summariseJobFaults().find('X') != std::string::npos);
+
+    // A tip calibration that fails pauses the run even with Defer (the tip is the machine's, not a placement's): no
+    // placement errored, and each next step measures it again until it is calibrated; then the run goes on.
+    job.removeAllPlacedStatus();
+    machine.uncalibrated = { "N1" };
+    machine.failCalibrations = 2;
+    {
+        // (The trays' counts put back after.)
+        const int fr = config.feeder("FR")->feedCount(), fc = config.feeder("FC")->feedCount();
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r;
+        const auto calibrations = [&] { return std::count(machine.log.begin(), machine.log.end(), "calibrate N1"); };
+        const auto before = calibrations();
+        for (int failed = 1; failed <= 2; ++failed) {
+            while ((r = run.next(f)) == JPJobProcessor::Result::More) {}
+            assert(r == JPJobProcessor::Result::Failed && f.source == JPJobProcessor::Failure::Source::NozzleTip && f.interrupting);
+            assert(f.message.find("was not calibrated: the camera was not exposed") != std::string::npos);
+            assert(calibrations() - before == failed);
+        }
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) {}
+        assert(r == JPJobProcessor::Result::Finished && run.totalPartsPlaced() == 3);
+        assert(calibrations() - before == 3);
+        config.feeder("FR")->setFeedCount(fr);
+        config.feeder("FC")->setFeedCount(fc);
+    }
 
     // A fiducial that is not where the board says by far: refused, the board left as it was.
     job.removeAllPlacedStatus();

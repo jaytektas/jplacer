@@ -287,9 +287,14 @@ next pick, and not again beside it. However it is measured, the camera shows eac
 with a green circle and cross where the tip was found and the size it was found, and which turn of how many, so a
 wrong find shows at once. Once homed, a tip set to NozzleTipChange or MachineHome is measured
 on the nozzle it is on (after visual homing, before Machine.AfterHoming and the park), and forgotten on the
-nozzles it fits but is not on; with **Fail Homing?**, a measurement failing then leaves the machine not homed.
+nozzles it fits but is not on; with **Fail Homing?**, a measurement failing then leaves the machine not homed
+("Homing failed", in a dialog with the reason). Without it, homing goes on and a dialog, "Nozzle tip not
+calibrated", gives the reason: the tip's runout is not compensated until it is calibrated (its **Calibrate**) or
+the machine is homed again.
 A job measures any tip it uses that is to be compensated and not yet measured on its nozzle (Calibrate
-nozzle tip, before the picks).
+nozzle tip, before the picks). One that fails pauses the run, whatever the placements' Error Handling ("Nozzle
+tip ... was not calibrated: ...", in the Job Error dialog): no placement is put in error, and Resume or Step
+measures it again, the run going on only once it is calibrated.
 
 <!-- src: src/app/JPlacerJobHost.cpp (setTipOn); src/app/JPlacerMachine.cpp (setTipOn); src/machine/JPRunout.cpp (offset, cameraOffset, algorithms); src/tasks/JPRunoutFit.cpp; src/machine/JPNozzleTipConfig.h (RunoutCalibration, runoutOn); src/machine/JPNozzleTipConfig.cpp; src/machine/JPCell.cpp (cameraOffsetFor); src/tasks/JPCellJobMachine.cpp (alignPart); src/app/JPlacerMachine.cpp (moveNozzleToCamera); src/tasks/JPRunoutCalibrator.cpp (calibrateCamera, findTip); src/machine/JPCameraCalibration.cpp (turnBy); src/app/JPlacerCameraTasks.cpp (calibrateRunoutCamera); src/tasks/JPPipelineMarkFinder.cpp; src/machine/JPCell.cpp (compensateRunout, runoutFor); src/app/JPlacerCameraTasks.cpp (calibrateRunout); src/tasks/JPRunoutCalibrator.cpp (measure); src/app/JPlacerMachine.cpp (setupAction, recalibrateAfterHoming, setTipOn, calibrateTipRunout); src/tasks/JPCellJobMachine.cpp (calibrateTip); src/tasks/JPJobProcessor.cpp (calibrateNozzleTip); src/tasks/JPCellJobMachine.cpp (calibrateTip); src/setup/JPSetupProperties.cpp (nozzleTipForm); src/openpnp/JPOpenPnpMachineImporter.cpp (calibration, keepFrom) -->
 

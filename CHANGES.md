@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip that fails to calibrate while homing says so in a dialog, with the reason, instead of only in the
+  status line. In a run, a tip that fails to calibrate pauses the run whatever the placements' Error Handling;
+  Resume or Step measures it again, and the run goes on only once it is calibrated.
+
 - No crash capturing a location (a strip feeder's hole) on a setup page: a page's buttons now do their work once
   the click has been handled, so a page made again by what they do no longer goes from under the click.
 
