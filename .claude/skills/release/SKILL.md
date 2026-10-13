@@ -40,6 +40,10 @@ Commit it (`manual: <what>`).
 ## 3. Build and publish
 
     packaging/build-release.sh --publish
+    packaging/build-release.sh --publish --no-windows   # the AppImage alone, while Windows cannot be tried
+
+With `--no-windows`, keep any Windows-only lines out of `## Unreleased` for that release (put them back under
+Unreleased after it), so the notes do not offer what was not published.
 
 It does, in order:
 1. **The version**: one past the last published release (patch), committed with the notes as

@@ -4,6 +4,8 @@
 #   packaging/build-release.sh             raise the version, build and gather dist/release-<version>/
 #   packaging/build-release.sh --publish   ...and push main, create the GitHub release, mirror the tag,
 #                                          publish the manual
+#   --no-windows                           (with either) the AppImage alone: no Windows installer or zip
+#                                          built or published
 #
 # THE NOTES come from CHANGES.md: everything under ## Unreleased becomes this version's section, the
 # GitHub release's notes and the manual's What's New. No notes, no release.
@@ -22,7 +24,14 @@ say()  { printf '  release: %s\n' "$*"; }
 fail() { printf '  release: %s\n' "$*" >&2; exit 1; }
 
 PUBLISH=0
-[ "${1:-}" = "--publish" ] && PUBLISH=1
+NO_WINDOWS=0
+for a in "$@"; do
+    case "$a" in
+        --publish)    PUBLISH=1 ;;
+        --no-windows) NO_WINDOWS=1 ;;
+        *)            fail "unknown option: $a" ;;
+    esac
+done
 
 # 1. committed, on main
 [ -z "$(git status --porcelain)" ] || { git status --short | head -10 >&2; fail "commit everything first"; }
@@ -56,8 +65,8 @@ cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH="${JFRAMEWORK_SDK:-$HOME/jframe
 cmake --build build --target jplacer --parallel
 manual/tools/build.sh
 packaging/build-appimage.sh
-packaging/build-windows.sh "$VERSION"
-packaging/gather-release.sh
+if [ "$NO_WINDOWS" = 1 ]; then say "no Windows build (--no-windows)"; else packaging/build-windows.sh "$VERSION"; fi
+JPLACER_NO_WINDOWS=$NO_WINDOWS packaging/gather-release.sh
 
 [ "$PUBLISH" = 1 ] || exit 0
 
