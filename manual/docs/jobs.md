@@ -91,6 +91,7 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 | **Capture Camera Location** | Sets where the chosen board lies to where the camera is (its X, Y and rotation; its Z kept). |
 | **Capture Tool Location** | Sets the chosen boards' Z to the nozzle's. |
 | **Fiducial Check** | Looks at the chosen board's (or panel's) fiducials with the camera and sets where it lies from them, as the job does; one straight in the job has its X, Y and rotation set too (and its Z, measured, with the Fiducial Locator's **Measure Board Z?**, as a job's check sets it). The camera is then taken to it. Each fiducial looked for has its package's footprint drawn over the cameras (as a job's check does too), the last chosen footprint until another is. |
+| **Board Nudge** (a toggle, lit when on) | Moves the chosen board's X and Y by what you jog the camera while it is on, to line a part up by eye when a fiducial check is a little out (below). |
 | **Measure Board Z** (a toggle, lit when on) | Machine Setup's Fiducial Locator **Measure Board Z?**, turned on or off from here: with it on, a fiducial check (this one and a job's) measures the board's height at each of its fiducials and sets its Z from their mean. Pressed, only that setting is changed (and saved with the machine's setup, Machine Setup showing it); press it again to take it back. It follows a change made in Machine Setup. |
 | **Multiple Point Board Location** | Sets where the chosen board lies from placements you jog the camera over (below). |
 | **Photograph Board** (camera) | Photographs the chosen boards (a panel's: every board on it) with the head camera, one after another; **Stop** stops it (see [Board photos](#board-photos)). |
@@ -164,6 +165,18 @@ refused if it scales or shears more than 5 % or moves more than 5 mm. **Finish**
 board's origin; **Cancel** puts the board back where it was.
 
 <!-- src: src/ui/JPBoardLocationProcess.cpp; src/ui/JPInstructions.cpp; src/ui/JPJobPanel.cpp (showInstructions) -->
+
+**Board Nudge** is for when every part comes out the same few hundredths of a millimetre off after a fiducial
+check. Take the camera to a placement (**Move Camera To Placement Location**), turn Board Nudge on, and jog the
+camera until its crosshairs are on the part. Across the top of the Job tab it says how far you have jogged, as you
+jog; **Apply** (or turning Board Nudge off) moves the board's X and Y by that much, so every placement follows,
+and **Cancel** leaves the board where it was. The board's rotation and Z stay as they are. Any move other than
+jogging (to another placement or board, Multiple Point Board Location, another board chosen) ends it without
+moving the board, as does the machine going. It nudges a board straight in the job, not one inside a panel. The
+next fiducial check sets the board's location again, as ever. It is not an Edit ▸ Undo step: to take one back,
+nudge the other way.
+
+<!-- src: src/ui/JPBoardNudge.cpp; src/ui/JPJobPanel.cpp (nudge, endNudge, moveToolTo) -->
 
 <!-- src: src/ui/JPJobPlacementsPanel.cpp (onEditFeeder, updateActions); src/ui/JPFeedersPanel.cpp (showFeederForPart); src/ui/JPPlacementsTableModel.cpp (status, setLocation) -->
 

@@ -19,6 +19,8 @@ public:
     // A board seen edge on, a fiducial on it, and a two-headed arrow down to it from a line above: the board's
     // height measured (Measure Board Z?).
     static void boardHeight(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
+    // A board with a crosshair on it and an arrow out from it each way: the board nudged into line (Board Nudge).
+    static void boardNudge(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A chip with an arrow down into it: a part's footprint fetched (from LCSC, by its part number).
     static void fetchPart(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink);
     // A floppy disk: save.

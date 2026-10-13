@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- **Board Nudge** in the Job tab's Boards: when every part is out the same way after a fiducial check, turn it
+  on over a part, jog the camera onto it and Apply: the board moves by what you jogged, and every placement with it.
+
 - Fiducials found more reliably: a small fiducial (a 1 mm one) is no longer missed for bare board or the
   silkscreen beside it (its label), which made a fiducial check fail or come out a millimetre or more off.
 

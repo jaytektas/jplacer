@@ -107,6 +107,20 @@ void JPIcons::boardHeight(JVectorCanvas& vg, float cx, float cy, float size, con
     vg.fillConvex({ { x - head, b - head }, { x + head, b - head }, { x, b } }, JPaint::solid(ink));
 }
 
+void JPIcons::boardNudge(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
+    const float line = size * kLine, half = size * 0.22f, cross = size * 0.1f;
+    // The board, a crosshair on it.
+    vg.strokeRect(cx - half, cy - half, 2 * half, 2 * half, line, JPaint::solid(ink));
+    vg.drawLine(cx - cross, cy, cx + cross, cy, line, JPaint::solid(ink));
+    vg.drawLine(cx, cy - cross, cx, cy + cross, line, JPaint::solid(ink));
+    // An arrowhead out from each side: it moves any way.
+    const float gap = size * 0.06f, head = size * 0.1f, out = half + gap;
+    vg.fillConvex({ { cx - head, cy - out }, { cx + head, cy - out }, { cx, cy - out - head } }, JPaint::solid(ink));
+    vg.fillConvex({ { cx - head, cy + out }, { cx + head, cy + out }, { cx, cy + out + head } }, JPaint::solid(ink));
+    vg.fillConvex({ { cx - out, cy - head }, { cx - out, cy + head }, { cx - out - head, cy } }, JPaint::solid(ink));
+    vg.fillConvex({ { cx + out, cy - head }, { cx + out, cy + head }, { cx + out + head, cy } }, JPaint::solid(ink));
+}
+
 void JPIcons::fetchPart(JVectorCanvas& vg, float cx, float cy, float size, const JColor& ink) {
     const float line = size * kLine, w = size * 0.26f, top = cy - size * 0.02f, h = size * 0.4f;
     // The chip, its legs either side.

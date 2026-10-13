@@ -115,6 +115,7 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_twoPoint->onClicked.connect([this] {
         const auto s = selections();
         if (s.size() != 1 || m_locating) return;
+        endNudge();
         JPBoardLocationProcess::Hooks h;
         auto tool = [](JPBoardLocationProcess::Tool t) {
             return t == JPBoardLocationProcess::Tool::Camera ? Tool::Camera : Tool::Nozzle;
@@ -122,9 +123,7 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         h.toolLocation = [this, tool](JPBoardLocationProcess::Tool t) {
             return toolLocation ? toolLocation(tool(t)) : std::nullopt;
         };
-        h.moveTool = [this, tool](JPBoardLocationProcess::Tool t, const JPLocation& at) {
-            if (moveTool) moveTool(tool(t), at);
-        };
+        h.moveTool = [this, tool](JPBoardLocationProcess::Tool t, const JPLocation& at) { moveToolTo(tool(t), at); };
         h.chosenPlacements = [this] { return m_placements->selections(); };
         h.selectPlacement = [this](const std::string& id) { m_placements->select(id); };
         h.show = [this](const std::string& title, const std::string& text, const std::string& proceed,
@@ -146,6 +145,31 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
         const auto s = selections();
         if (s.size() == 1 && onFiducialCheck) onFiducialCheck(s.front());
     });
+    m_nudgeButton = bar->add(std::make_unique<JPIconButton>(
+        graph, "Board Nudge", JPIcons::boardNudge,
+        "Board Nudge: while lit, jog the camera onto a part and the board moves by what you jog (Apply), so every "
+        "placement follows; Cancel leaves it as it was. The next fiducial check sets the board's location again."));
+    m_nudgeButton->setCheckable(true);
+    m_nudgeButton->onToggled.connect([this](bool on) { nudge(on); });
+    m_nudge = std::make_unique<JPBoardNudge>(JPBoardNudge::Hooks {
+        [this] { return toolLocation ? toolLocation(Tool::Camera) : std::nullopt; },
+        [this](const std::string& text) {
+            showInstructions("Board Nudge", text, "Apply", [this] { m_nudge->cancel(); }, [this] { m_nudge->apply(); });
+        },
+        [this] {
+            hideInstructions();
+            m_nudged = nullptr;
+        },
+        [this](double dx, double dy) {
+            JPPlacementsHolderLocation* l = m_nudged;
+            if (!l) return;
+            const JPLocation at = l->location().convertToUnits(JPLengthUnit::Millimeters);
+            const JPLocation moved = at.derive(at.x() + dx, at.y() + dy, std::nullopt, std::nullopt).convertToUnits(l->location().units());
+            m_model.edit(l, [&](JPPlacementsHolderLocation& x) { x.setLocation(moved); });
+            m_table->refresh();
+            m_placements->refresh();
+        },
+        [this](bool on) { m_nudgeButton->setChecked(on); } });
     m_measureBoardZ = bar->add(std::make_unique<JPIconButton>(
         graph, "Measure Board Z", JPIcons::boardHeight,
         "Measure Board Z? (Machine Setup, Vision): a fiducial check also measures the board's height at each of its "
@@ -218,7 +242,7 @@ JPJobPanel::JPJobPanel(JSceneGraph& graph, JPConfiguration& config, std::functio
     m_placements->openMenu = [this](JMenu* m, float x, float y) { if (openMenu) openMenu(m, x, y); };
     m_placements->toolLocation = [this](Tool t) { return toolLocation ? toolLocation(t) : std::nullopt; };
     m_placements->moveTool = [this](Tool t, const JPLocation& at) {
-        if (moveTool) moveTool(t, at);
+        moveToolTo(t, at);
     };
     m_placements->onChanged = [this] {
         m_table->refresh();
@@ -324,6 +348,8 @@ std::vector<JPPlacementsHolderLocation*> JPJobPanel::selections() const {
 }
 
 void JPJobPanel::selectionChanged() {
+    // Another board chosen: the nudge was for the one before.
+    if (m_nudged && (selections().size() != 1 || selections().front() != m_nudged)) endNudge();
     showDefinition();
     const auto s = selections();
     JPJob* j = m_job();
@@ -353,6 +379,7 @@ void JPJobPanel::selectionChanged() {
     m_captureCamera->setEnabled(singleTop);
     for (JPIconButton* b : { m_cameraTo, m_cameraNext, m_toolTo, m_fiducialCheck, m_twoPoint })
         b->setEnabled(single || singleTop);
+    m_nudgeButton->setEnabled(singleTop || m_nudge->active());
     m_photograph->setEnabled(any && !m_photographing);
     for (const auto& item : m_menu->items()) item->setEnabled(any);
     m_placements->setLocation(s.size() == 1 ? s.front() : nullptr);
@@ -668,7 +695,32 @@ void JPJobPanel::moveTo(Tool tool, bool next) {
         if (to >= 0) m_table->selectRow(to);
     }
     const auto s = selections();
-    if (!s.empty()) moveTool(tool, s.front()->globalLocation());
+    if (!s.empty()) moveToolTo(tool, s.front()->globalLocation());
+}
+
+void JPJobPanel::moveToolTo(Tool tool, const JPLocation& at) {
+    endNudge();
+    if (moveTool) moveTool(tool, at);
+}
+
+void JPJobPanel::nudge(bool on) {
+    if (!on) {
+        m_nudge->apply();
+        return;
+    }
+    JPJob* j = m_job();
+    const auto s = selections();
+    std::string why = "Choose one board or panel of the job (not one inside a panel) to nudge.";
+    if (!j || s.size() != 1 || s.front()->parent != &j->root() || m_locating || !m_nudge->start(why)) {
+        m_nudgeButton->setChecked(false);
+        if (!m_locating) JDialog::message("Board Nudge", why);
+        return;
+    }
+    m_nudged = s.front();
+}
+
+void JPJobPanel::endNudge() {
+    m_nudge->cancel();
 }
 
 void JPJobPanel::captureCamera() {

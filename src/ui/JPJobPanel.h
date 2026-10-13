@@ -4,6 +4,7 @@
 #pragma once
 
 #include "JPBoardLocationProcess.h"
+#include "JPBoardNudge.h"
 #include "JPGroupFrame.h"
 #include "JPInstructions.h"
 #include "JPIconButton.h"
@@ -130,6 +131,11 @@ public:
     void showInstructions(const std::string& title, const std::string& text, const std::string& proceedLabel,
                           std::function<void()> onCancel, std::function<void()> onProceed);
     void hideInstructions();
+    // Board Nudge on for the chosen board (off: the board moved by what was jogged), or ended unapplied.
+    void nudge(bool on);
+    void endNudge();
+    // A tool moved to `at` (any move but a jog ends Board Nudge, unapplied).
+    void moveToolTo(Tool tool, const JPLocation& at);
 
 private:
     void selectionChanged();
@@ -176,6 +182,7 @@ private:
     JPIconButton*                       m_captureTool = nullptr;
     JPIconButton*                       m_twoPoint = nullptr;
     JPIconButton*                       m_fiducialCheck = nullptr;
+    JPIconButton*                       m_nudgeButton = nullptr;   // a toggle: Board Nudge on while lit
     JPIconButton*                       m_measureBoardZ = nullptr;   // a toggle: the machine's Measure Board Z?
     JPIconButton*                       m_photograph = nullptr;
     std::unique_ptr<JPIconButton>       m_barStart, m_barStep, m_barStop;   // the toolbar's (addRunButtons)
@@ -185,6 +192,8 @@ private:
     std::unique_ptr<JPInstructions>     m_instructions;
     bool                                m_instructionsShown = false;
     std::unique_ptr<JPBoardLocationProcess> m_locating;   // Multiple Point Board Location under way
+    std::unique_ptr<JPBoardNudge>       m_nudge;
+    JPPlacementsHolderLocation*         m_nudged = nullptr;     // the board Board Nudge moves
     std::vector<std::unique_ptr<JMenu>> m_subMenus;
 };
 
