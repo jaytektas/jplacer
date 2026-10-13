@@ -708,6 +708,10 @@ void JPFeedersPanel::showFeederForPart(const std::string& partId) {
     newFeeder(partId);
 }
 
+void JPFeedersPanel::clearSearch() {
+    m_table->clearSearch();
+}
+
 void JPFeedersPanel::selectFeederForPart(const std::string& partId) {
     if (const JPFeeder* f = selection(); f && f->partId() == partId) return;
     for (const bool enabled : { true, false })

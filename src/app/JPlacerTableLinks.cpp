@@ -44,8 +44,16 @@ void JPlacerTableLinks::choose(const std::function<void()>& linkedChoices) {
 
 void JPlacerTableLinks::partAndLinks(const std::string& partId, bool choosePart) {
     const JPPart* part = m_config.part(partId);
-    if (choosePart) m_tabs.parts.selectPart(part);
+    // The linked tables' searches taken off, so what they are given to show is there to see (scrolled to as it is
+    // chosen); not the leading tab's own.
+    if (choosePart) {
+        m_tabs.parts.clearSearch();
+        m_tabs.parts.selectPart(part);
+    }
     if (!part) return;
+    m_tabs.packages.clearSearch();
+    m_tabs.feeders.clearSearch();
+    m_tabs.vision.clearSearch();
     m_tabs.packages.selectPackage(m_config.package(part->packageId));
     m_tabs.feeders.selectFeederForPart(part->id);
     m_tabs.vision.selectFor(*part);

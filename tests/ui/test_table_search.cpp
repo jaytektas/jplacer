@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Jason Roughley <pis.controller@gmail.com>
 
-// A table's search (JPTable::setFilter): anywhere in any column, a hidden one's too; "name: text" in the column
+// A table's search (JPTable::setFilter, clearSearch): anywhere in any column, a hidden one's too; "name: text" in the column
 // so headed alone (without regard to case), "name:" the rows with anything in it; a colon after what names no
 // column is part of the search. What it leaves is counted against what there would be without it. The search
 // line completes a column's name (JPSearchField::completion).
@@ -68,5 +68,15 @@ int main() {
     assert(f.completion().empty());
     f.setText("lcsc: ");
     assert(f.completion().empty() && t.viewRowCount() == 2);   // what is typed is the table's search
+    // A row the search hides cannot be chosen; the search taken off (as linked tables do), its field empties with
+    // it and the row can be.
+    f.setText("14663");
+    assert(t.viewRowCount() == 1 && t.viewIndexOf(0) < 0);
+    t.selectRow(0);
+    assert(t.selectedRow() < 0);
+    t.clearSearch();
+    assert(!t.searching() && f.text().empty() && t.viewRowCount() == 4);
+    t.selectRow(0);
+    assert(t.selectedRow() == 0);
     return 0;
 }

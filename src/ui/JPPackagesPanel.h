@@ -39,6 +39,8 @@ class JPSearchField;
 class JPPackagesPanel : public JContainer {
 public:
     JPPackagesPanel(JSceneGraph& graph, JPConfiguration& config, double split);
+    // Its search taken off (another tab's choice shown here, linked: what the search hid would not be).
+    void clearSearch();
 
     std::function<void()> onChanged;
     std::function<void(JMenu*, float x, float y)> openMenu;

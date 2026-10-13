@@ -41,6 +41,8 @@ class JPSearchField;
 class JPFeedersPanel : public JContainer {
 public:
     using Tool  = JPSetupForm::Tool;
+    // Its search taken off (another tab's choice shown here, linked: what the search hid would not be).
+    void clearSearch();
     using Where = std::array<std::optional<double>, 4>;
 
     JPFeedersPanel(JSceneGraph& graph, JPConfiguration& config, double split);

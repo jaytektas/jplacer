@@ -167,7 +167,15 @@ const JPPart* JPPartsPanel::selectedPart() const {
 }
 
 void JPPartsPanel::selectPart(const JPPart* part) {
-    if (selectedPart() != part) m_table->selectRow(m_model.rowOf(part));
+    if (selectedPart() == part) return;
+    // One Show leaves out (another board's, none's) shown: every one.
+    const int row = m_model.rowOf(part);
+    if (part && row >= 0 && !m_model.rowShown(row)) m_show->setCurrentIndex(0);
+    m_table->selectRow(row);
+}
+
+void JPPartsPanel::clearSearch() {
+    m_table->clearSearch();
 }
 
 void JPPartsPanel::changed() {

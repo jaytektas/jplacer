@@ -84,9 +84,12 @@ other tabs:
 | A part on the [Parts](parts.md) tab | Its package on the Packages tab, a feeder that holds it on the Feeders tab (an enabled one first), and the vision settings it uses on the Vision tab (of the type that tab shows). |
 | A feeder on the Feeders tab | Its part, and so what goes with the part; again when the chosen feeder's part is changed. |
 
-What is chosen by a link chooses nothing further. A part with no feeder leaves the Feeders tab as it was.
+What is chosen by a link chooses nothing further. A part with no feeder leaves the Feeders tab as it was. The
+searches on the tabs a link chooses on are cleared, so what it chooses is there to see, and its table is scrolled
+to it; on the Parts and Packages tabs, a **Show** that leaves it out is set to **All**. The search on the tab you
+chose on is left as it is.
 
-<!-- src: src/app/JPlacerTableLinks.cpp; src/ui/JPFeedersPanel.cpp (selectFeederForPart, changed); src/ui/JPVisionSettingsPanel.cpp (selectFor) -->
+<!-- src: src/app/JPlacerTableLinks.cpp (partAndLinks); src/ui/JPTable.cpp (clearSearch, selectRows); src/ui/JPPartsPanel.cpp (selectPart); src/ui/JPPackagesPanel.cpp (selectPackage); src/ui/JPFeedersPanel.cpp (selectFeederForPart, changed); src/ui/JPVisionSettingsPanel.cpp (selectFor) -->
 
 ## Machine
 

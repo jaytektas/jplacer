@@ -184,6 +184,8 @@ public:
     void refresh();
 
     void setFilter(const std::string& regex);   // empty: every row
+    // The search taken off, its field emptied with it (onSearchShown).
+    void clearSearch();
     const std::string& filter() const { return m_filterText; }
     // Whether a search is on; the rows it leaves (viewRowCount) out of those there would be without it.
     bool searching() const { return m_filter.has_value() || !m_filterKey.empty(); }

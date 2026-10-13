@@ -30,6 +30,8 @@ inline namespace jf {
 class JPVisionSettingsPanel : public JContainer {
 public:
     JPVisionSettingsPanel(JSceneGraph& graph, JPConfiguration& config, double split);
+    // Its search taken off (another tab's choice shown here, linked: what the search hid would not be).
+    void clearSearch();
 
     std::function<void()> onChanged;
     // Opens a menu at window coordinates (the table's Columns…).

@@ -35,6 +35,8 @@ class JPPartsPanel : public JContainer {
 public:
     // `split`: the table's share of the height, as last left.
     JPPartsPanel(JSceneGraph& graph, JPConfiguration& config, double split);
+    // Its search taken off (another tab's choice shown here, linked: what the search hid would not be).
+    void clearSearch();
 
     // A part was added, changed or deleted (to be saved, other views told).
     std::function<void()> onChanged;

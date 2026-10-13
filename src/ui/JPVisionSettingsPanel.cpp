@@ -126,6 +126,10 @@ void JPVisionSettingsPanel::changed() {
     if (onChanged) onChanged();
 }
 
+void JPVisionSettingsPanel::clearSearch() {
+    m_table->clearSearch();
+}
+
 void JPVisionSettingsPanel::selectFor(const JPPart& part) {
     const bool bottom = m_type->currentIndex() != 1;
     const auto defaults = machineDefaults ? machineDefaults() : std::pair<std::string, std::string> {};

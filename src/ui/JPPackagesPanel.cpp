@@ -192,7 +192,15 @@ const JPPackage* JPPackagesPanel::selectedPackage() const {
 }
 
 void JPPackagesPanel::selectPackage(const JPPackage* p) {
-    if (selectedPackage() != p) m_table->selectRow(m_model.rowOf(p));
+    if (selectedPackage() == p) return;
+    // One Show leaves out shown: every one.
+    const int row = m_model.rowOf(p);
+    if (p && row >= 0 && !m_model.rowShown(row)) m_show->setCurrentIndex(0);
+    m_table->selectRow(row);
+}
+
+void JPPackagesPanel::clearSearch() {
+    m_table->clearSearch();
 }
 
 void JPPackagesPanel::changed() {

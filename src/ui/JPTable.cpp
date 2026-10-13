@@ -822,6 +822,12 @@ int JPTable::selectedRow() const {
     return m_selected.size() == 1 ? *m_selected.begin() : -1;
 }
 
+void JPTable::clearSearch() {
+    if (!searching()) return;
+    setFilter("");
+    onSearchShown.emit("");
+}
+
 void JPTable::selectRow(int modelRow) {
     selectRows(modelRow >= 0 ? std::vector<int> { modelRow } : std::vector<int> {});
 }

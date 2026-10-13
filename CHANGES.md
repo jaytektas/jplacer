@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Linked tables: what a link chooses on another tab is shown even if that tab had a search (the search is
+  cleared) or a Show that left it out; before, it was not chosen at all.
+
 - The job's check before a run, and messages from a run (no feeder for a part, a part's height probe, bottom
   vision), the Select Feeder title and a stock lot's ledger, name parts by their names, not by a long code.
 
