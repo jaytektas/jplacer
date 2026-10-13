@@ -308,7 +308,8 @@ public:
     std::string   chosenNozzleId() const;
     void          chooseTool(const std::string& toolId);
     std::string   tipChangeRefusal(const std::string& nozzleId, const std::string& tipId) const;
-    void          setTipOn(const std::string& nozzleId, const std::string& tipId);
+    // `byJob`: a run's tip change, whose own Calibrate Nozzle Tip step measures the tip: none measured here too.
+    void          setTipOn(const std::string& nozzleId, const std::string& tipId, bool byJob = false);
     // OpenPnP's Photon feeders talk through a machine actuator named
     // PhotonFeederData: made, when the machine has none, on its first
     // controller, reading with "M485 {value}" and "rs485-reply: (.*)" (a

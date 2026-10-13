@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- A job's nozzle tip change no longer measures the new tip's runout twice: the second measurement, run beside the
+  job, could fail or block the job's next move ("another move is under way") and leave a failure banner up
+  after the job had calibrated the tip. The nozzle chooser on the Jog panel names the part on a nozzle.
+
 - Linked tables: what a link chooses on another tab is shown even if that tab had a search (the search is
   cleared) or a Show that left it out; before, it was not chosen at all.
 

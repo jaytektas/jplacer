@@ -477,7 +477,11 @@ void JPlacerMachine::buildPanels(Keep keep) {
         const std::string part = nozzlePart(nozzleId);
         return !part.empty() && canRecycle && canRecycle(part);
     };
-    jog->partOn = [this](const std::string& nozzleId) { return nozzlePart(nozzleId); };
+    // By the part's name (it is kept by its id, a GUID).
+    jog->partOn = [this](const std::string& nozzleId) {
+        const std::string id = nozzlePart(nozzleId);
+        return id.empty() || !m_configuration ? id : m_configuration->partName(id);
+    };
     jog->refreshNames();
     jog->onChoicesChanged = [this] {
         if (!m_jog) return;
@@ -2288,7 +2292,7 @@ void JPlacerMachine::recalibrateAfterHoming(std::vector<std::string> nozzles, st
     });
 }
 
-void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& tipId) {
+void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& tipId, bool byJob) {
     if (!m_setup || !m_cell) return;
     std::string nozzle = nozzleId, tip = "no tip";
     for (const JPNozzleConfig& n : m_cell->config().nozzles) if (n.id == nozzleId) nozzle = n.name;
@@ -2325,7 +2329,9 @@ void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& ti
                 if (t.id == tipId) t.runout.erase(nozzleId);
     });
     if (forget) m_setup->remakeForm();
-    if (again) {
+    // A run calibrates the tip in a step of its own (its runout forgotten above, it is measured afresh there): measured
+    // here as well, it was measured twice, the first as a camera task beside the run, moving the machine under it.
+    if (again && !byJob) {
         if (m_cell->isHomed()) calibrateTipRunout(nozzleId, nullptr);
         else m_window.showStatus(tipName + " is calibrated once the machine is homed", kStatusMs);
     }

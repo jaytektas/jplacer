@@ -28,7 +28,7 @@ std::string JPlacerJobHost::tipChangeRefusal(const std::string& nozzleId, const 
     return m_machine.tipChangeRefusal(nozzleId, tipId);
 }
 
-void JPlacerJobHost::setTipOn(const std::string& nozzleId, const std::string& tipId) { m_machine.setTipOn(nozzleId, tipId); }
+void JPlacerJobHost::setTipOn(const std::string& nozzleId, const std::string& tipId) { m_machine.setTipOn(nozzleId, tipId, true); }
 std::string JPlacerJobHost::cellPath() const { return m_machine.cellPath(); }
 void JPlacerJobHost::slotScored(const std::string& tipId, double score) { m_machine.slotScored(tipId, score); }
 
