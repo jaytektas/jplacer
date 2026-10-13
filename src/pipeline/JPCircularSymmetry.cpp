@@ -78,8 +78,11 @@ std::vector<Circle> JPCircularSymmetry::find(cv::Mat& image, Search q, ScoreRang
     const int minDiameter = std::max(3, q.minDiameter | 1);
     const int maxDiameter = std::max(minDiameter + 4, q.maxDiameter | 1);
     const int superSampling = std::min(16, q.superSampling);
-    // Finer sampling for a fine edge.
-    const int sub = std::max(1, std::min(q.subSampling, std::min((maxDiameter - minDiameter) / 4, minDiameter / 2)));
+    // Finer sampling for a fine edge, and for a small target: at OpenPnP's bound (half the least diameter) the coarse
+    // pass sampled a 1 mm fiducial every 4 px (at 26 px a millimetre) and scored it with bare board and silkscreen,
+    // so what it offered the finer passes was not it (bench, 2026-10-13: of six fiducials, two found at 1.4 and
+    // 1.8 where they scored 13 to 22 every 3 px or closer). A sixth of the least diameter.
+    const int sub = std::max(1, std::min(q.subSampling, std::min((maxDiameter - minDiameter) / 4, minDiameter / 6)));
     const int rSearch = q.searchDiameter / 2 + 1;
     const int rSearchSq = rSearch * rSearch;
     const int r = maxDiameter / 2;
@@ -284,8 +287,10 @@ std::vector<Circle> JPCircularSymmetry::find(cv::Mat& image, Search q, ScoreRang
                 for (int xis = 1; xis < wMap - 1; ++xis) {
                     auto at = [&](int dx, int dy) { return scoreMap[size_t((yis + dy) * wMap + xis + dx)]; };
                     const double score = at(0, 0);
-                    if (score > minSymmetryEff && at(-1, 0) < score && at(1, 0) < score && at(-1, -1) < score && at(0, -1) < score
-                        && at(1, -1) < score && at(-1, 1) < score && at(0, 1) < score && at(1, 1) < score) {
+                    // A peak: above the neighbours before it, at least level with those after, so a peak two samples
+                    // share (a mark centred between them, as a drawn picture puts it) is the first of them, not lost.
+                    if (score > minSymmetryEff && at(-1, -1) < score && at(0, -1) < score && at(1, -1) < score && at(-1, 0) < score
+                        && at(1, 0) <= score && at(-1, 1) <= score && at(0, 1) <= score && at(1, 1) <= score) {
                         const size_t i = size_t(yis * wMap + xis);
                         maxima.push_back({ xis * sub + x0Range + r + 0.5 + xOffsetMap[i], yis * sub + y0Range + r + 0.5 + yOffsetMap[i],
                                            double(radiusMap[i] * 2), score });

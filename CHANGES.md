@@ -10,8 +10,8 @@ notes.
 
 ## Unreleased
 
-- Fiducials found more reliably: a small fiducial (a 1 mm one) is no longer missed for a patch of bare board
-  beside it, which made a fiducial check fail or come out a millimetre or more off.
+- Fiducials found more reliably: a small fiducial (a 1 mm one) is no longer missed for bare board or the
+  silkscreen beside it (its label), which made a fiducial check fail or come out a millimetre or more off.
 
 - Importing a board again after deleting its parts from the library links its placements to the parts the
   import makes, instead of leaving them pointing at the deleted ones ("not in the library", Missing Part, and

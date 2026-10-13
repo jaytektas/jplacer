@@ -870,9 +870,10 @@ calibration, backlash calibration, the homing mark's capture) by the camera's ca
 DetectCircularSymmetry to begin with. jplacer does not measure again what a pipeline found: DetectCircularSymmetry
 finds a centre to an eighth of a pixel. A pipeline is told where the mark should be, how far from there to look
 and, where it is known, the mark's size in pixels. DetectCircularSymmetry looks over the whole search area coarsely
-first, then finer round the best places it found there; looking for one mark, it takes the best four of them
-further (OpenPnP takes only the best one), so a small mark the coarse look scores no higher than bare board is
-still found.
+first, at least every sixth of the smallest size looked for (OpenPnP every half), then finer round the best places
+it found there; looking for one mark, it takes the best four of them further (OpenPnP takes only the best one),
+and a place two coarse samples score alike (a mark centred between them) is still one of them. So a small fiducial
+is not lost to bare board or silkscreen beside it.
 
 Where a calibration knows the mark's size only roughly (its size in millimetres at the camera's rough scale), the
 camera's calibration pipeline is run at every size about it and the most symmetrical mark taken, as a size a fifth
