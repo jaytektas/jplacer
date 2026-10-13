@@ -1035,17 +1035,17 @@ bool JPCellJobMachine::tuneForPart(JPCameraFeed& feed, const std::string& partId
     std::future<std::optional<JJson>> tuned = told->get_future();
     feed.autoTune(JPCameraFeed::kAutoTuneMs, [told](std::optional<JJson> t) { told->set_value(std::move(t)); });
     if (tuned.wait_for(std::chrono::milliseconds(kPartTuneWaitMs)) != std::future_status::ready) {
-        why = feed.config().name + " was not tuned on " + partId + " within " + std::to_string(kPartTuneWaitMs / 1000) + " s";
+        why = feed.config().name + " was not tuned on " + m_config.partName(partId) + " within " + std::to_string(kPartTuneWaitMs / 1000) + " s";
         return false;
     }
     const std::optional<JJson> controls = tuned.get();
     if (!controls) {
-        why = feed.config().name + " could not be tuned on " + partId + " (see the log)";
+        why = feed.config().name + " could not be tuned on " + m_config.partName(partId) + " (see the log)";
         return false;
     }
     m_partTunes[partId] = *controls;
-    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << feed.config().name << ": tuned on the first " << partId
-                                             << "; kept for every " << partId << " this run";
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << feed.config().name << ": tuned on the first " << m_config.partName(partId)
+                                             << "; kept for every " << m_config.partName(partId) << " this run";
     return true;
 }
 

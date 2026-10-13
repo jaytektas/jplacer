@@ -932,7 +932,7 @@ JPLocation JPJobProcessor::probedPick(const std::string& nozzleId, const std::st
     if (partHeightProbing) {
         // The part's height: how far above the pick place it was met.
         setPartHeight(j.partId, z - b.z());
-        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Nozzle " << n->name << " probed part " << j.partId << " height at " << (z - b.z());
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Nozzle " << n->name << " probed part " << m_config.partName(j.partId) << " height at " << (z - b.z());
     } else {
         offset = z - partZ;
     }
@@ -973,7 +973,7 @@ JPLocation JPJobProcessor::probedPlace(const std::string& nozzleId, JobPlacement
             fail(Source::Nozzle, nozzleId, "Part height " + m_config.partName(j.partId) + " probing by nozzle " + n->name
                                                + " failed (returned negative height). Check PCB Z and probing adjustment.");
         setPartHeight(j.partId, h);
-        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Nozzle " << n->name << " probed part " << j.partId << " height at " << h;
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Nozzle " << n->name << " probed part " << m_config.partName(j.partId) << " height at " << h;
     } else {
         offset = z - partZ;
     }
@@ -1071,7 +1071,7 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
         feedGlobals["feeder"] = feederId;
         feedGlobals["nozzle"] = p.nozzleId;
         for (int i = 0; i < 1 + feedRetries && !fed && !empty; ++i) {
-            status(format("Feed %s on %s.", feederName.c_str(), j.partId.c_str()));
+            status(format("Feed %s on %s.", feederName.c_str(), m_config.partName(j.partId).c_str()));
             script("Feeder.BeforeFeed", feedGlobals);
             fed = JPFeederFeed::feed(m_config, feederId, p.nozzleId, m_machine,
                                      [this](const std::function<void()>& fn) { main(fn); }, why, empty);
@@ -1125,7 +1125,7 @@ JPJobProcessor::Step JPJobProcessor::pick(Planned& p) {
             std::string nozzleName = p.nozzleId;
             for (const auto& n : m_machine.nozzles())
                 if (n.id == p.nozzleId) nozzleName = n.name;
-            status(format("Pick %s from %s for %s using nozzle %s.", j.partId.c_str(), feederName.c_str(),
+            status(format("Pick %s from %s for %s using nozzle %s.", m_config.partName(j.partId).c_str(), feederName.c_str(),
                           j.placementId.c_str(), nozzleName.c_str()));
             // The nozzle given the part first, as OpenPnP's setPart: its package's pick vacuum level.
             m_machine.holding(p.nozzleId, j.partId);
@@ -1192,7 +1192,7 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         if (n.id == p.nozzleId) nozzleName = n.name;
     std::string why;
     for (int i = 0; i < std::max(1, m_settings.maxVisionRetries); ++i) {
-        status(format("Aligning %s for %s using nozzle %s.", j.partId.c_str(), j.placementId.c_str(), nozzleName.c_str()));
+        status(format("Aligning %s for %s using nozzle %s.", m_config.partName(j.partId).c_str(), j.placementId.c_str(), nozzleName.c_str()));
         JPJobMachine::AlignResult r;
         // OpenPnP's Vision.PartAlignment.Before and After (with the offsets found, if any).
         JJson g = JJson::object();
@@ -1257,7 +1257,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
         if (!m_machine.partOn(p.nozzleId, partThere, why)) fail(Source::Nozzle, p.nozzleId, why);
         if (!partThere) fail(Source::Nozzle, p.nozzleId, "No part vacuum-detected on nozzle before place.");
     }
-    status(format("Placing %s for %s using nozzle %s.", j.partId.c_str(), j.placementId.c_str(), nozzleName.c_str()));
+    status(format("Placing %s for %s using nozzle %s.", m_config.partName(j.partId).c_str(), j.placementId.c_str(), nozzleName.c_str()));
     JJson nozzleGlobals = placementGlobals(j);
     nozzleGlobals["nozzle"] = p.nozzleId;
     script("Nozzle.BeforePlace", nozzleGlobals);

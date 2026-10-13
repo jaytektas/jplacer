@@ -466,7 +466,7 @@ public:
         auto f = feeder();
         if (!f) return missing(why);
         if (own(*f).firstPocket + own(*f).feedCount > own(*f).lastPocket) {
-            why = "Feeder " + f->name() + " part " + f->partId() + " empty.";
+            why = "Feeder " + f->name() + " part " + m_config.partName(f->partId()) + " empty.";
             return false;
         }
         if (!assertCalibration(why)) return false;
@@ -478,7 +478,7 @@ public:
                 if (!coverOpenChecked(open, why)) return false;
                 if (!open) {
                     edit([](JPConfiguration&, JPFeeder& x) { x.blinds.coverPositionMm.reset(); });
-                    why = "Feeder " + f->name() + " " + f->partId() + ": cover is not open. Please open manually.";
+                    why = "Feeder " + f->name() + " " + m_config.partName(f->partId()) + ": cover is not open. Please open manually.";
                     return false;
                 }
             } else if ((actuation == "OpenOnFirstUse" || actuation == "OpenOnJobStart") && !JPBlindsFeeders::coverState(*f, true)) {
@@ -523,7 +523,7 @@ public:
             main([&] {
                 for (JPFeeder& x : m_config.feeders())
                     if (x.typeName() == "BlindsFeeder" && !x.blinds.ocrChangedPartId.empty()) {
-                        msg += "BlindsFeeder " + x.name() + " part " + f->blinds.ocrChangedPartId + " changed to " + x.partId() + ". ";
+                        msg += "BlindsFeeder " + x.name() + " part " + m_config.partName(f->blinds.ocrChangedPartId) + " changed to " + m_config.partName(x.partId()) + ". ";
                         x.blinds.ocrChangedPartId.clear();
                     }
             });

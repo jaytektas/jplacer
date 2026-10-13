@@ -1006,6 +1006,13 @@ void JPlacerMachine::watchCell() {
     m_unwatch.push_back(m_cell->onState.connect([onMain, controllerState](std::string, std::string) { onMain(controllerState); }));
     m_unwatch.push_back(m_cell->onConnection.connect([onMain, controllerState](bool, std::string) { onMain(controllerState); }));
     // Parked in X and Y: the cameras' lights off, until you next do something at a camera (userActionLight).
+    // Auto tool select: the tool a run (or anything else) moves chosen on the Jog panel, as OpenPnP's jog controls
+    // follow the machine's head activity; the reticle turns as the chosen tool does, so it follows the part too.
+    m_unwatch.push_back(m_cell->onToolMoved.connect([this, onMain](std::string toolId) {
+        onMain([this, toolId] {
+            if (m_jog && m_cell && m_cell->config().autoToolSelect && m_jog->toolId() != toolId) m_jog->selectTool(toolId);
+        });
+    }));
     m_unwatch.push_back(m_cell->onParked.connect([this, onMain](std::string) {
         onMain([this] {
             m_userLit.clear();

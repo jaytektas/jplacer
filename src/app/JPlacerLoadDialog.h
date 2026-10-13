@@ -45,6 +45,7 @@ private:
 
     std::string                    m_partId, m_partName, m_packaging;   // m_partName: what it is shown as
     std::vector<JPLaneChoice::Lane> m_lanes;
+    const JPConfiguration&          m_config;   // the parts' names
     std::vector<std::string>       m_lotUuids;   // the Lot choice's, after None
     Actions                        m_actions;
 

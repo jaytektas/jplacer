@@ -1079,6 +1079,17 @@ bool JPCell::moveToolStraightAndWait(const JPMountConfig& mount, std::array<std:
 
 bool JPCell::doMoveTool(const JPMountConfig& mount, const std::array<std::optional<double>, 4>& to, double speed,
                         bool atSafeZ, std::string& why) {
+    // Which tool it is, said (the Jog panel's Auto tool select follows a run's moves as a hand's).
+    auto toolOf = [&mount](const auto& tools) -> std::string {
+        for (const auto& t : tools)
+            if (&t.mount == &mount) return t.id;
+        return {};
+    };
+    for (const std::string& id : { toolOf(m_config.nozzles), toolOf(m_config.cameras), toolOf(m_config.actuators) })
+        if (!id.empty()) {
+            onToolMoved.emit(id);
+            break;
+        }
     std::map<std::string, double> axes;
     if (to[0] && !mount.axisX.empty()) axes[mount.axisX] = *to[0] - mount.offsetX;
     if (to[1] && !mount.axisY.empty()) axes[mount.axisY] = *to[1] - mount.offsetY;

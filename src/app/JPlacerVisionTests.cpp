@@ -105,7 +105,7 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
             ok = JPAlignRequests::forPart(config, vision, *part, heightMm, angle, rq);
         });
         if (!ok) {
-            why = "Bottom vision is not enabled for " + partId + ".";
+            why = "Bottom vision is not enabled for " + m_job.configuration().partName(partId) + ".";
             return false;
         }
         // Where the chosen nozzle is: before (centred by hand, for Detect Offsets), and after.
@@ -121,7 +121,7 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
         // As found: its offsets on the nozzle, and its turn from the angle wanted.
         const double turn = angle - r.partAngle;
         char text[160];
-        std::snprintf(text, sizeof text, "%s  |  X:%.3f Y:%.3f C:%.3f \xCE\x94:%.3f", partId.c_str(), r.dx, r.dy, -turn,
+        std::snprintf(text, sizeof text, "%s  |  X:%.3f Y:%.3f C:%.3f \xCE\x94:%.3f", m_job.configuration().partName(partId).c_str(), r.dx, r.dy, -turn,
                       std::hypot(r.dx, r.dy));
         if (center) {
             // Centred over the camera and turned to the angle, at the height it was seen at (OpenPnP's

@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Auto tool select follows a running job: the Jog panel chooses the nozzle or camera the job moves, so the
+  footprint drawn on a camera turns with the part being placed. A job's messages and the feeder-loading
+  window name parts by their names, not by long codes.
+
 - Cameras: a single damaged picture no longer makes jplacer close and reopen the camera (which showed as
   "could not start" over and over while the camera was running); settings are sent to a camera only when they
   change. A nozzle tip change or a tip calibration no longer rebuilds the whole machine setup (the pauses at

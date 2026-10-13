@@ -15,12 +15,13 @@ inline namespace jf {
 
 namespace {
 
-std::string laneWords(const JPLaneChoice::Lane& l) {
+// `holding`: the name of the part it holds (it is kept by its id, a GUID).
+std::string laneWords(const JPLaneChoice::Lane& l, const std::string& holding) {
     char width[32];
     std::snprintf(width, sizeof width, "%g mm", l.widthMm);
     std::string s = l.name + " (" + width;
     if (!l.widthFits) s += ", not the part's width";
-    s += l.removePartId.empty() ? ", empty)" : ", holds " + l.removePartId + ")";
+    s += l.removePartId.empty() ? ", empty)" : ", holds " + holding + ")";
     return s;
 }
 
@@ -34,6 +35,7 @@ JPlacerLoadDialog::JPlacerLoadDialog(const JPConfiguration& config, const std::s
     , m_partName(config.part(partId) ? config.part(partId)->shownName() : partId)
     , m_packaging(JPLaneChoice::packagingWords(config, partId))
     , m_lanes(std::move(lanes))
+    , m_config(config)
     , m_actions(std::move(actions)) {
     setResizable(true, kW * 2 / 3, kH * 2 / 3);
     JSceneGraph& g = graph();
@@ -59,7 +61,7 @@ JPlacerLoadDialog::JPlacerLoadDialog(const JPConfiguration& config, const std::s
     };
     if (!m_lanes.empty()) {
         std::vector<std::string> names;
-        for (const JPLaneChoice::Lane& l : m_lanes) names.push_back(laneWords(l));
+        for (const JPLaneChoice::Lane& l : m_lanes) names.push_back(laneWords(l, m_config.partName(l.removePartId)));
         m_lane = row("Lane", names, "The free lanes, best first: empty ones, then those whose part this run is done with; "
                                     "the part's tape width first");
         m_lane->onIndexChanged.connect([this](int) { describe(); });
@@ -117,7 +119,7 @@ void JPlacerLoadDialog::describe() {
     }
     const JPLaneChoice::Lane& l = m_lanes[size_t(i)];
     m_what->setText("Load " + m_partName + (m_packaging.empty() ? "" : " (" + m_packaging + ")") + " into " + l.name +
-                    (l.removePartId.empty() ? "." : ", taking " + l.removePartId + " off first."));
+                    (l.removePartId.empty() ? "." : ", taking " + m_config.partName(l.removePartId) + " off first."));
     m_how->setText("Lay the strip as the lane's strips lie, its first part at the lane's first hole. Continue sets the lane to "
                    "the part, starts its count again, and the run goes on." +
                    std::string(l.widthFits ? "" : " This lane is not the part's tape width."));
