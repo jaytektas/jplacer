@@ -182,6 +182,7 @@ void JPlacerJobRun::setState(RunState s) {
 }
 
 void JPlacerJobRun::startPauseResume() {
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Start / Pause / Resume pressed";
     if (taskUnderWay()) return;
     switch (m_state.load()) {
         case RunState::Stopped: start(RunState::Running); break;
@@ -196,6 +197,9 @@ void JPlacerJobRun::startPauseResume() {
 }
 
 void JPlacerJobRun::step() {
+    // Said, so the log shows how long the press waits before its step starts (the step's own line) and moves
+    // (the controller's traffic) after it.
+    JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "Step pressed";
     if (taskUnderWay()) return;
     if (m_state == RunState::Stopped) {
         start(RunState::Pausing);
@@ -424,8 +428,13 @@ void JPlacerJobRun::run() {
             if (s != RunState::Running && s != RunState::Pausing) return;
             JPJobProcessor::Failure f;
             const int motionsBefore = m_jobMachine->motions();
+            const auto begun = std::chrono::steady_clock::now();
             signal(JobState::Running);
+            const auto signalled = std::chrono::steady_clock::now();
             const JPJobProcessor::Result r = m_processor->next(f);
+            using Ms = std::chrono::duration<double, std::milli>;
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "step: signalled in " << Ms(signalled - begun).count() << " ms, done in "
+                                                      << Ms(std::chrono::steady_clock::now() - signalled).count() << " ms";
             if (r == JPJobProcessor::Result::Finished) {
                 signal(JobState::Finished);
                 post([this] {
