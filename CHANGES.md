@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Bottom vision takes the nozzle over the camera looking up where its tip's runout calibration found the nozzle's
+  axis to be (a CameraOffset algorithm's Camera Position Offset), as the manual said and OpenPnP does. It went to
+  the camera's own place, so every part on a nozzle whose axis is off over the camera was placed that far off
+  (0.1 mm on the bench's left nozzle).
+
 - Issues & Solutions' precise nozzle offsets calibration shows the correction it made as soon as it ends, in a
   dialog: how far the nozzle's offsets moved, and the detected and previous offsets. The issue's own page shows
   them too when looked at again.

@@ -174,7 +174,7 @@ private:
     // Where the part's centre is (mm) with the nozzle there, its angle and its size.
     bool alignComposite(JPCell& cell, const JPMountConfig& nozzle, JPPipeline& pipeline, JPVisionComposite& composite,
                         const JPNozzleTipConfig* tip, double roamingRadiusMm, const JPCameraCalibration& cal, double camX,
-                        double camY, double z, double nx, double ny, double nr, double angle, const std::string& partId,
+                        double camY, double cameraDx, double cameraDy, double z, double nx, double ny, double nr, double angle, const std::string& partId,
                         JPBottomVision::Seen& seen, std::string& why);
 
     JPJobMachineHost&                        m_host;

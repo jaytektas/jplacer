@@ -15,6 +15,7 @@
 #include "CellJobHost.h"
 #include "machine/JPCell.h"
 #include "machine/JPFirmwareProfile.h"
+#include "machine/JPMachineLocation.h"
 #include "model/JPConfiguration.h"
 #include "model/JPJob.h"
 #include "openpnp/JPOpenPnpMachineImporter.h"
@@ -59,7 +60,10 @@ bool waitFor(const std::atomic<int>& done, int ms) {
     return done != 0;
 }
 
-void runSampleJob(const char* name, const char* jobFile) {
+// `cameraOffMm`: the camera looking up set up that far in X from where it is (the simulated camera kept where it was):
+// the runout calibration finds each nozzle's axis that far off over it (ModelCameraOffsetAffine's camera offset), and
+// bottom vision must take the nozzle there, or every part is placed that far off (bench, 2026-10-14).
+void runSampleJob(const char* name, const char* jobFile, double cameraOffMm = 0) {
     std::fprintf(stderr, "%s runs with imperfect machine in real-time, please be patient...\n", name);
     const fs::path dir = fs::temp_directory_path() / ("jplacer-sample-job-" + std::to_string(::getpid()));
     fs::remove_all(dir);
@@ -77,6 +81,19 @@ void runSampleJob(const char* name, const char* jobFile) {
     ok = ok && JPOpenPnpMachineImporter::import(kMachine.string(), cellConfig, notes, error);
     if (!ok) std::fprintf(stderr, "%s\n", error.c_str());
     assert(ok);
+    if (cameraOffMm != 0)
+        for (JPCameraConfig& cam : cellConfig.cameras)
+            if (cam.looksUp && cam.mount.headId.empty()) {
+                const JPMountConfig& m = cam.mount;
+                cam.device["simulatedLocation"] = JPMachineLocation { m.offsetX, m.offsetY, m.offsetZ, 0 }.toJson();
+                cam.mount.offsetX += cameraOffMm;
+            }
+    // Measured afresh against it, by the job (its Calibrate Nozzle Tip step), not OpenPnP's as imported.
+    if (cameraOffMm != 0)
+        for (JPNozzleTipConfig& t : cellConfig.nozzleTips) {
+            t.runout.clear();
+            t.runoutCalibration.offsetThresholdMm = 1;   // the 0.4 mm runout and the camera's offset found together
+        }
     for (const std::string& n : notes) std::fprintf(stderr, "note: %s\n", n.c_str());
 
     JPCell cell(cellConfig, profiles());
@@ -150,5 +167,6 @@ int main(int argc, char** argv) {
     const std::string only = argc > 1 ? argv[1] : "";
     if (only.empty() || only == "SampleJobTest") runSampleJob("SampleJobTest", "pnp-test.job.xml");
     if (only.empty() || only == "SamplePanelizedJobTest") runSampleJob("SamplePanelizedJobTest", "pnp-test-panelized.job.xml");
+    if (only.empty() || only == "CameraOff") runSampleJob("CameraOff", "pnp-test.job.xml", 0.3);
     return 0;
 }

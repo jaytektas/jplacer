@@ -1191,7 +1191,9 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     // The nozzle turned so the part is at the look's angle (the nozzle's
     // rotation is the part's: its rotation mode offset is the cell's), over
     // the camera as it is for this nozzle (OpenPnP's camera.getLocation(nozzle):
-    // less its tip's camera offset); what is seen measured from where it is set.
+    // less its tip's camera offset, its runout calibration's axis offset), so its axis is over the camera's middle;
+    // what is seen measured from that middle. Taken to the camera's own place instead, a nozzle whose axis is off
+    // over the camera had every part placed that far off (bench, 2026-10-14: LEFT's 0.11 mm in X).
     double cameraDx = 0, cameraDy = 0;
     c->cameraOffsetFor(nozzleId, cameraDx, cameraDy);
     double nx = camX - cameraDx, ny = camY - cameraDy, nr = rq.imageAngle;
@@ -1276,14 +1278,14 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
         // A part seen in several shots (OpenPnP's vision compositing).
         if (composited) {
             if (!alignComposite(*c, nozzle.mount, *rq.pipeline, *composite, tip ? &*tip : nullptr, feed->config().roamingRadiusMm,
-                                pipelineCal, camX, camY, z, nx, ny, nr, expected, rq.partId, seen, w))
+                                pipelineCal, camX, camY, cameraDx, cameraDy, z, nx, ny, nr, expected, rq.partId, seen, w))
                 return false;
             JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "seen on " << nozzle.name << " in " << composite->shots().size() << " shots ("
                                                      << JPVisionComposite::solutionName(composite->solution()) << "): "
                                                      << seen.x - nx << ", " << seen.y - ny << " mm, " << (seen.angle - nr) << " deg";
             return true;
         }
-        if (!c->moveToolAndWait(nozzle.mount, { nx, ny, z, nr }, 1.0, w)) return false;
+        if (!c->moveToolAndWait(nozzle.mount, { nx - cameraDx, ny - cameraDy, z, nr }, 1.0, w)) return false;
         // The camera's Auto-Tune for each part?: once, the part over it.
         if (feed->config().autoTuneEachPart && !partTuned && !rq.partId.empty()) {
             if (!tuneForPart(*feed, rq.partId, w)) return false;
@@ -1300,8 +1302,8 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
     if (!JPBottomVision::findOffsets(settings, camX, camY, look, offset, why)) return false;
     // As jplacer places by it: the nozzle's turn, the part's centre off its axis, the part's angle.
     const JPLocation& o = offset.location;
-    result.cameraX = camX;
-    result.cameraY = camY;
+    result.cameraX = camX - cameraDx;
+    result.cameraY = camY - cameraDy;
     result.partZ = z;
     result.dx = o.x();
     result.dy = o.y();
@@ -1314,16 +1316,18 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
 
 bool JPCellJobMachine::alignComposite(JPCell& cell, const JPMountConfig& nozzle, JPPipeline& pipeline, JPVisionComposite& composite,
                                        const JPNozzleTipConfig* tip, double roamingRadiusMm, const JPCameraCalibration& cal,
-                                       double camX, double camY, double z, double nx, double ny, double nr, double angle,
-                                       const std::string& partId, JPBottomVision::Seen& seen, std::string& why) {
-    auto nozzleAt = [&cell, &nozzle](double& x, double& y) {
+                                       double camX, double camY, double cameraDx, double cameraDy, double z, double nx, double ny,
+                                       double nr, double angle, const std::string& partId, JPBottomVision::Seen& seen,
+                                       std::string& why) {
+    // Where its axis is over the camera, the shots' places: the nozzle set that much less its tip's camera offset.
+    auto nozzleAt = [&cell, &nozzle, cameraDx, cameraDy](double& x, double& y) {
         const auto at = cell.jogBase();
         auto where = [&at](const std::string& axis, double offset) {
             const auto p = at.find(axis);
             return p == at.end() ? 0.0 : p->second + offset;
         };
-        x = where(nozzle.axisX, nozzle.offsetX);
-        y = where(nozzle.axisY, nozzle.offsetY);
+        x = where(nozzle.axisX, nozzle.offsetX) + cameraDx;
+        y = where(nozzle.axisY, nozzle.offsetY) + cameraDy;
         return true;
     };
     const JPNozzleTipConfig defaults;
@@ -1332,7 +1336,7 @@ bool JPCellJobMachine::alignComposite(JPCell& cell, const JPMountConfig& nozzle,
     auto moveTo = [&](double x, double y, std::string& w) {
         double hereX = 0, hereY = 0;
         nozzleAt(hereX, hereY);
-        const std::array<std::optional<double>, 4> to { x, y, z, nr };
+        const std::array<std::optional<double>, 4> to { x - cameraDx, y - cameraDy, z, nr };
         return std::hypot(hereX - camX, hereY - camY) > roamingRadiusMm + tipTolerance ? cell.moveToolAndWait(nozzle, to, 1.0, w)
                                                                                          : cell.moveToolStraightAndWait(nozzle, to, 1.0, w);
     };

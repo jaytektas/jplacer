@@ -239,7 +239,7 @@ public:
         double nozzleAngle = 0;
         double dx = 0, dy = 0;
         double partAngle = 0;
-        double cameraX = 0, cameraY = 0;   // where the camera looking up is
+        double cameraX = 0, cameraY = 0;   // where the nozzle is over the camera looking up (its axis over its middle)
         double partZ = 0;                  // the nozzle's Z it was seen at: the part's bottom at the camera's focus
         // A part of unknown height measured on the way (OpenPnP's auto focus part height): its height.
         std::optional<double> measuredPartHeightMm;
