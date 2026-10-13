@@ -360,6 +360,9 @@ void JPJobPlacementsPanel::removePlacements() {
     for (const JPPlacement* p : selections()) ids.push_back(p->id);
     JPDefinitionChanges changes(m_config, m_job());
     for (const std::string& id : ids) changes.removed(*def, id);
+    // Its parts no placement uses now go with them: kept, one would hold its choice of a library part over the
+    // next import of the same part (one since deleted, too).
+    if (def->kind() == JPPlacementsHolder::Kind::Board) static_cast<JPBoard*>(def)->dropUnusedParts();
     if (JPJob* job = m_job()) job->dirty = true;
     refresh();
     changed();

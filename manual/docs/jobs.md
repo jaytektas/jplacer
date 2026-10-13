@@ -101,7 +101,8 @@ Right-click for **Set Side**, **Set Enabled** and **Set Check Fids**.
 **Placements**: the chosen board's (or panel's) placements on its side facing up, with **Placed** and
 **Status** (**Ready**, **Missing Part**, **Missing Feeder**, **Part Height**: its height is not known, or
 **Disabled**). A board's own (its placements' IDs, parts, sides, where they lie, types, comments) are
-changed here, for every use of it (and New and Remove Placement(s) work); Enabled, Placed and Error
+changed here, for every use of it (and New and Remove Placement(s) work: the board's parts that no placement
+uses after a removal go with them, so the next import of those parts starts from the library as it is); Enabled, Placed and Error
 Handling for this use alone. **Move Camera To Placement Location**, **Move Tool To Placement Location**,
 **Capture Camera Placement Location** and **Capture Tool Placement Location** work as the board ones,
 for the chosen placement. **Move Camera To Previous Placement Location** and **To Next** (the arrows either
@@ -117,7 +118,7 @@ A placement whose part is not in the library shows in **Part** what the files ca
 deleted. What the files said is kept with the board, whatever happens in the library; point at the cell for
 all of it, and click it to choose the part again.
 
-<!-- src: src/ui/JPPlacementsTableModel.cpp (text, cellTooltip, filesName); src/model/JPBoardPart.h -->
+<!-- src: src/ui/JPPlacementsTableModel.cpp (text, cellTooltip, filesName); src/model/JPBoardPart.h; src/ui/JPJobPlacementsPanel.cpp (removePlacements); src/model/JPBoard.cpp (dropUnusedParts) -->
 
 **Columns** also offers each placement's part's columns and its part's package's, headed **Part ▸** and
 **Package ▸** (**Part ▸ Value**, **Part ▸ MPN**, **Package ▸ Name**…, the fields you added to parts and
