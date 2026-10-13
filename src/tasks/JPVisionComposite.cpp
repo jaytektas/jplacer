@@ -309,6 +309,10 @@ void JPVisionComposite::compute(const Input& in) {
     Pad body;
     body.width = in.footprint.bodyWidth;
     body.height = in.footprint.bodyHeight;
+    // How far the part reaches from its middle: its farthest pad corner or body corner (centred on the footprint).
+    m_maxPartRadius = std::hypot(body.width, body.height) / 2;
+    for (const Pad& p : in.footprint.pads)
+        for (const auto& pt : padCorners(p)) m_maxPartRadius = std::max(m_maxPartRadius, std::hypot(pt.x, pt.y));
     const std::vector<Pad> pads = m_method == Method::Body ? std::vector<Pad> { body } : in.footprint.pads;
     if (pads.empty() || in.visionOffsets || in.roamingRadiusMm == 0) {
         // No footprint, or vision offsets, or no roaming radius: the classic single shot.

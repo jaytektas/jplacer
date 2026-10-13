@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Bottom vision looks for a part only where it can be (the part's own size plus the pick tolerance), not across
+  the nozzle tip's whole Max Part Diameter: a small part (an 0402) is no longer boxed with whatever else shines
+  round the tip. On a paused run, a Test Alignment of the part on the nozzle replaces the run's alignment.
+
 - A job's nozzle tip calibration shows each circle it finds on the bottom camera, as one from the Jog panel does.
 
 - Auto tool select follows a running job: the Jog panel chooses the nozzle or camera the job moves, so the

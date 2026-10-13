@@ -138,6 +138,9 @@ public:
     // passes, pre-rotation, angular offset) and the fiducial locator's settings.
     void setVision(const JPVisionConfig& v) { m_vision = v; }
     int totalPartsPlaced() const { return m_totalPartsPlaced; }
+    // A part on `nozzleId` aligned again by hand while the run is paused (a vision test): what was found taken in place of
+    // what the run's alignment found, if that part is the run's there and aligned. The placement's id; empty: not taken.
+    std::string realigned(const std::string& nozzleId, const std::string& partId, const JPJobMachine::AlignResult& r);
 
 
 private:
@@ -153,6 +156,8 @@ private:
         Finish
     };
 
+    // What bottom vision found, kept for the place (the part's measured height, the aligning rotation mode).
+    void takeAlignment(Planned& p, JPJobMachine::AlignResult r);
     void main(const std::function<void()>& fn);
     void status(const std::string& s);
     Step run(Step step);

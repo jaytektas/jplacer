@@ -8,6 +8,7 @@
 #include "tasks/JPCameraLook.h"
 #include "tasks/JPFiducialLocator.h"
 #include "ui/JPCameraView.h"
+#include "ui/JPTable.h"
 
 #include <j/core/Dialog.h>
 
@@ -118,6 +119,13 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
         const std::optional<JPLocation> before = nozzleAt();
         JPJobMachine::AlignResult r;
         if (!machine.alignPart(nozzleId, rq, r, why)) return false;
+        // On a paused run with this part on the nozzle, aligned: this alignment, made by hand, is the one it places with.
+        if (!detectOffsets)
+            onMain([&] {
+                const std::string placement = m_run.realigned(nozzleId, partId, r);
+                if (!placement.empty())
+                    if (JPTable::s_status) JPTable::s_status("Test Alignment taken for " + placement + ": the run places it as aligned now");
+            });
         // As found: its offsets on the nozzle, and its turn from the angle wanted.
         const double turn = angle - r.partAngle;
         char text[160];

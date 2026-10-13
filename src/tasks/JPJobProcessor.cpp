@@ -1207,18 +1207,7 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         }
         script("Vision.PartAlignment.After", g);
         if (found) {
-            if (r.measuredPartHeightMm) setPartHeight(j.partId, *r.measuredPartHeightMm);
-            // OpenPnP's aligning rotation mode: the part's turn taken into the
-            // offset, the nozzle then reading the part's angle as found.
-            for (const auto& n : m_machine.nozzles())
-                if (n.id == p.nozzleId && n.alignRotationWithPart) {
-                    const auto o = m_rotationOffset.find(p.nozzleId);
-                    const double offset = (o == m_rotationOffset.end() ? 0.0 : o->second) + (r.partAngle - r.nozzleAngle);
-                    m_rotationOffset[p.nozzleId] = offset;
-                    m_machine.setRotationModeOffset(p.nozzleId, offset);
-                    r.nozzleAngle = r.partAngle;
-                }
-            p.alignment = r;
+            takeAlignment(p, r);
             // OpenPnP's part-on check after alignment.
             if (m_machine.vacuumChecked(p.nozzleId, JPJobMachine::VacuumStep::Align)) {
                 bool on = false;
@@ -1229,6 +1218,35 @@ JPJobProcessor::Step JPJobProcessor::align(Planned& p) {
         }
     }
     fail(Source::Nozzle, p.nozzleId, why);
+}
+
+void JPJobProcessor::takeAlignment(Planned& p, JPJobMachine::AlignResult r) {
+    const JobPlacement& j = m_jobPlacements[p.job];
+    if (r.measuredPartHeightMm) setPartHeight(j.partId, *r.measuredPartHeightMm);
+    // OpenPnP's aligning rotation mode: the part's turn taken into the
+    // offset, the nozzle then reading the part's angle as found.
+    for (const auto& n : m_machine.nozzles())
+        if (n.id == p.nozzleId && n.alignRotationWithPart) {
+            const auto o = m_rotationOffset.find(p.nozzleId);
+            const double offset = (o == m_rotationOffset.end() ? 0.0 : o->second) + (r.partAngle - r.nozzleAngle);
+            m_rotationOffset[p.nozzleId] = offset;
+            m_machine.setRotationModeOffset(p.nozzleId, offset);
+            r.nozzleAngle = r.partAngle;
+        }
+    p.alignment = r;
+}
+
+std::string JPJobProcessor::realigned(const std::string& nozzleId, const std::string& partId, const JPJobMachine::AlignResult& r) {
+    for (Planned& p : m_planned) {
+        if (p.nozzleId != nozzleId || !p.alignment) continue;
+        const JobPlacement& j = m_jobPlacements[p.job];
+        if (j.partId != partId) return "";   // another part on it: not this one's alignment
+        takeAlignment(p, r);
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "aligned again by hand: " << m_config.partName(partId) << " for "
+                                                 << j.placementId << " on " << nozzleId << ": offsets " << r.dx << ", " << r.dy;
+        return j.placementId;
+    }
+    return "";
 }
 
 JPJobProcessor::Step JPJobProcessor::place(Planned& p) {

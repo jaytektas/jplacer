@@ -53,6 +53,10 @@ public:
                                         std::string& why)>
                          work);
 
+    // A part aligned again by hand on a paused run (a vision test): taken in place of the run's alignment for the part
+    // on that nozzle, when it is the run's part there. The placement's id; empty: not taken.
+    std::string realigned(const std::string& nozzleId, const std::string& partId, const JPJobMachine::AlignResult& r);
+
     // A failure's source, to be chosen where it is shown (the Feeders tab's
     // feeder, the Parts tab's part; a board and placement are chosen here).
     std::function<void(const JPJobProcessor::Failure&)> showSource;

@@ -203,6 +203,14 @@ void JPVisionPipelinePrep::shot(JPPipeline& pipeline, const JPVisionComposite& c
     // A margin for finding the edges.
     pipeline.setProperty("DetectRectlinearSymmetry.maxWidth", length(shot.width + 2 * sampling));
     pipeline.setProperty("DetectRectlinearSymmetry.maxHeight", length(shot.height + 2 * sampling));
+    if (!JPVisionComposite::isAdvanced(composite.solution()) && composite.maxPartRadius() > 0) {
+        // The part seen whole: masked to it, how far it reaches and how far off the nozzle it may be picked (a search
+        // window of the part's size), so nothing else bright round the tip counts. Masked to the tip's Max Part
+        // Diameter alone, an 0402 (1 mm) on a tip for parts up to 5 mm was boxed with whatever shone within 5 mm.
+        pipeline.setProperty("partmask.diameter",
+                             length(std::min(shot.maxMaskRadius, composite.maxPartRadius() + tipTolerance) * 2));
+        pipeline.setProperty("partmask.center", JPPipelineValue { JPPipelineValue::Pixel { partX, partY } });
+    }
     if (JPVisionComposite::isAdvanced(composite.solution())) {
         // The whole part masked, and the edges this shot sees.
         pipeline.setProperty("partmask.diameter", length((composite.maxPadRadius() + tipTolerance) * 2));

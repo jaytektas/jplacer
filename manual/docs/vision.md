@@ -50,14 +50,17 @@ machine's bottom vision says), **Rotation** (**Adjust**: the part taken as turne
 the **Size tolerance** of its body, or of its pads' extent; else the alignment fails, saying which, the
 nominal, the limit and what was measured: "Part R1 width too small: nominal 3.000mm, limit 2.400mm,
 measured 1.277mm"), and the **Vision Center Offsets**, taken off what is found, turned as the part is (see
-[Running the job](jobs.md#running-the-job)).
+[Running the job](jobs.md#running-the-job)). A part seen whole is looked for only where it can be: within how far its pads
+and body reach from its middle, plus its nozzle tip's **Max Pick Tolerance** (the pipeline's part mask), not
+the whole of the tip's **Max Part Diameter**, so whatever else is bright round the tip is not taken for it.
 
 **Test Alignment** aligns the part on the nozzle chosen on the Jog panel over the camera looking up, as a
 job would at the **Placement Angle** (the machine's test alignment angle), and shows what it found on the
 camera ("R1 | X:0.012 Y:-0.034 C:0.512 Δ:0.036"); with **Center After Test** it then moves the part over
 the camera's centre, turned to the angle, at the height it was seen at (in focus, its footprint's reticle
 over it), moving straight there without lifting the part, and shows a fresh picture of it once the camera has
-settled, as OpenPnP's. The nozzle must hold a part (picked with **Pick** on the Feeders
+settled, as OpenPnP's. On a paused run, with the run's part on that nozzle already aligned, what Test Alignment
+finds is what the run then places it with, in place of its own alignment ("Test Alignment taken for R1"). The nozzle must hold a part (picked with **Pick** on the Feeders
 or Parts tab, or by a job), of the part or package the page is for, whose bottom vision these settings
 are; else it says what is wrong ("Nozzle N1 does not have a part loaded"). **Detect Offsets** is for an
 asymmetric part: centre it over the camera by hand first; it aligns and centres the part at 0°, and adds
@@ -85,7 +88,7 @@ for the machine's default settings themselves, the stock one), after asking; the
 pipeline on the clipboard as OpenPnP's text, and the paste button replaces it with one from the
 clipboard, after asking.
 
-<!-- src: src/setup/JPVisionForms.cpp (pipelineControls); src/ui/JPVisionPipelineActions.cpp; src/setup/JPVisionPipelines.cpp -->
+<!-- src: src/tasks/JPVisionPipelinePrep.cpp (shot); src/tasks/JPVisionComposite.cpp (compute, maxPartRadius); src/app/JPlacerVisionTests.cpp; src/tasks/JPJobProcessor.cpp (realigned); src/setup/JPVisionForms.cpp (pipelineControls); src/ui/JPVisionPipelineActions.cpp; src/setup/JPVisionPipelines.cpp -->
 
 Under it, a slider for each of the pipeline's parameters (its **ParameterNumeric** and **ParameterBool**
 stages: a threshold, a least detail size, a search distance), named and explained as the pipeline names

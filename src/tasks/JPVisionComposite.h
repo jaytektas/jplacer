@@ -91,6 +91,8 @@ public:
     const std::vector<Shot>& shots() const { return m_shots; }
     double                   tolerance() const { return m_tolerance; }
     double                   maxPadRadius() const { return m_maxPadRadius; }
+    // How far the part reaches from its middle, its pads and its body (mm); 0: neither is known.
+    double                   maxPartRadius() const { return m_maxPartRadius; }
     double                   maxCornerRadius() const { return m_maxCornerRadius; }
     const std::vector<JPFootprint::Pad>& rectifiedPads() const { return m_rectifiedPads; }
     double                   computeSeconds() const { return m_computeSeconds; }
@@ -138,6 +140,7 @@ private:
     double                               m_tolerance = 0;
     double                               m_cameraViewRadius = 0;
     double                               m_maxPadRadius = 0;
+    double                               m_maxPartRadius = 0;
     double                               m_maxCornerRadius = 0;
     double                               m_octogonalHull[8] {};
     std::vector<double>                  m_leftEdges, m_rightEdges, m_topEdges, m_bottomEdges;

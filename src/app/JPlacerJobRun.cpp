@@ -226,6 +226,11 @@ void JPlacerJobRun::stop() {
     }
 }
 
+std::string JPlacerJobRun::realigned(const std::string& nozzleId, const std::string& partId, const JPJobMachine::AlignResult& r) {
+    if (m_state != RunState::Paused || !m_processor) return "";
+    return m_processor->realigned(nozzleId, partId, r);
+}
+
 void JPlacerJobRun::forgetTunes() {
     m_jobMachine->newRun();
     for (JPFeeder& f : m_job.configuration().feeders()) f.cameraTune.reset();
