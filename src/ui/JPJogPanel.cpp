@@ -106,12 +106,8 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
         return std::string();
     };
     // Named as OpenPnP names them: what it is, its name (a nozzle's tip), its head.
-    for (const JPNozzleConfig& n : c.nozzles) {
-        if (!hasAxes(n.mount)) continue;
-        std::string tip;
-        for (const JPNozzleTipConfig& t : c.nozzleTips) if (t.id == n.tipId) tip = " - " + t.name;
-        m_tools.push_back({ n.id, "Nozzle: " + n.name + tip + headName(n.mount), &n.mount, true, false });
-    }
+    for (const JPNozzleConfig& n : c.nozzles)
+        if (hasAxes(n.mount)) m_tools.push_back({ n.id, nozzleLabel(c, n), &n.mount, true, false });
     for (const JPCameraConfig& m : c.cameras)
         if (hasAxes(m.mount)) m_tools.push_back({ m.id, "Camera: " + m.name + headName(m.mount), &m.mount, false, true });
     for (const JPActuatorConfig& a : c.actuators)
@@ -592,6 +588,23 @@ JPJogPanel::Choices JPJogPanel::choices() const {
 const std::string& JPJogPanel::toolId() const {
     static const std::string none;
     return m_tools.empty() ? none : m_tools[m_tool].id;
+}
+
+std::string JPJogPanel::nozzleLabel(const JPCellConfig& c, const JPNozzleConfig& n) {
+    std::string tip, head;
+    for (const JPNozzleTipConfig& t : c.nozzleTips) if (t.id == n.tipId) tip = " - " + t.name;
+    for (const JPHeadConfig& h : c.heads) if (h.id == n.mount.headId) head = " (Head: " + h.name + ")";
+    return "Nozzle: " + n.name + tip + head;
+}
+
+void JPJogPanel::tipsChanged() {
+    const JPCellConfig& c = m_cell.config();
+    for (Tool& t : m_tools)
+        if (t.nozzle)
+            for (const JPNozzleConfig& n : c.nozzles)
+                if (n.id == t.id) t.label = nozzleLabel(c, n);
+    refreshNames();
+    refreshTipButton();
 }
 
 void JPJogPanel::refreshNames() {

@@ -107,6 +107,9 @@ public:
     // named again when a nozzle's part changes.
     std::function<std::string(const std::string& nozzleId)> partOn;
     void refreshNames();
+    // Which tip is on which nozzle, or a tip's calibration, changed (set in the cell where it is, the panel not
+    // made again): the nozzles' names and the tip button shown again.
+    void tipsChanged();
     // Stop (the move held and dropped) or, `emergency`, reset every controller.
     std::function<void(bool emergency)> onStop;
     // The key an action has now (Preferences > Keys), for the tooltips; "" none.
@@ -190,6 +193,8 @@ private:
     JWidget*                m_tipButton = nullptr;   // a JPIconButton
     // The tip button's colour and tooltip: the chosen nozzle's tip calibrated there or not.
     void refreshTipButton();
+    // A nozzle's name as the chooser shows it: "Nozzle: N1 - its tip (Head: H1)".
+    static std::string nozzleLabel(const JPCellConfig& c, const JPNozzleConfig& n);
     void keepToolBoxNarrow();
     JButton*                m_recycle = nullptr;
     std::vector<double>     m_distances, m_speeds;

@@ -703,7 +703,10 @@ A camera can drop off its USB connection (noise from the stepper motors on its c
 saying so. jplacer notices either (no picture for a while counts as hung, and so does the very same
 picture over and over, which is how some cameras hang), says so across the top of the last picture, which
 would otherwise pass for a live one, and opens the camera again by its name every 2 seconds until it is
-back; the picture then carries on by itself. Unplugging the camera and plugging it in again is enough.
+back; the picture then carries on by itself. Unplugging the camera and plugging it in again is enough. A
+single damaged picture (a USB camera sends one now and then) is dropped, not taken for the camera being lost;
+the log says so at the first, and how many when the camera is closed. A camera's settings are sent to it only
+when they change, and all of them each time it is opened.
 
 Anything that is looking through a camera when it is lost (a calibration, a settle test, finding a
 fiducial) waits a little for it rather than failing at once: the log says the camera is lost and why, and
@@ -719,7 +722,7 @@ How long each of these is, is the camera's own, in Machine Setup on its General 
 | Same Picture For (s) | 3 | The very same picture this long: hung. 0 never counts it, for a camera that can show a still scene exactly alike. |
 | Work Waits For It (s) | 10 | How long work looking through a lost camera waits for it to be back, long enough for a USB drop-out. 0 stops at once. |
 
-<!-- src: src/camera/JPCameraFeed.cpp (run, runSource, kReconnectMs); src/ui/JPCameraView.cpp (the band over the picture); src/tasks/JPCameraLook.cpp (taken); src/machine/JPCameraConfig.h (Lost); src/setup/JPSetupProperties.cpp (cameraForm) -->
+<!-- src: src/camera/JPCameraFeed.cpp (run, runSource, kReconnectMs); src/camera/JPV4L2Source.cpp (grab, applyControls); src/camera/JPControlWrites.h; src/ui/JPCameraView.cpp (the band over the picture); src/tasks/JPCameraLook.cpp (taken); src/machine/JPCameraConfig.h (Lost); src/setup/JPSetupProperties.cpp (cameraForm) -->
 
 **Save the picture** (the disk) writes the camera's latest picture as a PNG (lossless, so it measures the same as
 the live picture did) to `captures/` in jplacer's configuration folder, named after the camera and the

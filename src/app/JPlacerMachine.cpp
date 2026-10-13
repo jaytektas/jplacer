@@ -1141,15 +1141,43 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
             return j.dump();
         };
         if (withoutRunSettings(cell) == withoutRunSettings(m_cell->config())) {
-            if (!m_cell->reconfigure(cell, error)) {
-                m_window.showStatus("Machine Setup's changes are not in use: " + error, kErrorMs);
-                return false;
-            }
+            // Set where they are: reconfigure replaces the whole setup, and the Jog panel's tools, not made again
+            // here, point into it.
+            m_cell->setRunSettings(cell);
             if (!cell.save(m_cellPath, error)) {
                 m_window.showStatus("Machine Setup's changes are in use but not saved: " + error, kErrorMs);
                 return true;
             }
             JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: in use and saved to " << m_cellPath << " (run settings only)";
+            return true;
+        }
+    }
+    // Only which tip is on which nozzle, or a tip's runout or background, changed (a tip change, a tip calibrated):
+    // the cell takes them where they are and they are saved, nothing made again. Each tip change and each
+    // calibration in a run applied the whole setup again, every panel made afresh: the run paused at each and
+    // the Jog panel flickered.
+    {
+        auto withoutTips = [](const JPCellConfig& c) {
+            JJson j = c.toJson();
+            for (JJson& n : j["nozzles"].arr()) {
+                n["tip"] = JJson();
+                n["tips"] = JJson();
+            }
+            for (JJson& t : j["nozzleTips"].arr()) {
+                t["runout"] = JJson();
+                t["background"] = JJson();
+            }
+            return j.dump();
+        };
+        if (withoutTips(cell) == withoutTips(m_cell->config())) {
+            m_cell->setTips(cell);
+            if (m_jog) m_jog->tipsChanged();
+            showState();
+            if (!cell.save(m_cellPath, error)) {
+                m_window.showStatus("Machine Setup's changes are in use but not saved: " + error, kErrorMs);
+                return true;
+            }
+            JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Machine Setup: in use and saved to " << m_cellPath << " (tips only)";
             return true;
         }
     }

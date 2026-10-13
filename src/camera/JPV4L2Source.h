@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "JPControlWrites.h"
 #include "JPCaptureSource.h"
 
 #include <j/config/Json.h>
@@ -36,7 +37,10 @@ public:
     bool grab(JPFrame& frame, int timeoutMs, std::string& error) override;
     std::string describe() const override;
     JJson controls() const override;
-    void reapplyControls() override { applyControls(); }
+    void reapplyControls() override {
+        m_writes.clear();   // asked for afresh: everything sent
+        applyControls();
+    }
     void setControls(const JJson& controls) override {
         m_controls = controls;
         applyControls();
@@ -65,6 +69,8 @@ private:
     uint64_t            m_sequence = 0;
     bool                m_streaming = false;
     JJson               m_controls;
+    JPControlWrites     m_writes;   // what was last sent, so only changes are
+    int                 m_undecoded = 0;   // damaged pictures dropped since it was opened
 };
 
 } // inline namespace jf

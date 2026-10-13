@@ -53,6 +53,13 @@ public:
     // coordinates mean something else). Waits for the cell thread, so no move
     // runs meanwhile; refused (false, with `why`) while one is under way.
     bool reconfigure(JPCellConfig config, std::string& why);
+    // Which tip each nozzle holds (and may), and each tip's runouts and background, as `from` has them, set where they
+    // are: the rest of the setup, and what points into it (the Jog panel's tools), left as it is, where reconfigure
+    // replaces the whole of it. A nozzle given another tip has its Z calibration dropped and, with the new tip's
+    // NozzleTipChange trigger, made again, as reconfigure does. Waits for the cell thread.
+    void setTips(const JPCellConfig& from);
+    // The machine's Vision settings and the job processor's, as `from` has them, set where they are.
+    void setRunSettings(const JPCellConfig& from);
 
     // Connect every controller, identify it and read its stored settings.
     // All or nothing: if one fails, the others are disconnected again.
@@ -407,6 +414,9 @@ public:
     JSignal<std::string, std::string>            onState;        // controller id, its new state
 
 private:
+    // The nozzles whose tip is not what `tipBefore` says: their Z calibration dropped; those to measure it again
+    // (the new tip's NozzleTipChange trigger, homed). Under m_mutex.
+    std::vector<std::string> tipsChanged(const std::map<std::string, std::string>& tipBefore);
     JPGcodeDriver* driver(const std::string& id) const;
     std::unique_ptr<JPGcodeDriver> makeDriver(const JPDriverConfig& config);
     // A controller as it is run: as set up, or, while the cell's Simulation Mode

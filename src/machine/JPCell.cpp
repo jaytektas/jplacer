@@ -183,14 +183,7 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
             std::lock_guard lk(m_mutex);
             m_config = std::move(config);
             for (const JPAxisConfig& a : m_config.axes) m_positions.try_emplace(a.id, a.homeCoordinate);
-            for (const JPNozzleConfig& n : m_config.nozzles) {
-                const auto was = tipBefore.find(n.id);
-                if (was != tipBefore.end() && was->second == n.tipId) continue;
-                m_zCalibration.erase(n.id);
-                for (const JPNozzleTipConfig& t : m_config.nozzleTips)
-                    if (t.id == n.tipId && n.contactProbe.on() && t.zCalibrationTrigger == "NozzleTipChange" && t.touchLocation && m_homed)
-                        recalibrate.push_back(n.id);
-            }
+            recalibrate = tipsChanged(tipBefore);
         }
         for (const std::string& id : recalibrate) calibrateZ(id, false);
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": set up anew"
@@ -205,6 +198,63 @@ bool JPCell::reconfigure(JPCellConfig config, std::string& why) {
     const auto [ok, w] = result.get();
     why = w;
     return ok;
+}
+
+std::vector<std::string> JPCell::tipsChanged(const std::map<std::string, std::string>& tipBefore) {
+    std::vector<std::string> recalibrate;
+    for (const JPNozzleConfig& n : m_config.nozzles) {
+        const auto was = tipBefore.find(n.id);
+        if (was != tipBefore.end() && was->second == n.tipId) continue;
+        m_zCalibration.erase(n.id);
+        for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+            if (t.id == n.tipId && n.contactProbe.on() && t.zCalibrationTrigger == "NozzleTipChange" && t.touchLocation && m_homed)
+                recalibrate.push_back(n.id);
+    }
+    return recalibrate;
+}
+
+void JPCell::setTips(const JPCellConfig& from) {
+    std::promise<void> done;
+    auto set = done.get_future();
+    m_thread.post([this, &from, &done] {
+        std::vector<std::string> recalibrate;
+        {
+            std::lock_guard lk(m_mutex);
+            std::map<std::string, std::string> tipBefore;
+            for (JPNozzleConfig& n : m_config.nozzles) {
+                tipBefore[n.id] = n.tipId;
+                for (const JPNozzleConfig& f : from.nozzles)
+                    if (f.id == n.id) {
+                        n.tipId = f.tipId;
+                        n.tipIds = f.tipIds;
+                    }
+            }
+            for (JPNozzleTipConfig& t : m_config.nozzleTips)
+                for (const JPNozzleTipConfig& f : from.nozzleTips)
+                    if (f.id == t.id) {
+                        t.runout = f.runout;
+                        t.background = f.background;
+                    }
+            recalibrate = tipsChanged(tipBefore);
+        }
+        for (const std::string& id : recalibrate) calibrateZ(id, false);
+        done.set_value();
+    });
+    set.get();
+}
+
+void JPCell::setRunSettings(const JPCellConfig& from) {
+    std::promise<void> done;
+    auto set = done.get_future();
+    m_thread.post([this, &from, &done] {
+        {
+            std::lock_guard lk(m_mutex);
+            m_config.vision = from.vision;
+            m_config.jobProcessor = from.jobProcessor;
+        }
+        done.set_value();
+    });
+    set.get();
 }
 
 JPCell::~JPCell() {

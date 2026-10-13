@@ -127,6 +127,7 @@ bool JPV4L2Source::open(std::string& error) {
         error = m_path + ": " + std::strerror(errno);
         return false;
     }
+    m_writes.clear();   // a device opened afresh holds what it holds: every setting sent once
     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "opened " << describe();
     return true;
 }
@@ -146,7 +147,9 @@ void JPV4L2Source::close() {
     unmap();
     ::close(m_fd);
     m_fd = -1;
-    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "closed " << describe();
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "closed " << describe()
+                                                << (m_undecoded > 0 ? " (" + std::to_string(m_undecoded) + " damaged picture(s) dropped)" : std::string());
+    m_undecoded = 0;
 }
 
 std::vector<JPCaptureMode> JPV4L2Source::modes() const {
@@ -265,15 +268,21 @@ JJson JPV4L2Source::controls() const {
 }
 
 void JPV4L2Source::applyControls() {
+    // Only what changes is sent (JPControlWrites); true when it was sent and changed.
     auto set = [this](const char* name, uint32_t id, int value) {
+        if (!m_writes.needed(id, value)) return false;
         v4l2_control c{};
         c.id = id;
         c.value = value;
-        if (xioctl(m_fd, VIDIOC_S_CTRL, &c) != 0)
+        if (xioctl(m_fd, VIDIOC_S_CTRL, &c) != 0) {
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << describe() << ": " << name << " not set to " << value << " ("
                                                         << std::strerror(errno) << ")";
-        else
-            JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << describe() << ": " << name << " set to " << value;
+            m_writes.forget(id);
+            return false;
+        }
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Debug) << describe() << ": " << name << " set to " << value;
+        m_writes.sent(id, value);
+        return true;
     };
     auto has = [this](uint32_t id) {
         v4l2_queryctrl q{};
@@ -286,8 +295,10 @@ void JPV4L2Source::applyControls() {
         const JJson& want = m_controls[c.name];
         if (!want.isObject() || !want["auto"].isBool()) continue;
         const bool automatic = want["auto"].boolean();
-        if (c.autoId && has(c.autoId))
-            set(c.name, c.autoId, automatic ? c.autoOn : c.autoOff);
+        if (c.autoId && has(c.autoId)) {
+            // Its automatic mode changed: its value is the camera's now, sent again where one is wanted.
+            if (set(c.name, c.autoId, automatic ? c.autoOn : c.autoOff)) m_writes.forget(c.valueId);
+        }
         else if (automatic)
             JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << describe() << ": has no automatic " << c.name;
     }
@@ -313,15 +324,20 @@ bool JPV4L2Source::grab(JPFrame& frame, int timeoutMs, std::string& error) {
         error = describe() + ": " + std::strerror(errno);
         return false;
     }
-    bool ok = true;
     const auto* data = static_cast<const uint8_t*>(m_buffers[buf.index].data);
     if (m_fourcc == V4L2_PIX_FMT_YUYV) {
         JPPixels::yuyvToRgba(data, m_width, m_height, frame.rgba);
         frame.width  = m_width;
         frame.height = m_height;
-    } else {
-        ok = JPPixels::jpegToRgba(data, buf.bytesused, frame.width, frame.height, frame.rgba, error);
-        if (!ok) error = describe() + ": a frame could not be decoded (" + error + ")";
+    } else if (std::string why; !JPPixels::jpegToRgba(data, buf.bytesused, frame.width, frame.height, frame.rgba, why)) {
+        // A damaged picture (a busy USB bus garbles one now and then) is dropped, not taken for the camera stopping:
+        // closed and opened again for it, every setting was sent again and the camera, busy, refused to start.
+        // Pictures that stop coming at all are the feed's no-picture timeout's.
+        xioctl(m_fd, VIDIOC_QBUF, &buf);
+        if (++m_undecoded == 1)
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << describe() << ": a picture could not be decoded (" << why
+                                                        << "): dropped; any more are counted, said when it closes";
+        return false;
     }
     frame.sequence = ++m_sequence;
     // The driver's timestamp is the monotonic clock steady_clock reads on
@@ -332,7 +348,7 @@ bool JPV4L2Source::grab(JPFrame& frame, int timeoutMs, std::string& error) {
     else
         frame.captured = std::chrono::steady_clock::now();
     xioctl(m_fd, VIDIOC_QBUF, &buf);
-    return ok;
+    return true;
 }
 
 std::string JPV4L2Source::describe() const {

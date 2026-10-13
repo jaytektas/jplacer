@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Cameras: a single damaged picture no longer makes jplacer close and reopen the camera (which showed as
+  "could not start" over and over while the camera was running); settings are sent to a camera only when they
+  change. A nozzle tip change or a tip calibration no longer rebuilds the whole machine setup (the pauses at
+  each step of a run, and the Jog panel flickering).
+
 - A job's nozzle tip change no longer measures the new tip's runout twice: the second measurement, run beside the
   job, could fail or block the job's next move ("another move is under way") and leave a failure banner up
   after the job had calibrated the tip. The nozzle chooser on the Jog panel names the part on a nozzle.
