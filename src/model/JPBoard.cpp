@@ -65,7 +65,8 @@ std::string JPBoard::useLibraryPart(const std::string& libraryId) {
     return p.key;
 }
 
-std::map<std::string, std::string> JPBoard::takeParts(const JPBoard& from) {
+std::map<std::string, std::string> JPBoard::takeParts(const JPBoard& from,
+                                                      const std::function<bool(const std::string& partId)>& inLibrary) {
     std::map<std::string, std::string> keys;
     for (const JPBoardPart& theirs : from.parts()) {
         JPBoardPart* mine = nullptr;
@@ -77,10 +78,12 @@ std::map<std::string, std::string> JPBoard::takeParts(const JPBoard& from) {
         std::string key;
         if (mine) {
             // What the file says now is kept; a choice made here is not undone by importing again, but one
-            // not yet made takes the import's.
+            // not yet made takes the import's, and so does one of a library part since deleted (it names nothing:
+            // the import's, a part of the library now, or none yet).
             key = mine->key;
             for (const auto& [k, v] : theirs.fields) mine->fields[k] = v;
-            if (mine->state == JPBoardPart::State::Unmatched && theirs.state != JPBoardPart::State::Unmatched)
+            const bool gone = mine->state == JPBoardPart::State::Matched && !inLibrary(mine->libraryPartId);
+            if (gone || (mine->state == JPBoardPart::State::Unmatched && theirs.state != JPBoardPart::State::Unmatched))
                 mine->takeChoice(theirs);
         } else {
             JPBoardPart p = theirs;

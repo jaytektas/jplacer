@@ -28,10 +28,11 @@ std::string change(const JPBoardUpgrade::Row& r) {
 
 } // namespace
 
-JPlacerBoardUpgradeDialog::JPlacerBoardUpgradeDialog(JPBoard& board, std::shared_ptr<JPBoard> files,
+JPlacerBoardUpgradeDialog::JPlacerBoardUpgradeDialog(const JPConfiguration& config, JPBoard& board, std::shared_ptr<JPBoard> files,
                                                      std::function<void(JPBoardRevision, std::string)> made,
                                                      JGpuHal& hal, int sx, int sy, NativeWinHandleType parent)
     : JDialogWindow("New Revision of " + board.scopeName(), kW, kH, hal, sx, sy, parent)
+    , m_config(config)
     , m_board(board)
     , m_files(std::move(files))
     , m_upgrade(board, *m_files)
@@ -122,7 +123,8 @@ void JPlacerBoardUpgradeDialog::fill() {
 void JPlacerBoardUpgradeDialog::make() {
     if (!m_make->isEnabled()) return;
     const std::string current = m_current ? m_current->text() : std::string();
-    JPBoardRevision r = m_upgrade.revision(m_label->text(), JPWhen::now());
+    JPBoardRevision r = m_upgrade.revision(m_label->text(), JPWhen::now(),
+                                           [this](const std::string& id) { return m_config.libraryPart(id) != nullptr; });
     close();
     if (m_made) m_made(std::move(r), current);
 }

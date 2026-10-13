@@ -6,6 +6,7 @@
 #include "JPBoard.h"
 #include "JPBoardRevision.h"
 
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -54,7 +55,9 @@ public:
     // All of it in a line: "Origin moved 2.00, -1.50 mm; 182 unchanged, 4 moved (to verify), 1 new".
     std::string summary() const;
     // The new revision, labelled `label`, made `when`.
-    JPBoardRevision revision(const std::string& label, const std::string& when) const;
+    // `inLibrary`: whether a library part is still there (a part chosen as one since deleted takes the files' choice).
+    JPBoardRevision revision(const std::string& label, const std::string& when,
+                             const std::function<bool(const std::string& partId)>& inLibrary) const;
 
 private:
     struct Pair {

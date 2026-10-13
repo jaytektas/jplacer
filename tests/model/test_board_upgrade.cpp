@@ -95,7 +95,7 @@ int main() {
     assert(up.summary().rfind("Origin moved 2.00, -1.50 mm; 1 unchanged, 2 moved (to verify), 1 part changed", 0) == 0);
 
     const std::string uidU1 = board.find("U1")->uid, uidR12 = board.find("R12")->uid;
-    JPBoardRevision rev = up.revision("rev B", "2026-10-08 12:00:00");
+    JPBoardRevision rev = up.revision("rev B", "2026-10-08 12:00:00", [](const std::string&) { return true; });
     auto in = [&rev](const std::string& id) -> const JPPlacement* {
         for (const JPPlacement& p : rev.placements)
             if (p.id == id) return &p;
@@ -122,6 +122,12 @@ int main() {
     const JPBoardPart* c1 = partOf(in("C1")->boardPart);
     assert(c1->key != "bp-2" && c1->state == JPBoardPart::State::Unmatched && c1->field("value") == "220n");
     for (const JPBoardPart& p : rev.parts) assert(p.key != "bp-4" || p.field("value") != "1N4148");
+    // A line the same whose library part was deleted since: the files' choice, not the deleted one (its key kept).
+    {
+        const JPBoardRevision gone = up.revision("rev B", "2026-10-08 12:00:00", [](const std::string& id) { return id != "R0603-10k"; });
+        for (const JPBoardPart& p : gone.parts)
+            if (p.key == "bp-1") assert(p.libraryPartId != "R0603-10k");
+    }
 
     // Made the board's: rev A kept, rev B shown.
     board.addRevision(rev, "rev A");

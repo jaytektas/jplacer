@@ -53,7 +53,8 @@ int main() {
     JPBoard board;
     board.file = "/work/Controller.jpboard";
     JPBoard read = imported();
-    auto keys = board.takeParts(read);
+    const auto everyPart = [](const std::string&) { return true; };
+    auto keys = board.takeParts(read, everyPart);
     assert(board.parts().size() == 3 && keys.size() == 3);
     const JPBoardPart* c = board.part(keys["bp-1"]);
     assert(c->state == JPBoardPart::State::Matched && c->libraryPartId == "C0603-100n");
@@ -76,10 +77,9 @@ int main() {
 
     // Imported again: the choice made here (U1's match) is not undone; what the file says now is kept.
     read.part("bp-3")->fields["value"] = "LM358 (TI)";
-    keys = board.takeParts(read);
+    keys = board.takeParts(read, everyPart);
     assert(keys["bp-3"] == u1 && board.part(u1)->state == JPBoardPart::State::Matched
            && board.part(u1)->field("value") == "LM358 (TI)");
-
     // A part no placement names is dropped.
     board.placements.erase(board.placements.begin() + 2);   // R1
     board.dropUnusedParts();
@@ -97,5 +97,18 @@ int main() {
     assert(back.find("C2")->cadRotation && *back.find("C2")->cadRotation == 90 && back.find("C2")->verified.by == "operator"
            && back.find("C2")->verified.when == "2026-10-08T15:00:00" && back.find("U1")->verified.by.empty());
     assert(JPBoard::isJplacerFile("a/b.jpboard") && !JPBoard::isJplacerFile("a/b.board.xml"));
+    // Imported again once U1's library part was deleted (and the import made it anew): the choice names nothing
+    // now, so the import's is taken; a choice of a part still there is kept.
+    read.part("bp-3")->state = JPBoardPart::State::Matched;
+    read.part("bp-3")->libraryPartId = "LM358-made-again";
+    keys = board.takeParts(read, [](const std::string& id) { return id != "LM358N"; });
+    assert(keys["bp-3"] == u1 && board.part(u1)->libraryPartId == "LM358-made-again");
+    assert(board.part(keys["bp-1"])->libraryPartId == "C0603-100n");
+    // Gone, and the import has none for it: none chosen (to be chosen), not the deleted one.
+    read.part("bp-3")->state = JPBoardPart::State::Unmatched;
+    read.part("bp-3")->libraryPartId.clear();
+    keys = board.takeParts(read, [](const std::string& id) { return id != "LM358-made-again"; });
+    assert(board.part(u1)->state == JPBoardPart::State::Unmatched && board.part(u1)->partId() != "LM358-made-again");
+
     return 0;
 }

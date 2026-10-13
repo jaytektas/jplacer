@@ -262,7 +262,8 @@ std::string JPBoardUpgrade::summary() const {
     return s + counts;
 }
 
-JPBoardRevision JPBoardUpgrade::revision(const std::string& label, const std::string& when) const {
+JPBoardRevision JPBoardUpgrade::revision(const std::string& label, const std::string& when,
+                                         const std::function<bool(const std::string& partId)>& inLibrary) const {
     JPBoardRevision rev;
     rev.label = label;
     rev.made = when;
@@ -278,7 +279,9 @@ JPBoardRevision JPBoardUpgrade::revision(const std::string& label, const std::st
         JPBoardPart q;
         if (const auto same = m_same.find(np.key); same != m_same.end()) {
             q = *same->second;
-            q.takeChoice(*same->second);
+            // Its choice kept, unless it is of a library part since deleted: the files' then.
+            const bool gone = q.state == JPBoardPart::State::Matched && !inLibrary(q.libraryPartId);
+            q.takeChoice(gone ? np : *same->second);
             q.fields = np.fields;
         } else {
             q = np;

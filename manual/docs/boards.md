@@ -248,9 +248,11 @@ When the board already has placements, it asks: **Merge** updates those with the
 location, comments), keeps the others and adds the new; **Replace** takes them all off first; **New
 Revision…** makes what was read the board's next revision (see [Revisions](#revisions)); **Cancel**
 leaves the board as it was. A part the board already has keeps the choice made for it (importing again
-does not undo it); what the file says about it now is kept with it.
+does not undo it), unless the library part chosen has since been deleted: then it takes the import's (the
+part the import found or made in the library, or none yet, to be chosen), on a **Merge**, a **Replace** or a
+**New Revision…** alike. What the file says about it now is kept with it.
 
-<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPConfiguration.cpp (takeMade); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp (parseFile: Unit); src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardTools.cpp (importBoard, take, merge); src/model/JPBoard.cpp (takeParts) -->
+<!-- src: src/model/JPBoardImporter.cpp (all, boardPart); src/model/JPConfiguration.cpp (takeMade); src/model/JPCsvImporter.cpp; src/model/JPKicadPosImporter.cpp (parseFile: Unit); src/model/JPEagleBoardImporter.cpp; src/app/JPlacerImportDialog.cpp; src/ui/JPBoardTools.cpp (importBoard, take, merge); src/model/JPBoard.cpp (takeParts); src/model/JPBoardUpgrade.cpp (revision) -->
 
 ## Revisions
 

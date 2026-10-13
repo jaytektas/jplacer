@@ -252,7 +252,8 @@ void JPBoardTools::merge(JPBoard& imported) {
     takeMade(imported);   // the parts and packages it made, the library's
     JPDefinitionChanges changes(m_config, m_job());
     // The imported board's parts become this board's (those it has kept as they are), then its placements.
-    const std::map<std::string, std::string> keys = m_board->takeParts(imported);
+    const std::map<std::string, std::string> keys =
+        m_board->takeParts(imported, [this](const std::string& id) { return m_config.libraryPart(id) != nullptr; });
     auto partOf = [this, &keys](JPPlacement p) {
         if (const auto k = keys.find(p.boardPart); k != keys.end()) p.boardPart = k->second;
         if (const JPBoardPart* bp = m_board->part(p.boardPart)) p.partId = bp->partId();

@@ -60,9 +60,11 @@ public:
     // A parts list of its own (a copy of the one it shares): for a board copied to be a board of its own.
     void ownParts() { m_parts = std::make_shared<std::vector<JPBoardPart>>(*m_parts); }
     // Another board's parts brought into this one (an import merged into it): one this board already has
-    // (the same part named) kept as it is, with its choice (one not chosen yet taking the import's); the rest
-    // added. Each of `from`'s keys to this board's, for its placements.
-    std::map<std::string, std::string> takeParts(const JPBoard& from);
+    // (the same part named) kept as it is, with its choice (one not chosen yet, or chosen as a library part
+    // `inLibrary` no longer has, taking the import's); the rest added. Each of `from`'s keys to this board's,
+    // for its placements.
+    std::map<std::string, std::string> takeParts(const JPBoard& from,
+                                                 const std::function<bool(const std::string& partId)>& inLibrary);
     // Its name as a short word: its file's name without its extension, else its name.
     std::string scopeName() const;
     // A placement's part chosen by hand, a library part: its board part matched to it when the placement is

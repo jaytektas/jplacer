@@ -5,6 +5,7 @@
 
 #include "model/JPBoard.h"
 #include "model/JPBoardUpgrade.h"
+#include "model/JPConfiguration.h"
 
 #include <j/app/JDialogWindow.h>
 #include <j/core/JButton.h>
@@ -33,7 +34,8 @@ public:
     static constexpr uint32_t kW = 860, kH = 600;
 
     // `made` has the new revision and the label of the one shown now (for a board that kept none).
-    JPlacerBoardUpgradeDialog(JPBoard& board, std::shared_ptr<JPBoard> files,
+    // `config`: the library the board's parts are chosen from (a choice of a part since deleted is not kept).
+    JPlacerBoardUpgradeDialog(const JPConfiguration& config, JPBoard& board, std::shared_ptr<JPBoard> files,
                               std::function<void(JPBoardRevision, std::string)> made, JGpuHal& hal, int sx, int sy,
                               NativeWinHandleType parent);
 
@@ -44,6 +46,7 @@ private:
     void fill();
     void make();
 
+    const JPConfiguration&                             m_config;
     const JPBoard&                                     m_board;
     std::shared_ptr<JPBoard>                           m_files;
     JPBoardUpgrade                                     m_upgrade;
