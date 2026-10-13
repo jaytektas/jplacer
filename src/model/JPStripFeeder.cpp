@@ -65,6 +65,7 @@ JPStripFeeder JPStripFeeder::fromJson(const JJson& j) {
     s.parallaxAngle = j["parallaxAngle"].number(0.0);
     s.autoTune = j["autoTune"].boolean(true);
     s.zAlongStripPercent = j["zAlongStripPercent"].number(0.0);
+    s.autoSetupZ = j["autoSetupZ"].boolean(true);
     s.referenceHoleToPartLinear = JPLength(j["referenceHoleToPartMm"].number(2.0), kMm);
     s.standardEia481 = j["standardEia481"].boolean(true);
     return s;
@@ -86,6 +87,7 @@ JJson JPStripFeeder::toJson() const {
     j["parallaxAngle"] = parallaxAngle;
     j["autoTune"] = autoTune;
     j["zAlongStripPercent"] = zAlongStripPercent;
+    j["autoSetupZ"] = autoSetupZ;
     j["referenceHoleToPartMm"] = mm(referenceHoleToPartLinear);
     j["standardEia481"] = standardEia481;
     return j;

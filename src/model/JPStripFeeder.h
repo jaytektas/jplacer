@@ -40,6 +40,9 @@ public:
     double                   parallaxAngle = 0;
     bool                     autoTune = true;
     double                   zAlongStripPercent = 0;
+    // Whether Auto Setup sets the Reference Hole Location's Z (and Z Along Strip %) from the tape's scale: off once
+    // the Z is set by hand (typed, or captured with the nozzle), which is truer than the camera's few tenths.
+    bool                     autoSetupZ = true;
     // EIA-481's P2 (2 mm), unless auto setup found the first part on a hole (0).
     JPLength                 referenceHoleToPartLinear { 2, JPLengthUnit::Millimeters };
     // Its rotation in tape as EIA-481's (tape 0° with the sprocket holes on top); an older OpenPnP's strip saved

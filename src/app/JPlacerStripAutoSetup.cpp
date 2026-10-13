@@ -48,6 +48,18 @@ constexpr double kLevelMm = 0.2;
 const cv::Scalar kLineColour(0, 200, 255), kBestColour(0, 255, 255), kHoleColour(255, 0, 0), kNearColour(0, 255, 0);
 const cv::Scalar kHoleCentreColour(0, 255, 255), kNearCentreColour(255, 0, 255);
 
+// How big the holes were seen, said beside EIA-481's (1.5 mm, +0.1/-0): at the tape's scale, the holes' own size (a
+// size far from it, the scale or the holes found is wrong); at the calibration's, as big as they look from its height.
+void holesSeen(const JPStripHoleWalk::Scale& scale, double calibratedPxPerMm, const char* where) {
+    char said[220];
+    const int n = std::snprintf(said, sizeof said, "%.1f px across: %.3f mm at the tape's scale", scale.holeDiameterPx,
+                                scale.holeDiameterPx / scale.pxPerMm);
+    if (calibratedPxPerMm > 0 && n > 0 && size_t(n) < sizeof said)
+        std::snprintf(said + n, sizeof said - size_t(n), ", %.3f mm at the calibration's", scale.holeDiameterPx / calibratedPxPerMm);
+    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Auto Setup: the holes " << where << " seen " << said << " (EIA-481: "
+                                                << JPStripFeeder::kHoleDiameterMm << " mm, +0.1/-0)";
+}
+
 } // namespace
 
 JPlacerStripAutoSetup::JPlacerStripAutoSetup(JPlacerJob& job, JPlacerMachine& machine, JPlacerJobRun& run, JPlacerPipelines& pipelines)
@@ -206,7 +218,8 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             });
             const auto scale = JPStripHoleWalk::scaleAt(machine, *pipeline, at, kScaleMoveMm, why);
             if (!scale) return failed(why);
-            tapePxPerMm = *scale;
+            tapePxPerMm = scale->pxPerMm;
+            holesSeen(*scale, seen.pixelsPerMm, "by the first part");
             if (!machine.positionCamera(at, why)) return failed(why);
             onMain([&] {
                 m_tapePxPerMm = tapePxPerMm;
@@ -258,8 +271,12 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             const int reach = JPStripHoleWalk::farthestReached(machine, m_firstPart, ref1, ref2, holesOn);
             const JPLocation beside = JPStripHoleWalk::besideHole(m_firstPart, ref1, ref2, reach > 0 ? reach : holesOn);
             onMain([&] { m_lastScaleAt = beside; });
-            if (const auto scale = JPStripHoleWalk::scaleAt(machine, *pipeline, beside, kScaleMoveMm, why)) lastPxPerMm = *scale;
-            else
+            if (const auto scale = JPStripHoleWalk::scaleAt(machine, *pipeline, beside, kScaleMoveMm, why)) {
+                lastPxPerMm = scale->pxPerMm;
+                double calibrated = 0;
+                onMain([&] { calibrated = m_calibratedPxPerMm; });
+                holesSeen(*scale, calibrated, "by the last part");
+            } else
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Warn)
                     << "Auto Setup: the tape's scale by the last part was not measured (" << why
                     << "); the holes along it are found at the first part's, and the strip taken as level";
@@ -308,7 +325,11 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
             const JPLocation was1 = s->referenceHole.convertToUnits(kMm);
             const JPLocation was2 = s->lastHole.convertToUnits(kMm);
             double z = was1.z();
-            if (const std::optional<double> tape = tapeHeight(m_tapePxPerMm, "by the first part")) {
+            if (!s->autoSetupZ)
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info)
+                    << "Auto Setup: the Reference Hole Location's Z (" << z << ") and Z Along Strip % left as they were set "
+                       "(Auto Setup Sets Z? is off)";
+            else if (const std::optional<double> tape = tapeHeight(m_tapePxPerMm, "by the first part")) {
                 z = *tape;
                 // Not level: its slope, from the heights by the first part and by the last (measured where the
                 // walk reached it), over how far apart they were measured.

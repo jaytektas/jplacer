@@ -10,6 +10,18 @@ notes.
 
 ## Unreleased
 
+- No crash capturing a location (a strip feeder's hole) on a setup page: a page's buttons now do their work once
+  the click has been handled, so a page made again by what they do no longer goes from under the click.
+
+- Homing no longer stays busy for good (its button greyed until a restart) when a Machine Setup change is made
+  while it finishes: a change to a camera, a head or an axis now waits until a camera task (a tip's runout
+  measured as homing ends, a calibration) has ended, and the tip's runout is kept. Defaults, then Auto-Tune
+  waits for a camera task too, instead of upsetting its pictures.
+
+- A strip feeder's Auto Setup Sets Z? (on to begin with): setting the Reference Hole Location's Z by hand
+  (typed, or captured with the nozzle) turns it off, and Auto Setup then leaves the Z and Z Along Strip % as
+  they are. The log says how big Auto Setup saw the sprocket holes, in mm, beside EIA-481's 1.5 mm.
+
 - A strip feeder with vision on a 2 mm pitch tape (0402s) looks at the tape on every pick, not every second
   one, unless its Extrapolation Distance says looks may be skipped.
 

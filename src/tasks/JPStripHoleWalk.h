@@ -28,7 +28,11 @@ public:
     // The tape's own scale (pixels a mm in the pipeline's pictures), the camera calibrated at another height: the
     // camera moved `moveMm` either way of `at` along X, then along Y (twice as far one way where the other is past
     // a soft limit), the holes' moves in the pictures against the machine's. Nothing (and why) when too few holes were seen in both pictures of a move.
-    static std::optional<double> scaleAt(JPJobMachine& machine, JPPipeline& pipeline, const JPLocation& at, double moveMm,
+    // With it, how big the holes it followed were seen (pixels across, on average), to say in mm at that scale.
+    struct Scale {
+        double pxPerMm = 0, holeDiameterPx = 0;
+    };
+    static std::optional<Scale> scaleAt(JPJobMachine& machine, JPPipeline& pipeline, const JPLocation& at, double moveMm,
                                          std::string& why);
     // `seen` at the scale `pxPerMm` (from scaleAt): its pixels' places on the machine, and its scale.
     static void atScale(JPJobMachine::SeenCircles& seen, double pxPerMm);

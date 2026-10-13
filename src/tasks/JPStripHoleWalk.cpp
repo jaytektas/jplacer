@@ -44,9 +44,9 @@ void JPStripHoleWalk::atScale(JPJobMachine::SeenCircles& seen, double pxPerMm) {
     seen.pixelsPerMm = pxPerMm;
 }
 
-std::optional<double> JPStripHoleWalk::scaleAt(JPJobMachine& machine, JPPipeline& pipeline, const JPLocation& at, double moveMm,
-                                               std::string& why) {
-    double pixels = 0, mm = 0;
+std::optional<JPStripHoleWalk::Scale> JPStripHoleWalk::scaleAt(JPJobMachine& machine, JPPipeline& pipeline, const JPLocation& at,
+                                                               double moveMm, std::string& why) {
+    double pixels = 0, mm = 0, across = 0;
     int pairs = 0;
     for (const bool alongX : { true, false }) {
         // Either side of `at`; by a soft limit (a strip's end near the machine's edge), twice as far to the other side.
@@ -78,6 +78,7 @@ std::optional<double> JPStripHoleWalk::scaleAt(JPJobMachine& machine, JPPipeline
             if (!match) continue;
             pixels += std::hypot(match->x - a.x, match->y - a.y);
             mm += to - from;
+            across += (a.diameter + match->diameter) / 2;
             ++pairs;
         }
     }
@@ -85,7 +86,7 @@ std::optional<double> JPStripHoleWalk::scaleAt(JPJobMachine& machine, JPPipeline
         why = "too few holes were seen on both sides of the moves to measure the tape's scale";
         return std::nullopt;
     }
-    return pixels / mm;
+    return Scale { pixels / mm, across / pairs };
 }
 
 JPLocation JPStripHoleWalk::besideHole(const JPLocation& firstPart, const JPLocation& reference, const JPLocation& next, int holesOn) {

@@ -193,11 +193,18 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
   hole seen off the middle of the picture is off by that much of how far (1.2% of 6 mm is 0.07 mm), elsewhere
   from each place the camera looks from. So after the first click ("Measuring the tape's scale...") the camera
   moves 5 mm either way along X, then along Y (by a soft limit, 10 mm the other way), and how far the holes move
-  in the pictures against the machine's moves is the tape's own scale; every hole is found at it. The log gives it against the calibration's. With
+  in the pictures against the machine's moves is the tape's own scale; every hole is found at it. The log gives it against the calibration's,
+  and how big the holes it followed were seen: pixels across, in mm at the tape's scale and at the calibration's,
+  beside EIA-481's 1.5 mm (+0.1/-0). At the tape's scale they should measure about 1.5 mm; far from it, the scale
+  or the holes found are wrong. With
   the camera calibrated at two heights, that scale says how high the tape is, and the **Reference Hole
   Location**'s Z is set to it: the tape's real height. The pick height is that Z; for a spring-loaded tip to
   press on the part, lower it by hand. Calibrated at one height, the tape's height is not known: the Z is left
-  as it was, and the log says so. A strip need not be level: with a Max Feed Count, the scale is measured again
+  as it was, and the log says so. **Auto Setup Sets Z?** (on to begin with): whether Auto Setup sets that Z and
+  the Z Along Strip % at all. A scale a fraction of a percent off is a few tenths of a millimetre of height, too
+  much for a small part's pick, so setting the Reference Hole Location's Z by hand (typed, or captured with the
+  nozzle touching the tape) turns it off, and Auto Setup leaves the Z and the Z Along Strip % as they are and
+  says so in the log. Tick it to have Auto Setup measure them again. A strip need not be level: with a Max Feed Count, the scale is measured again
   by the last part ("Measuring the tape's scale by the last part..."), the holes along the strip are found at
   each look's share between the two, and the difference in height between the ends over how far apart they were
   measured is the **Z Along Strip %**; the log says both heights, and warns when the ends differ by 0.2 mm or more.
@@ -228,7 +235,7 @@ A strip of cut tape lying on the machine, its parts picked one after the other a
 The part is picked across the tape from its hole, as EIA-481 tape lays it out: half the tape width less
 0.5 mm across, 2 mm along, then one part pitch further for each part taken.
 
-<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/app/JPlacerCameraTasks.cpp (tuneFor); src/app/JPlacerMachine.cpp (tuneHeadCamera); src/tasks/JPCellJobMachine.cpp (tuneHead, useHeadTune); src/tasks/JPFeederFeed.cpp (feed); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip-percent, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCirclesAt); src/model/JPFeeder.cpp (visionView, tapeZ); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, kScaleMoveMm); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, farthestReached, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp (find); src/pipeline/JPDefaultPipelines.cpp (stripFeeder); src/vision/JPRansac.cpp -->
+<!-- src: src/setup/JPFeederForms.cpp (stripForm, act); src/app/JPlacerCameraTasks.cpp (tuneFor); src/app/JPlacerMachine.cpp (tuneHeadCamera); src/tasks/JPCellJobMachine.cpp (tuneHead, useHeadTune); src/tasks/JPFeederFeed.cpp (feed); src/model/JPFeeder.cpp (pickLocation, idealLineLocations, z-along-strip-percent, feed, visionExpected, setVisionFound); src/tasks/JPFeederFeed.cpp; src/tasks/JPCellJobMachine.cpp (locateHole, seeCirclesAt); src/model/JPFeeder.cpp (visionView, tapeZ); src/tasks/JPFeederPipelines.cpp; src/app/JPlacerStripAutoSetup.cpp (tapeHeight, holesSeen, kScaleMoveMm); src/model/JPStripFeeder.cpp (autoSetupZ); src/tasks/JPStripHoleWalk.cpp (scaleAt, atScale, besideHole, farthestReached, walk); src/app/JPlacerStripAutoSetup.cpp (kLevelMm); src/machine/JPCameraCalibration.cpp (heightAt); src/tasks/JPStripHoles.cpp (find); src/pipeline/JPDefaultPipelines.cpp (stripFeeder); src/vision/JPRansac.cpp -->
 
 ### Tray feeder
 

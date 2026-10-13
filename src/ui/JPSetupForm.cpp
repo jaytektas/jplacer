@@ -713,7 +713,9 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                     JPIconButton* b = name->add(std::make_unique<JPIconButton>(m_graph, c.label, c.icon, c.tooltip));
                     b->setEnabled(c.enabled && !greyed(c.property));
                     b->onClicked.connect([this, action = c.property] {
-                        if (onAction) onAction(action);
+                        afterClick([this, action] {
+                            if (onAction) onAction(action);
+                        });
                     });
                 }
                 JLabel* named = name->add(label(m_graph, r.label));
@@ -762,8 +764,10 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                     for (const B& b : buttons) {
                         JPIconButton* button = row->add(std::make_unique<JPIconButton>(m_graph, b.name, b.glyph, b.tip));
                         button->onClicked.connect([this, r, b] {
-                            auto& handler = b.capture ? onCapture : onMoveTo;
-                            if (handler) handler(r, b.tool);
+                            afterClick([this, r, b] {
+                                auto& handler = b.capture ? onCapture : onMoveTo;
+                                if (handler) handler(r, b.tool);
+                            });
                         });
                     }
                     optionalPlaceButtons(*row, r);
@@ -774,7 +778,9 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                     JPIconButton* b = row->add(std::make_unique<JPIconButton>(m_graph, c.label, c.icon, c.tooltip));
                     b->setEnabled(c.enabled && !greyed(c.property));
                     b->onClicked.connect([this, action = c.property] {
-                        if (onAction) onAction(action);
+                        afterClick([this, action] {
+                            if (onAction) onAction(action);
+                        });
                     });
                 }
                 if (r.place == JPSetupProperties::Place::Axis) {
@@ -782,12 +788,16 @@ std::unique_ptr<JWidget> JPSetupForm::group(const JPSetupProperties::Group& g, f
                         m_graph, "Capture Axis", &JPIcons::captureCamera,
                         r.captureTip.empty() ? std::string("Set from where the axis is") : r.captureTip));
                     capture->onClicked.connect([this, r] {
-                        if (onCapture) onCapture(r, Tool::Camera);
+                        afterClick([this, r] {
+                            if (onCapture) onCapture(r, Tool::Camera);
+                        });
                     });
                     JPIconButton* move = row->add(std::make_unique<JPIconButton>(
                         m_graph, "Move Axis", &JPIcons::moveCamera, r.moveTip.empty() ? std::string("Move the axis here") : r.moveTip));
                     move->onClicked.connect([this, r] {
-                        if (onMoveTo) onMoveTo(r, Tool::Camera);
+                        afterClick([this, r] {
+                            if (onMoveTo) onMoveTo(r, Tool::Camera);
+                        });
                     });
                 }
                 row->setFixedSize(0.f, h);
@@ -813,7 +823,9 @@ std::unique_ptr<JButton> JPSetupForm::button(const JPSetupProperties::Cell& c) {
     b->setEnabled(c.enabled && !greyed(c.property));
     if (!c.tooltip.empty()) b->setTooltip(c.tooltip);
     b->onClicked.connect([this, action = c.property] {
-        if (onAction) onAction(action);
+        afterClick([this, action] {
+            if (onAction) onAction(action);
+        });
     });
     return b;
 }
@@ -828,7 +840,9 @@ void JPSetupForm::optionalPlaceButtons(JContainer& row, const Row& r) {
                      : "Position the tool over the center of the location without first moving to Safe Z."));
         const Tool tool = actuator ? Tool::Actuator : Tool::Nozzle;
         straight->onClicked.connect([this, r, tool] {
-            if (onMoveToStraight) onMoveToStraight(r, tool);
+            afterClick([this, r, tool] {
+                if (onMoveToStraight) onMoveToStraight(r, tool);
+            });
         });
     }
     if (r.contactProbe) {
@@ -836,7 +850,9 @@ void JPSetupForm::optionalPlaceButtons(JContainer& row, const Row& r) {
             m_graph, "Contact Probe Tool", "contact-probe-nozzle",
             "Position the tool over the center of the location then contact-probe Z."));
         probe->onClicked.connect([this, r] {
-            if (onContactProbe) onContactProbe(r);
+            afterClick([this, r] {
+                if (onContactProbe) onContactProbe(r);
+            });
         });
     }
 }
@@ -865,10 +881,18 @@ void JPSetupForm::locationButtons(JContainer& row, const Row& r) {
         }
         JPIconButton* button = row.add(std::make_unique<JPIconButton>(m_graph, b.name, b.icon, b.tip));
         button->onClicked.connect([this, r, b] {
-            auto& handler = b.capture ? onCapture : onMoveTo;
-            if (handler) handler(r, b.tool);
+            afterClick([this, r, b] {
+                auto& handler = b.capture ? onCapture : onMoveTo;
+                if (handler) handler(r, b.tool);
+            });
         });
     }
+}
+
+void JPSetupForm::afterClick(std::function<void()> work) {
+    jPostToNextFrame([alive = std::weak_ptr<bool>(m_alive), work = std::move(work)] {
+        if (const auto a = alive.lock(); a && *a) work();
+    });
 }
 
 } // inline namespace jf

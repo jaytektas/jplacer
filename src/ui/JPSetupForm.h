@@ -85,6 +85,10 @@ private:
     // OpenPnP's Position Tool (Without Safe Z) and Contact Probe Tool, on the rows that have them.
     void optionalPlaceButtons(JContainer& row, const JPSetupProperties::Row& r);
     void locationButtons(JContainer& row, const JPSetupProperties::Row& r);
+    // A button's work, done once its click has been delivered (the next frame): what it does may make this page
+    // again (a capture on a feeder's page, which Machine Setup remakes), and the button and the rows round it went
+    // from under the click still being handed through them (bench, 2026-10-14: a crash capturing a strip's hole).
+    void afterClick(std::function<void()> work);
     // How wide a control for `p` is, as it is laid out.
     float widthOf(const JProperty& p) const;
     const JProperty* find(const std::string& name) const;

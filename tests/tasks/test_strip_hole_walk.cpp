@@ -130,27 +130,30 @@ int main() {
     // The tape's scale, from the camera moved 5 mm either way along X and Y: within a fifth of a percent.
     TapeCamera camera(kStrip);
     std::string why;
-    const auto scale = JPStripHoleWalk::scaleAt(camera, pipeline, kStrip.part(0), 5, why);
-    assert(scale && std::abs(*scale / kTapePxPerMm - 1) < 0.002);
+    const auto measured = JPStripHoleWalk::scaleAt(camera, pipeline, kStrip.part(0), 5, why);
+    assert(measured && std::abs(measured->pxPerMm / kTapePxPerMm - 1) < 0.002);
+    // With it, how big the holes it followed were seen: 1.5 mm across at the tape's scale.
+    assert(std::abs(measured->holeDiameterPx / measured->pxPerMm - 1.5) < 0.01);
+    const double scale = measured->pxPerMm;
     assert(camera.looks == 4);
 
     // At it, the same hole from 6 mm either side: where it is, to the half pixel.
     {
         const L h0 = kStrip.hole(0), p0 = kStrip.part(0);
-        const L a = holeSeen(camera, pipeline, L(kMm, p0.x(), p0.y() - 6, 0, 0), h0, *scale);
-        const L b = holeSeen(camera, pipeline, L(kMm, p0.x(), p0.y() + 6, 0, 0), h0, *scale);
+        const L a = holeSeen(camera, pipeline, L(kMm, p0.x(), p0.y() - 6, 0, 0), h0, scale);
+        const L b = holeSeen(camera, pipeline, L(kMm, p0.x(), p0.y() + 6, 0, 0), h0, scale);
         assert(apart(a, h0) < 0.02 && apart(b, h0) < 0.02);
     }
 
     // The reference and next holes, from the first and second parts at the tape's scale; then followed to the
     // 10th part's hole, 9 on, in steps of 3 holes (half a 28 mm view).
     {
-        const L reference = holeSeen(camera, pipeline, kStrip.part(0), kStrip.hole(0), *scale);
-        const L next = holeSeen(camera, pipeline, kStrip.part(1), kStrip.hole(1), *scale);
+        const L reference = holeSeen(camera, pipeline, kStrip.part(0), kStrip.hole(0), scale);
+        const L next = holeSeen(camera, pipeline, kStrip.part(1), kStrip.hole(1), scale);
         assert(apart(reference, kStrip.hole(0)) < 0.03 && apart(next, kStrip.hole(1)) < 0.03);
         camera.looks = 0;
         int lastAsked = 0;
-        const auto w = JPStripHoleWalk::walk(camera, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, *scale, *scale,
+        const auto w = JPStripHoleWalk::walk(camera, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, scale, scale,
                                              [&](int hole, int of) { assert(of == 9 && hole > lastAsked); lastAsked = hole; });
         assert(w.reached && w.holes == 9 && lastAsked == 9 && camera.looks == 3);
         assert(apart(w.last, kStrip.hole(9)) < 0.03);
@@ -158,14 +161,14 @@ int main() {
         assert(std::abs(angleOf(reference, w.last) - trueAngle) < 0.1);
 
         // Nothing to follow (no Max Feed Count): the next hole kept.
-        const auto none = JPStripHoleWalk::walk(camera, pipeline, 8, kStrip.part(0), reference, next, 0, kStepMm, *scale, *scale, nullptr);
+        const auto none = JPStripHoleWalk::walk(camera, pipeline, 8, kStrip.part(0), reference, next, 0, kStepMm, scale, scale, nullptr);
         assert(none.reached && none.holes == 1 && apart(none.last, next) == 0);
 
         // A strip shorter than its count (5 holes): followed to its last hole, and said so.
         Strip shorter = kStrip;
         shorter.holes = 5;
         TapeCamera shortCamera(shorter);
-        const auto w2 = JPStripHoleWalk::walk(shortCamera, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, *scale, *scale, nullptr);
+        const auto w2 = JPStripHoleWalk::walk(shortCamera, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, scale, scale, nullptr);
         assert(!w2.reached && w2.holes == 4 && apart(w2.last, shorter.hole(4)) < 0.03);
     }
 
@@ -173,15 +176,17 @@ int main() {
     // from by the hole 9 on, as by the first), and the walk at each look's share between them.
     {
         TapeCamera tilted(kStrip, false);
-        const auto first = JPStripHoleWalk::scaleAt(tilted, pipeline, kStrip.part(0), 5, why);
-        assert(first && std::abs(*first / kTapePxPerMm - 1) < 0.002);
-        const L reference = holeSeen(tilted, pipeline, kStrip.part(0), kStrip.hole(0), *first);
-        const L next = holeSeen(tilted, pipeline, kStrip.part(1), kStrip.hole(1), *first);
+        const auto firstScale = JPStripHoleWalk::scaleAt(tilted, pipeline, kStrip.part(0), 5, why);
+        assert(firstScale && std::abs(firstScale->pxPerMm / kTapePxPerMm - 1) < 0.002);
+        const double first = firstScale->pxPerMm;
+        const L reference = holeSeen(tilted, pipeline, kStrip.part(0), kStrip.hole(0), first);
+        const L next = holeSeen(tilted, pipeline, kStrip.part(1), kStrip.hole(1), first);
         const L beside = JPStripHoleWalk::besideHole(kStrip.part(0), reference, next, 9);
         assert(apart(beside, kStrip.part(9)) < 0.3);
-        const auto last = JPStripHoleWalk::scaleAt(tilted, pipeline, beside, 5, why);
-        assert(last && std::abs(*last / kLastTapePxPerMm - 1) < 0.002);
-        const auto w = JPStripHoleWalk::walk(tilted, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, *first, *last, nullptr);
+        const auto lastScale = JPStripHoleWalk::scaleAt(tilted, pipeline, beside, 5, why);
+        assert(lastScale && std::abs(lastScale->pxPerMm / kLastTapePxPerMm - 1) < 0.002);
+        const double last = lastScale->pxPerMm;
+        const auto w = JPStripHoleWalk::walk(tilted, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, first, last, nullptr);
         assert(w.reached && w.holes == 9 && apart(w.last, kStrip.hole(9)) < 0.03);
         // Its last part past a soft limit (as the bench's clear strip, running past Y 0): followed to the farthest hole
         // the camera can look from beside, and said so; the scale measured by it.
@@ -189,14 +194,14 @@ int main() {
             TapeCamera limited(kStrip, false);
             limited.leastY = kStrip.part(7).y() - 0.5;
             assert(JPStripHoleWalk::farthestReached(limited, kStrip.part(0), reference, next, 9) == 7);
-            const auto w2 = JPStripHoleWalk::walk(limited, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, *first, *last, nullptr);
+            const auto w2 = JPStripHoleWalk::walk(limited, pipeline, 8, kStrip.part(0), reference, next, 9, kStepMm, first, last, nullptr);
             assert(!w2.reached && w2.outOfReach && w2.holes == 7 && apart(w2.last, kStrip.hole(7)) < 0.03);
         }
         // The strip's end by a soft limit (as on the bench, 2.6 mm from Y 0): measured twice as far the other way.
         tilted.leastY = beside.y() - 2.6;
         tilted.looks = 0;
         const auto nearLimit = JPStripHoleWalk::scaleAt(tilted, pipeline, beside, 5, why);
-        assert(nearLimit && tilted.looks == 4 && std::abs(*nearLimit / kLastTapePxPerMm - 1) < 0.003);
+        assert(nearLimit && tilted.looks == 4 && std::abs(nearLimit->pxPerMm / kLastTapePxPerMm - 1) < 0.003);
     }
 
     // A camera calibrated at two heights (Z -23.2 and -12.1, 113 mm above the first): the height a scale is seen

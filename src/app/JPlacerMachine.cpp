@@ -1107,6 +1107,14 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
         m_window.showStatus("Machine Setup's changes are taken once the machine stops", kStatusMs);
         return false;
     }
+    // Nor while a camera task is under way, when the change makes the cameras again (and with them the tasks): its
+    // end, told on the screen's thread once the machine has stopped, was lost with them, and what waited on it never
+    // went on (a field edited while homing, taken as the machine stopped from a tip's runout measurement: the homing
+    // never finished, its button busy for good). Taken (the panel tries again) once the task has ended.
+    if (keep != Keep::SetupAndCameras && m_cameraTasks && m_cameraTasks->busy()) {
+        m_window.showStatus("Machine Setup's changes are taken once the camera task under way ends", kStatusMs);
+        return false;
+    }
     // The cameras in front (on screen) stay in front when they are made again: a setting changed
     // on one (an Auto ticked) must not bring another forward, and with it its light.
     std::vector<std::string> inFront;
@@ -1819,6 +1827,11 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if (d.panel->camera().id != id) continue;
             JPCameraFeed* feed = &d.panel->feed();
             const std::string name = d.panel->camera().name;
+            // Not under a task's pictures: its exposure, tuned afresh from under it, failed it (a tip's runout).
+            if (m_cameraTasks && m_cameraTasks->busy()) {
+                m_window.showStatus(name + ": a camera task is under way; Defaults, then Auto-Tune once it has ended", kErrorMs);
+                return;
+            }
             // Tuned to the pictures vision takes: the machine on, the camera's light on, other cameras' lights off
             // against glare (as for a capture), before the camera starts looking.
             if (!m_cell || !m_cell->isConnected()) {

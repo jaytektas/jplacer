@@ -231,7 +231,12 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
     auto hole = [s](const char* key, JPLocation JPStripFeeder::* field) {
         return Spot { key, [s, field] { return s().*field; }, [s, field](const JPLocation& l) { s().*field = l; } };
     };
-    const Spot reference = hole("reference-hole-location", &JPStripFeeder::referenceHole);
+    // The reference hole's Z set by hand (typed, or captured with the nozzle): Auto Setup leaves it from then on.
+    const Spot reference { "reference-hole-location", [s] { return s().referenceHole; }, [s](const JPLocation& l) {
+                              const JPLocation was = s().referenceHole.convertToUnits(l.units());
+                              if (std::abs(was.z() - l.z()) > 1e-9) s().autoSetupZ = false;
+                              s().referenceHole = l;
+                          } };
     const Spot last = hole("last-hole-location", &JPStripFeeder::lastHole);
     add.row("Reference Hole Location", Place::Location);
     coordinate(add, reference, Axis::X, "X");
@@ -255,6 +260,12 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
             "less than 0; 0, a level strip). Each part is picked that much higher or lower for how far along it is, "
             "from the Reference Hole Location's Z: lowered for the tip to press, every part is lowered alike. Auto "
             "Setup measures it with a camera calibrated at two heights.");
+    add.flag("auto-setup-z", "Auto Setup Sets Z?", [s] { return s().autoSetupZ; }, [s](bool on) { s().autoSetupZ = on; });
+    add.tipOf("auto-setup-z",
+              "Whether Auto Setup sets the Reference Hole Location's Z and Z Along Strip % from the tape's scale, with a "
+              "camera calibrated at two heights: the scale from how far the holes move in the picture as the camera moves, "
+              "where a fraction of a percent is a few tenths of a millimetre of height, too much for a small part's pick. Turned off by itself when you set the Z (typed, "
+              "or captured with the nozzle touching the tape); tick it to let Auto Setup measure again.");
 }
 
 // OpenPnP's ReferenceLoosePartFeederConfigurationWizard: its pipeline.
