@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- A nozzle turned past 180 degrees (taken the short way, then brought back into range) no longer turns the long way
+  round on its next move: a bottom vision pass correcting a part by a degree turned it 361 degrees, slowly.
+- Bottom vision's looks after the first (Max. vision passes, when a part is further off than Max. linear or angular
+  offset) move straight across at the camera's height, as OpenPnP's, not up to Safe Z and back down.
+
 - Bottom vision takes the nozzle over the camera looking up where its tip's runout calibration found the nozzle's
   axis to be (a CameraOffset algorithm's Camera Position Offset), as the manual said and OpenPnP does. It went to
   the camera's own place, so every part on a nozzle whose axis is off over the camera was placed that far off

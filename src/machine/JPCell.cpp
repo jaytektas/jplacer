@@ -2905,7 +2905,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
     }
     // From here on the axes' own coordinates (leaned, where the gantry is not
     // square); the soft limits are theirs.
-    const std::map<std::string, double> square = hardware;
+    std::map<std::string, double> square = hardware;
     const auto now = jogBase();
     if (squared) hardware = toAxes(hardware, now);
     // Whole steps of an axis with a resolution: where it can actually stop;
@@ -3143,10 +3143,13 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
         else m_backlashApplied[id] = b;
     }
     for (const auto& [id, l] : lagged) m_backlashLag[id] = l;
+    // Where it was sent is where it is told it is: the square coordinates too, which are what is kept as sent (left
+    // at the angle sent, the next move under way started from it, a turn of a degree made a turn of 361, slowly).
     for (const auto& [id, t] : rewrapped) {
         hardware[id] = t;
         m_positions[id] = t;
         if (targets.count(id)) targets[id] = t;
+        if (square.count(id)) square[id] = t;
     }
     for (const auto& [id, t] : virtuals) m_positions[id] = t;
     for (const auto& [id, t] : hardware)

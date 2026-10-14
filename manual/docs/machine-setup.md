@@ -64,7 +64,15 @@ are checked first are taken from an imported OpenPnP machine too.
 **Bottom Vision** holds OpenPnP's ReferenceBottomVision settings: **Enabled?** (parts are aligned over the
 camera looking up), **Bottom Vision Settings** (the machine's default, for parts and packages that name
 none), **Rotate parts prior to vision?**, **Max. vision passes**, **Max. linear offset** (mm) and
-**Max. angular offset** (degrees): a part off by less than both after a pass is taken as found.
+**Max. angular offset** (degrees): a part off by less than both after a pass is taken as found. Its offset is
+applied when it is placed (the nozzle goes to the placement less it); it is not looked at again. Further than
+either, the nozzle moves so the part is centred and turned as wanted, and it is looked at again, up to Max. vision
+passes looks, the last one taken whatever it shows. The first look comes in by way of Safe Z; the ones after it,
+the nozzle already within the camera's Roaming Radius and the tip's Max Pick Tolerance of it, straight across at
+the camera's height, as OpenPnP's. Set tight (0.02 mm, 0.5 degrees) every part is measured again centred, at the
+cost of a look each.
+
+<!-- src: src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPCellJobMachine.cpp (alignPart) -->
 
 **Fiducal Locator** holds OpenPnP's ReferenceFiducialLocator settings: its default **Vision Settings**,
 **Average Matches?** (the passes after the first averaged, with three or more) and **Max. Distance (old

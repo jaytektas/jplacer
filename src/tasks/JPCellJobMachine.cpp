@@ -1285,7 +1285,21 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
                                                      << seen.x - nx << ", " << seen.y - ny << " mm, " << (seen.angle - nr) << " deg";
             return true;
         }
-        if (!c->moveToolAndWait(nozzle.mount, { nx - cameraDx, ny - cameraDy, z, nr }, 1.0, w)) return false;
+        // Already over the camera (within its Roaming Radius and the tip's Max Pick Tolerance: a look after the
+        // first, the part centred): straight there at camera Z, as OpenPnP's; else by way of safe Z. Each look
+        // went up to safe Z and down again, for a move of tenths.
+        const std::array<std::optional<double>, 4> to { nx - cameraDx, ny - cameraDy, z, nr };
+        const auto here = c->jogBase();
+        auto axisAt = [&here](const std::string& axis, double offset) {
+            const auto p = here.find(axis);
+            return p == here.end() ? std::nullopt : std::optional<double>(p->second + offset);
+        };
+        const auto hx = axisAt(nozzle.mount.axisX, nozzle.mount.offsetX), hy = axisAt(nozzle.mount.axisY, nozzle.mount.offsetY);
+        const JPNozzleTipConfig defaults;
+        const bool over = hx && hy
+                          && std::hypot(*hx + cameraDx - camX, *hy + cameraDy - camY)
+                                 <= feed->config().roamingRadiusMm + (tip ? *tip : defaults).maxPickToleranceMm;
+        if (!(over ? c->moveToolStraightAndWait(nozzle.mount, to, 1.0, w) : c->moveToolAndWait(nozzle.mount, to, 1.0, w))) return false;
         // The camera's Auto-Tune for each part?: once, the part over it.
         if (feed->config().autoTuneEachPart && !partTuned && !rq.partId.empty()) {
             if (!tuneForPart(*feed, rq.partId, w)) return false;

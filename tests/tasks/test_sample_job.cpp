@@ -62,7 +62,8 @@ bool waitFor(const std::atomic<int>& done, int ms) {
 
 // `cameraOffMm`: the camera looking up set up that far in X from where it is (the simulated camera kept where it was):
 // the runout calibration finds each nozzle's axis that far off over it (ModelCameraOffsetAffine's camera offset), and
-// bottom vision must take the nozzle there, or every part is placed that far off (bench, 2026-10-14).
+// bottom vision must take the nozzle there, or every part is placed that far off (bench, 2026-10-14). Its parts looked at
+// again until centred, as Max. linear offset set tight does.
 void runSampleJob(const char* name, const char* jobFile, double cameraOffMm = 0) {
     std::fprintf(stderr, "%s runs with imperfect machine in real-time, please be patient...\n", name);
     const fs::path dir = fs::temp_directory_path() / ("jplacer-sample-job-" + std::to_string(::getpid()));
@@ -94,6 +95,11 @@ void runSampleJob(const char* name, const char* jobFile, double cameraOffMm = 0)
             t.runout.clear();
             t.runoutCalibration.offsetThresholdMm = 1;   // the 0.4 mm runout and the camera's offset found together
         }
+    // Each part looked at again, centred, until within a hundredth (the second look straight across at camera Z).
+    if (cameraOffMm != 0) {
+        cellConfig.vision.maxLinearOffsetMm = 0.01;
+        cellConfig.vision.maxAngularOffset = 0.1;
+    }
     for (const std::string& n : notes) std::fprintf(stderr, "note: %s\n", n.c_str());
 
     JPCell cell(cellConfig, profiles());
