@@ -58,6 +58,8 @@ public:
     void changed();
     // A job is running: the job is not left (new, open, recent) until it stops.
     std::function<bool()> running;
+    // The run stopped (as Stop does), then `then`: quitting stops a run under way rather than refusing.
+    std::function<void(std::function<void()> then)> stopRun;
     // Before the job is left: each open board and panel with changes asked about (saved or not); `then` once
     // all are answered, not when one is cancelled. None: they are left as they are.
     std::function<void(std::function<void()> then)> settleBoards;

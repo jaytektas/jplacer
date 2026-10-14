@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <functional>
+#include <vector>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -81,6 +82,9 @@ private:
     void startPauseResume();
     void step();
     void stop();
+    // The run stopped as Stop does (nozzles emptied, head parked), then `then`; at once when none runs. Not
+    // called when the stop is refused (a task under way: the status line says so).
+    void stopThen(std::function<void()> then);
     // Starts the processor anew (asking to reset a job all placed), then runs it.
     void start(JPJobPanel::RunState as);
     // The run on the worker: steps while Running (one while Pausing).
@@ -125,6 +129,7 @@ private:
     bool                                 m_signalSetUp = false;   // a job set up: Stopped to be signalled first
     std::shared_ptr<bool>                m_alive = std::make_shared<bool>(true);
     std::string                          m_runUuid;   // the run under way; empty: none
+    std::vector<std::function<void()>>   m_afterStop;   // stopRun's: called once the run has stopped
     std::set<std::string>                m_warnedLots;   // lots this run has said are running out (job thread)
 };
 

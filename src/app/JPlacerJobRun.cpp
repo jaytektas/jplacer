@@ -70,6 +70,7 @@ JPlacerJobRun::JPlacerJobRun(JAppWindow& window, JPlacerJob& job, JPlacerMachine
         return m_state == RunState::Running || m_state == RunState::Pausing || m_state == RunState::Stopping;
     };
     job.running = [this] { return running(); };
+    job.stopRun = [this](std::function<void()> then) { stopThen(std::move(then)); };
     machine.onConnectedChanged = [this](bool connected) {
         m_panel.setMachineEnabled(connected);
         if (connected) forgetTunes();   // the light may be another now: every tune made afresh
@@ -89,6 +90,7 @@ JPlacerJobRun::~JPlacerJobRun() {
     m_machine.jobWorking = nullptr;
     m_machine.onConnectedChanged = nullptr;
     m_job.running = nullptr;
+    m_job.stopRun = nullptr;
 }
 
 void JPlacerJobRun::beginRun() {
@@ -179,6 +181,10 @@ bool JPlacerJobRun::ask(const std::string& question) {
 void JPlacerJobRun::setState(RunState s) {
     m_state = s;
     m_panel.setRunState(s);
+    if (s != RunState::Stopped) return;
+    const std::vector<std::function<void()>> waiting = std::move(m_afterStop);
+    m_afterStop.clear();
+    for (const auto& then : waiting) then();
 }
 
 void JPlacerJobRun::startPauseResume() {
@@ -233,6 +239,16 @@ void JPlacerJobRun::stop() {
         join();
         run();
     }
+}
+
+void JPlacerJobRun::stopThen(std::function<void()> then) {
+    if (!running()) {
+        then();
+        return;
+    }
+    m_afterStop.push_back(std::move(then));
+    stop();
+    if (m_state == RunState::Paused) m_afterStop.clear();   // refused: a task under way
 }
 
 std::string JPlacerJobRun::realigned(const std::string& nozzleId, const std::string& partId, const JPJobMachine::AlignResult& r) {
@@ -459,11 +475,28 @@ void JPlacerJobRun::run() {
             }
             if (r == JPJobProcessor::Result::Failed) {
                 signal(JobState::Error);
+                // Stop pressed while the step that failed was under way: cleaned up as a stop is, the failure said.
+                if (m_state == RunState::Stopping) {
+                    JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "the step under way when the job was stopped failed: " << f.message;
+                    m_processor->abort();
+                    signal(JobState::Stopped);
+                    post([this, f] {
+                        endRun(JPRunStore::Outcome::Stopped);
+                        setState(RunState::Stopped);
+                        m_window.showStatus("Job stopped. The step under way failed: " + f.message, kStatusMs);
+                    });
+                    return;
+                }
                 post([this, f] {
-                    // Paused there (stopped, when stopping), then said.
-                    if (m_state == RunState::Stopping) endRun(JPRunStore::Outcome::Stopped);
-                    setState(m_state == RunState::Stopping ? RunState::Stopped : RunState::Paused);
-                    if (!f.loadPartId.empty() && m_state == RunState::Paused) {
+                    // Paused there, then said; stopped (cleaned up) instead when Stop came since.
+                    if (m_state == RunState::Stopping) {
+                        JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "the step under way when the job was stopped failed: " << f.message;
+                        setState(RunState::Paused);
+                        stop();
+                        return;
+                    }
+                    setState(RunState::Paused);
+                    if (!f.loadPartId.empty()) {
                         askToLoad(f.loadPartId);
                         return;
                     }

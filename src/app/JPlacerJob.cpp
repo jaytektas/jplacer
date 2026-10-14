@@ -15,6 +15,7 @@
 #include <j/core/Dialog.h>
 #include <j/core/FrameTimer.h>
 #include <j/core/Log.h>
+#include <j/core/MainThreadDispatcher.h>
 
 #include <filesystem>
 
@@ -192,7 +193,20 @@ void JPlacerJob::openRecent(const std::string& path) {
 }
 
 bool JPlacerJob::mayClose() {
-    if (!m_job->dirty || m_closing) return true;
+    if (m_closing) return true;
+    // A run under way stopped first (its nozzles emptied, the head parked), then the window closed again.
+    if (running && running() && stopRun) {
+        JLOGC(JPlacerLog::kApp, JLogLevel::Info) << "quitting: the job stopped first";
+        m_window.showStatus("Stopping the job to quit.", kStatusMs);
+        std::weak_ptr<bool> alive = m_alive;
+        stopRun([this, alive] {
+            JMainThreadDispatcher::instance().post([this, alive] {
+                if (const auto a = alive.lock(); a && *a) m_window.requestClose();
+            });
+        });
+        return false;
+    }
+    if (!m_job->dirty) return true;
     settle([this] {
         m_closing = true;
         m_window.requestClose();
