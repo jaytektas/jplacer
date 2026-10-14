@@ -119,13 +119,33 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
         const std::optional<JPLocation> before = nozzleAt();
         JPJobMachine::AlignResult r;
         if (!machine.alignPart(nozzleId, rq, r, why)) return false;
-        // On a paused run with this part on the nozzle, aligned: this alignment, made by hand, is the one it places with.
+        // On a paused run with this part on the nozzle, aligned: this alignment, made by hand, is the one it places with
+        // (the run takes its turn into the nozzle's rotation, as below).
+        bool taken = false;
         if (!detectOffsets)
             onMain([&] {
                 const std::string placement = m_run.realigned(nozzleId, partId, r);
-                if (!placement.empty())
+                taken = !placement.empty();
+                if (taken)
                     if (JPTable::s_status) JPTable::s_status("Test Alignment taken for " + placement + ": the run places it as aligned now");
             });
+        // A nozzle aligning with its part (Align with Part?): the part's turn on it taken into the nozzle's rotation, so
+        // it reads the part's angle, and the camera's reticle is drawn at it, as OpenPnP's findOffsets does (it was left
+        // at the nozzle's: after a test the part, centred and turned, sat that far turned from the reticle).
+        bool aligning = false;
+        double modeOffset = 0;
+        onMain([&] {
+            if (const JPCell* cell = m_machine.cell())
+                for (const JPNozzleConfig& n : cell->config().nozzles)
+                    if (n.id == nozzleId) {
+                        aligning = n.alignRotationWithPart;
+                        modeOffset = cell->rotationModeOffset(nozzleId);
+                    }
+        });
+        if (aligning) {
+            if (!taken) machine.setRotationModeOffset(nozzleId, modeOffset + (r.partAngle - r.nozzleAngle));
+            r.nozzleAngle = r.partAngle;
+        }
         // As found: its offsets on the nozzle, and its turn from the angle wanted.
         const double turn = angle - r.partAngle;
         char text[160];

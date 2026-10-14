@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Test Alignment on a nozzle with Align with Part? takes the part's turn into the nozzle's rotation, as a run and
+  OpenPnP do: the bottom camera's reticle then lies over the part, not turned by how far the part sat turned on the
+  nozzle.
+
 - Bottom vision refuses a part its looks turned further in all than a look can tell (45 degrees; 180 with Rotation
   Full), instead of placing it turned: a square part on a tip as wide as it was seen round and placed 90 degrees
   out. Each look is now in the log, with how far off and turned it saw the part.
