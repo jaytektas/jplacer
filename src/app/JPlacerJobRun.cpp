@@ -218,6 +218,15 @@ void JPlacerJobRun::stop() {
     const RunState was = m_state;
     if (was == RunState::Stopped || was == RunState::Stopping) return;
     if (was == RunState::Paused && taskUnderWay()) return;
+    // Paused with the machine gone (its connection lost): ended where it is, nothing moved.
+    if (was == RunState::Paused && !m_machine.isConnected()) {
+        join();
+        endRun(JPRunStore::Outcome::Stopped);
+        setState(RunState::Stopped);
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "job stopped with the machine not connected: nothing discarded or parked";
+        m_window.showStatus("Job stopped without the machine: its nozzles not emptied.", kStatusMs);
+        return;
+    }
     setState(RunState::Stopping);
     // Running, the worker stops after its step; paused, one is started to stop it.
     if (was == RunState::Paused) {

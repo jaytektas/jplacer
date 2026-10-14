@@ -557,7 +557,8 @@ void JPJobPanel::updateJobActions() {
     const bool settled = m_runState == RunState::Stopped || m_runState == RunState::Paused || running;
     m_start->setEnabled(m_machineEnabled && settled);
     m_step->setEnabled(m_machineEnabled && (m_runState == RunState::Stopped || m_runState == RunState::Paused));
-    m_stop->setEnabled(m_machineEnabled && (running || m_runState == RunState::Paused || m_photographing));
+    // Stop without the machine too: a run paused when the connection was lost is ended by it.
+    m_stop->setEnabled(running || m_runState == RunState::Paused || m_photographing);
     if (m_startItem) {
         m_startItem->setLabel(running ? "Pause" : m_runState == RunState::Paused ? "Resume" : "Start");
         m_startItem->setTooltip(m_start->tooltip());

@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- A run paused when the machine's connection was lost can be stopped (Stop was greyed, and jplacer would not quit while the run was paused).
 - A placement deleted while a job runs or is paused, or a board taken out of the job, is left out of the run: its
   part, if already picked, is discarded. Before, the run went on with it and took the part to the board's origin
   (past the machine's limits on one machine, which stopped the run). Removing a board mid-run could also crash.

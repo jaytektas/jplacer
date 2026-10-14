@@ -199,7 +199,9 @@ Stock never stops a run: the feeders hold what is placed, and a part can be load
 **Start** runs the job, a step after another, until every placement is placed; while it runs the button
 is **Pause**, which stops it after the step under way, and then **Resume**. **Step** does one step (on to the next that moves the
 machine, with Machine Setup's Step Next Motion) and pauses. **Stop** stops it: the nozzles are emptied at the discard location and the head is parked. The
-machine must be connected (the buttons are greyed until it is) and homed. If every placement is placed
+machine must be connected (the buttons are greyed until it is) and homed. A run paused when the
+machine's connection is lost is ended with **Stop**, which stays available: nothing moves, and the status line
+says "Job stopped without the machine: its nozzles not emptied." (take off by hand anything left on them). If every placement is placed
 already, Start asks whether to mark them all not placed first. The status line says what the job is
 doing ("Feed …", "Pick … using nozzle N1.", "Placing …"), and at the end how many parts were placed and
 how fast. While a job runs, another job or another cell is not opened. While the machine is busy with a
