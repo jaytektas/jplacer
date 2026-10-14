@@ -165,6 +165,19 @@ int main() {
     assert(ax.model.find("inputAxis") && !ax.model.find("driver"));
     assert(ax.model.set("inputAxis", JVariant(std::string("X"))) && c.axes[2].inputAxisId == "X");
 
+    // A nozzle's kind changed in place: a ContactProbeNozzle has the Contact Probe tab, its settings kept.
+    {
+        JPSetupProperties::Form nz = JPSetupProperties::forNode(c, "nozzle:N", {});
+        assert(nz.model.get("kind").toString() == "ReferenceNozzle" && !nz.model.find("contactProbeMethod"));
+        assert(nz.model.set("kind", JVariant(std::string("ContactProbeNozzle"))) && c.nozzles[0].contactProbe.nozzle);
+        nz = JPSetupProperties::forNode(c, "nozzle:N", {});
+        assert(nz.model.find("contactProbeMethod") && nz.model.get("name").toString() == c.nozzles[0].name);
+        assert(nz.model.set("contactProbeMethod", JVariant(std::string("VacuumSense"))) && c.nozzles[0].contactProbe.on());
+        assert(JPNozzleConfig::fromJson(c.nozzles[0].toJson()).contactProbe.method == "VacuumSense");
+        assert(nz.model.set("kind", JVariant(std::string("ReferenceNozzle"))) && !c.nozzles[0].contactProbe.on());
+        c.nozzles[0].contactProbe = {};
+    }
+
     // A fixed camera put on the head moves with it, on the head's X and Y.
     JPSetupProperties::Form cam = JPSetupProperties::forNode(c, "camera:C", {});
     assert(cam.model.get("light").toString() == "LIGHT_UP" && !cam.model.find("axisX"));

@@ -9,6 +9,7 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- A nozzle's Kind (ReferenceNozzle or ContactProbeNozzle) can be changed in Machine Setup, keeping its settings, so an existing nozzle can find part and feeder heights by vacuum sensing or a contact sensor. Before, only a new nozzle could be a ContactProbeNozzle.
 - Quitting while a job runs or is paused stops the job (nozzles emptied, head parked) and quits, instead of saying to stop it first.
 - Stop pressed while a step that then fails is under way still empties the nozzles and parks the head. Before, the run just stopped where it was.
 - A run paused when the machine's connection was lost can be stopped (Stop was greyed, and jplacer would not quit while the run was paused).

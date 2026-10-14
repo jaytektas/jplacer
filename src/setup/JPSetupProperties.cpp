@@ -1111,6 +1111,12 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.tab("Configuration");
     add.group("Properties");
     add.text("name", "Name", [n]() -> std::string& { return n().name; }, "name");
+    // OpenPnP's nozzle classes, changed in place (its settings kept): a ContactProbeNozzle has the Contact Probe tab.
+    add.choice("kind", "Kind", { "ReferenceNozzle", "ContactProbeNozzle" }, [n] { return n().className(); },
+               [n](const std::string& v) { n().contactProbe.nozzle = v == "ContactProbeNozzle"; });
+    f.reshaping.push_back("kind");
+    add.tip("A ContactProbeNozzle finds heights by touch (Contact Probe tab): by a contact sense actuator, or by "
+            "vacuum sensing, stepping down until its tip's part-off check finds the nozzle blocked.");
     coordinateSystem<JPNozzleConfig>(add, cell, n, "(none)", false, f);
     // When its offsets were last calibrated: a crash since, and they want doing again.
     {
