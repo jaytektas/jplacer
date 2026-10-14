@@ -98,12 +98,6 @@ notes.
   the part's columns empty). The same on New Revision. Removing a board's placements also removes the board's
   parts they used, so they cannot hold on to old library parts.
 
-- jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
-  Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
-  cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
-  (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
-  cameras work as on Linux.
-
 ## 0.1.70
 
 - The CPL and BOM import can also **Fetch Dimensions from LCSC**: each package with no body size or height
