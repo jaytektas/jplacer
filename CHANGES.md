@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- Board Nudge's Apply moves the board by what was jogged, in X and Y: it moved nothing (the board let go of as the
+  instructions closed, before it was moved).
+
 - Test Alignment on a nozzle with Align with Part? takes the part's turn into the nozzle's rotation, as a run and
   OpenPnP do: the bottom camera's reticle then lies over the part, not turned by how far the part sat turned on the
   nozzle.

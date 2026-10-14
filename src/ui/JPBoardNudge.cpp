@@ -56,9 +56,10 @@ void JPBoardNudge::apply() {
     if (!active()) return;
     follow();
     if (!active()) return;   // the machine went as it was read
-    const double dx = m_dx, dy = m_dy;
+    // Applied while it is still under way, then ended: ending it lets go of the board it is for (the Job panel's
+    // hide hook), and applied after, it moved nothing.
+    if (m_hooks.apply && (m_dx != 0 || m_dy != 0)) m_hooks.apply(m_dx, m_dy);
     stop();
-    if (m_hooks.apply && (dx != 0 || dy != 0)) m_hooks.apply(dx, dy);
 }
 
 void JPBoardNudge::cancel() {
