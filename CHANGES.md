@@ -9,6 +9,10 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+- A placement deleted while a job runs or is paused, or a board taken out of the job, is left out of the run: its
+  part, if already picked, is discarded. Before, the run went on with it and took the part to the board's origin
+  (past the machine's limits on one machine, which stopped the run). Removing a board mid-run could also crash.
+
 
 - Board Nudge's Apply moves the board by what was jogged, in X and Y: it moved nothing (the board let go of as the
   instructions closed, before it was moved).

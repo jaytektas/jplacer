@@ -110,6 +110,7 @@ void JPJobProcessor::status(const std::string& s) {
 JPJobProcessor::Result JPJobProcessor::next(Failure& failure) {
     if (m_finished) return Result::Finished;
     try {
+        if (m_step != Step::PreFlight) dropDeleted();
         m_step = run(m_step);
     } catch (const JobError& e) {
         failure = e.failure;
@@ -359,7 +360,7 @@ JPFeeder* JPJobProcessor::feederFor(const std::string& partId, const std::string
 std::vector<size_t> JPJobProcessor::openPendingWorkable() {
     int currentRank = std::numeric_limits<int>::max();
     for (const JobPlacement& j : m_jobPlacements)
-        if (j.status != Status::Complete) currentRank = std::min(currentRank, j.rank);
+        if (j.status != Status::Complete && j.status != Status::Deleted) currentRank = std::min(currentRank, j.rank);
     if (currentRank == std::numeric_limits<int>::max()) currentRank = 0;
     // A rank ten above the lowest not done waits for it.
     const int blocked = currentRank + 10;
@@ -1020,6 +1021,7 @@ JJson JPJobProcessor::placementGlobals(const JobPlacement& j) const {
 void JPJobProcessor::prerotate(bool forPick) {
     for (Planned& p : m_planned) {
         JobPlacement& j = m_jobPlacements[p.job];
+        if (j.status == Status::Deleted) continue;
         std::optional<double> angle;
         double pickAngle = 0, placeAngle = 0;
         main([&] {
@@ -1265,7 +1267,16 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     if (on->second != j.partId) fail(Source::Nozzle, p.nozzleId, "Part mismatch with part on nozzle before place.");
     // Where it goes: on the board, as high as the part.
     JPLocation at(JPLengthUnit::Millimeters);
-    main([&] { at = mm(placeLocation(p.job)); });
+    bool gone = false;
+    main([&] {
+        gone = !inJob(j);
+        if (!gone) at = mm(placeLocation(p.job));
+    });
+    // Deleted since this step began: not placed at all.
+    if (gone) {
+        dropDeleted();
+        return Step::Place;
+    }
     at = at.add(JPLocation(JPLengthUnit::Millimeters, 0, 0, j.partHeightMm, 0));
     // As bottom vision found it: the part turned from its angle then to the
     // placement's, its offset on the nozzle turned with it, and taken off.
@@ -1324,6 +1335,50 @@ void JPJobProcessor::discardAll() {
         m_partsFeeder.erase(it->first);
         m_machine.holding(it->first, "");
         it = m_partOn.erase(it);
+    }
+}
+
+bool JPJobProcessor::inJob(const JobPlacement& j) const {
+    if (!j.board) return false;
+    const auto boards = m_job.boardLocations();
+    // Its board by where it is and its id: a board taken out and another made in its place is not it.
+    if (std::find(boards.begin(), boards.end(), j.board) == boards.end() || j.board->id != j.boardId) return false;
+    return j.board->holder && j.board->holder->find(j.placementId);
+}
+
+void JPJobProcessor::dropDeleted() {
+    std::vector<size_t> gone;
+    main([&] {
+        for (size_t i = 0; i < m_jobPlacements.size(); ++i) {
+            const JobPlacement& j = m_jobPlacements[i];
+            if ((j.status == Status::Pending || j.status == Status::Processing) && !inJob(j)) gone.push_back(i);
+        }
+    });
+    for (const size_t i : gone) {
+        JobPlacement& j = m_jobPlacements[i];
+        const bool planned = j.status == Status::Processing;
+        j.status = Status::Deleted;
+        j.error = "Deleted from the job";
+        j.board = nullptr;
+        // Its part, if picked, is on the nozzle planned for it: dropped at the discard location.
+        std::string on;
+        if (planned)
+            for (const Planned& p : m_planned)
+                if (p.job == i && m_partOn.count(p.nozzleId)) on = p.nozzleId;
+        if (on.empty()) {
+            status(format("%s deleted from the job: not placed.", j.placementId.c_str()));
+            continue;
+        }
+        std::string nozzleName = on;
+        for (const auto& n : m_machine.nozzles())
+            if (n.id == on) nozzleName = n.name;
+        status(format("%s deleted from the job: its part on nozzle %s discarded.", j.placementId.c_str(), nozzleName.c_str()));
+        std::string why;
+        if (!m_machine.safeZ(why) || !discard(on, why)) fail(Source::Nozzle, on, why);
+        m_partOn.erase(on);
+        m_rotationOffset.erase(on);
+        m_partsFeeder.erase(on);
+        m_machine.holding(on, "");
     }
 }
 

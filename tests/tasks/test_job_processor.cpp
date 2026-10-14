@@ -667,5 +667,68 @@ int main() {
         assert(!kept[1].notes.empty() && kept[1].notes[0].find("too plain") != std::string::npos);
         assert(JPBoardPhoto::of(board->file).size() == 2);
     }
+    // Placements deleted while the run is under way (as the Job panel's Delete does, between steps): one whose part
+    // is on its nozzle has the part discarded, not placed at the board's origin; one not yet picked is never picked;
+    // both left out (Deleted), not counted as errors. A board taken out: its placements left out the same.
+    settings.photographAtStart = settings.photographAtEnd = false;
+    machine.camera = false;
+    {
+        job.removeAllPlacedStatus();
+        freshTrays();
+        const auto kept = board->placements;
+        std::string lastPicked;
+        JPJobProcessor::Hooks h = hooks;
+        h.status = [&](const std::string& s) {
+            statuses.push_back(s);
+            if (s.rfind("Pick ", 0) == 0) lastPicked = s.substr(s.find(" for ") + 5, s.find(" using") - s.find(" for ") - 5);
+        };
+        statuses.clear();
+        machine.log.clear();
+        machine.places.clear();
+        JPJobProcessor run(config, job, machine, settings, h);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while (lastPicked.empty() && (r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 200);
+        assert(!lastPicked.empty());
+        const std::string picked = lastPicked;
+        // One not picked yet deleted with it.
+        std::string notPicked;
+        for (const auto& j : run.jobPlacements())
+            if (j.placementId != picked && j.status == JPJobProcessor::Status::Pending) notPicked = j.placementId;
+        assert(!notPicked.empty());
+        std::erase_if(board->placements, [&](const JPPlacement& p) { return p.id == picked || p.id == notPicked; });
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 400);
+        assert(r == JPJobProcessor::Result::Finished && run.totalPartsPlaced() == 1);
+        for (const auto& j : run.jobPlacements())
+            if (j.placementId == picked || j.placementId == notPicked) assert(j.status == JPJobProcessor::Status::Deleted);
+            else assert(j.status == JPJobProcessor::Status::Complete);
+        assert(machine.places.size() == 1);
+        for (const auto& p : machine.places) assert(p.where.x() > 100);   // on the board, none at its origin
+        assert(std::count_if(machine.log.begin(), machine.log.end(), [](const std::string& s) { return s.rfind("discard", 0) == 0; }) == 1);
+        assert(std::count_if(machine.log.begin(), machine.log.end(), [](const std::string& s) { return s.rfind("pick", 0) == 0; }) == 2);
+        assert(std::find(statuses.begin(), statuses.end(), notPicked + " deleted from the job: not placed.") != statuses.end());
+        assert(std::find_if(statuses.begin(), statuses.end(), [&](const std::string& s) {
+                   return s.rfind(picked + " deleted from the job: its part on nozzle ", 0) == 0 && s.find(" discarded.") != std::string::npos;
+               }) != statuses.end());
+        assert(statuses.back().rfind("Job finished without error, placed 1 parts", 0) == 0);
+        board->placements = kept;
+    }
+    {
+        job.removeAllPlacedStatus();
+        freshTrays();
+        machine.log.clear();
+        machine.places.clear();
+        JPJobProcessor run(config, job, machine, settings, hooks);
+        JPJobProcessor::Failure f;
+        JPJobProcessor::Result r = JPJobProcessor::Result::More;
+        int steps = 0;
+        while (std::find(machine.log.begin(), machine.log.end(), "pick N1") == machine.log.end())
+            assert((r = run.next(f)) == JPJobProcessor::Result::More && ++steps < 200);
+        job.removeBoardOrPanelLocation(bl);
+        while ((r = run.next(f)) == JPJobProcessor::Result::More) assert(++steps < 400);
+        assert(r == JPJobProcessor::Result::Finished && run.totalPartsPlaced() == 0 && machine.places.empty());
+        for (const auto& j : run.jobPlacements()) assert(j.status == JPJobProcessor::Status::Deleted && !j.board);
+    }
     return 0;
 }

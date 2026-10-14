@@ -284,6 +284,14 @@ errors there were.
 
 <!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->
 
+**Deleting during a run.** A placement deleted while the job runs or is paused (or a board taken out of
+the job) is left out of the run from the next step. If its part is already on a nozzle, the part is
+dropped at the discard location; if not, it is never picked. The status line says which ("D13 deleted
+from the job: its part on nozzle RIGHT discarded.", "R5 deleted from the job: not placed."). The rest of
+the run goes on, and the placements left out are not counted as errors at its end.
+
+<!-- src: src/tasks/JPJobProcessor.cpp (next, dropDeleted, inJob, place) -->
+
 ## The plan
 
 **Job ▸ Plan…** shows the job's placements left to place in groups of one part each, in the order a run

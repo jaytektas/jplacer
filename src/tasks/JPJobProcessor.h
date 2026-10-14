@@ -102,7 +102,8 @@ public:
         std::string loadPartId;
     };
 
-    enum class Status { Pending, Processing, Errored, Complete };
+    // Deleted: taken out of the job while the run was under way (the placement, or its board).
+    enum class Status { Pending, Processing, Errored, Complete, Deleted };
     enum class Result { More, Finished, Failed };
 
     // A placement this run places, and how it stands.
@@ -200,6 +201,11 @@ private:
     // A picture of the board being photographed; its photo made once all are taken, then the next board's begun.
     Step photograph();
     void discardAll();
+    // Placements deleted from the job since the run took them, or whose board was taken out: left out of the run,
+    // and a part already picked for one discarded.
+    void dropDeleted();
+    // The placement still in the job: its board among the job's, and it on the board (on the model's thread).
+    bool inJob(const JobPlacement& j) const;
 
     // OpenPnP's getOpenPendingWorkableJobPlacements and its rank blocking.
     std::vector<size_t> openPendingWorkable();
