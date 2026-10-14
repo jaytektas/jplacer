@@ -9,6 +9,9 @@ Every change a user would notice adds a line under Unreleased, in the same commi
 notes.
 
 ## Unreleased
+
+## 0.1.71
+
 - A nozzle's Kind (ReferenceNozzle or ContactProbeNozzle) can be changed in Machine Setup, keeping its settings, so an existing nozzle can find part and feeder heights by vacuum sensing or a contact sensor. Before, only a new nozzle could be a ContactProbeNozzle.
 - Quitting while a job runs or is paused stops the job (nozzles emptied, head parked) and quits, instead of saying to stop it first.
 - Stop pressed while a step that then fails is under way still empties the nozzles and parks the head. Before, the run just stopped where it was.
@@ -16,83 +19,61 @@ notes.
 - A placement deleted while a job runs or is paused, or a board taken out of the job, is left out of the run: its
   part, if already picked, is discarded. Before, the run went on with it and took the part to the board's origin
   (past the machine's limits on one machine, which stopped the run). Removing a board mid-run could also crash.
-
-
 - Board Nudge's Apply moves the board by what was jogged, in X and Y: it moved nothing (the board let go of as the
   instructions closed, before it was moved).
-
 - Test Alignment on a nozzle with Align with Part? takes the part's turn into the nozzle's rotation, as a run and
   OpenPnP do: the bottom camera's reticle then lies over the part, not turned by how far the part sat turned on the
   nozzle.
-
 - Bottom vision refuses a part its looks turned further in all than a look can tell (45 degrees; 180 with Rotation
   Full), instead of placing it turned: a square part on a tip as wide as it was seen round and placed 90 degrees
   out. Each look is now in the log, with how far off and turned it saw the part.
-
 - A nozzle turned past 180 degrees (taken the short way, then brought back into range) no longer turns the long way
   round on its next move: a bottom vision pass correcting a part by a degree turned it 361 degrees, slowly.
 - Bottom vision's looks after the first (Max. vision passes, when a part is further off than Max. linear or angular
   offset) move straight across at the camera's height, as OpenPnP's, not up to Safe Z and back down.
-
 - Bottom vision takes the nozzle over the camera looking up where its tip's runout calibration found the nozzle's
   axis to be (a CameraOffset algorithm's Camera Position Offset), as the manual said and OpenPnP does. It went to
   the camera's own place, so every part on a nozzle whose axis is off over the camera was placed that far off
   (0.1 mm on the bench's left nozzle).
-
 - Issues & Solutions' precise nozzle offsets calibration shows the correction it made as soon as it ends, in a
   dialog: how far the nozzle's offsets moved, and the detected and previous offsets. The issue's own page shows
   them too when looked at again.
-
 - A nozzle tip that fails to calibrate while homing says so in a dialog, with the reason, instead of only in the
   status line. In a run, a tip that fails to calibrate pauses the run whatever the placements' Error Handling;
   Resume or Step measures it again, and the run goes on only once it is calibrated.
-
 - No crash capturing a location (a strip feeder's hole) on a setup page: a page's buttons now do their work once
   the click has been handled, so a page made again by what they do no longer goes from under the click.
-
 - Homing no longer stays busy for good (its button greyed until a restart) when a Machine Setup change is made
   while it finishes: a change to a camera, a head or an axis now waits until a camera task (a tip's runout
   measured as homing ends, a calibration) has ended, and the tip's runout is kept. Defaults, then Auto-Tune
   waits for a camera task too, instead of upsetting its pictures.
-
 - A strip feeder's Auto Setup Sets Z? (on to begin with): setting the Reference Hole Location's Z by hand
   (typed, or captured with the nozzle) turns it off, and Auto Setup then leaves the Z and Z Along Strip % as
   they are. The log says how big Auto Setup saw the sprocket holes, in mm, beside EIA-481's 1.5 mm.
-
 - A strip feeder with vision on a 2 mm pitch tape (0402s) looks at the tape on every pick, not every second
   one, unless its Extrapolation Distance says looks may be skipped.
-
 - Bottom vision looks for a part only where it can be (the part's own size plus the pick tolerance), not across
   the nozzle tip's whole Max Part Diameter: a small part (an 0402) is no longer boxed with whatever else shines
   round the tip. On a paused run, a Test Alignment of the part on the nozzle replaces the run's alignment.
-
 - A job's nozzle tip calibration shows each circle it finds on the bottom camera, as one from the Jog panel does.
-
 - Auto tool select follows a running job: the Jog panel chooses the nozzle or camera the job moves, so the
   footprint drawn on a camera turns with the part being placed. A job's messages and the feeder-loading
   window name parts by their names, not by long codes.
-
 - Cameras: a single damaged picture no longer makes jplacer close and reopen the camera (which showed as
   "could not start" over and over while the camera was running); settings are sent to a camera only when they
   change. A nozzle tip change or a tip calibration no longer rebuilds the whole machine setup (the pauses at
   each step of a run, and the Jog panel flickering).
-
 - A job's nozzle tip change no longer measures the new tip's runout twice: the second measurement, run beside the
   job, could fail or block the job's next move ("another move is under way") and leave a failure banner up
   after the job had calibrated the tip. The nozzle chooser on the Jog panel names the part on a nozzle.
-
 - Linked tables: what a link chooses on another tab is shown even if that tab had a search (the search is
   cleared) or a Show that left it out; before, it was not chosen at all.
-
 - The job's check before a run, and messages from a run (no feeder for a part, a part's height probe, bottom
   vision), the Select Feeder title and a stock lot's ledger, name parts by their names, not by a long code.
-
 - **Board Nudge** in the Job tab's Boards: when every part is out the same way after a fiducial check, turn it
   on over a part, jog the camera onto it and Apply: the board moves by what you jogged, and every placement with it.
-
 - Fiducials found more reliably: a small fiducial (a 1 mm one) is no longer missed for bare board or the
   silkscreen beside it (its label), which made a fiducial check fail or come out a millimetre or more off.
-
 - Importing a board again after deleting its parts from the library links its placements to the parts the
   import makes, instead of leaving them pointing at the deleted ones ("not in the library", Missing Part, and
   the part's columns empty). The same on New Revision. Removing a board's placements also removes the board's
