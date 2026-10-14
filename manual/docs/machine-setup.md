@@ -70,7 +70,11 @@ either, the nozzle moves so the part is centred and turned as wanted, and it is 
 passes looks, the last one taken whatever it shows. The first look comes in by way of Safe Z; the ones after it,
 the nozzle already within the camera's Roaming Radius and the tip's Max Pick Tolerance of it, straight across at
 the camera's height, as OpenPnP's. Set tight (0.02 mm, 0.5 degrees) every part is measured again centred, at the
-cost of a look each.
+cost of a look each. Each look is in the log ("look 2 of at most 3: off X, Y mm, turned A deg (seen W x H mm)").
+A look tells the part's angle only within 45 degrees either way (with Rotation Full, 180), so looks that turn it
+further than that in all disagree with each other, and the alignment fails, saying so, rather than place it turned:
+a square part on a tip as wide as it, or wider, is seen round with the tip behind it, its angle anything. Use a
+smaller tip for such a part.
 
 <!-- src: src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPCellJobMachine.cpp (alignPart) -->
 

@@ -29,6 +29,9 @@ std::string mm(double v) {
     return JPLength(v, JPLengthUnit::Millimeters).text("%.3f%s");
 }
 
+// What turning made in several looks may add up to past their range (each look's own within it).
+constexpr double kAngleSlackDeg = 1;
+
 double angleOffsetNorm(const JPBottomVision::Settings& s, double angleOffset) {
     // Most pipelines tell a rectangle's angle only within 90° (no side told from another): a part is never picked
     // more than ±45° turned. With Rotation Full, within ±180° (turning further one way makes no sense).
@@ -70,6 +73,10 @@ bool JPBottomVision::findOffsets(const Settings& s, double cameraX, double camer
         if (!look(nozzle, wantedAngle, pass, seen, why)) return false;
         offsets = JPLocation(JPLengthUnit::Millimeters, seen.x - cameraX, seen.y - cameraY, 0, 0);
         const double angleOffset = angleOffsetNorm(s, seen.angle - wantedAngle);
+        // Each look said, so a reading that is off (a part seen round, its angle anything) shows.
+        JLOGC(JPlacerLog::kJob, JLogLevel::Info) << s.partName << ": look " << pass + 1 << " of at most " << s.maxVisionPasses
+                                                 << ": off " << offsets.x() << ", " << offsets.y() << " mm, turned "
+                                                 << angleOffset << " deg (seen " << seen.widthMm << " x " << seen.heightMm << " mm)";
         // Turning the nozzle to make up the angle turns the off-centre part about the nozzle's axis too.
         offsets = offsets.rotateXy(-angleOffset).derive(std::nullopt, std::nullopt, std::nullopt, angleOffset);
         nozzle = nozzle.subtractWithRotation(offsets);
@@ -92,6 +99,19 @@ bool JPBottomVision::findOffsets(const Settings& s, double cameraX, double camer
     }
     // The offsets over all the passes, less the part's vision offset.
     offsets = wanted.subtractWithRotation(nozzle);
+    // Each look tells its angle only within +-45 degrees (with Rotation Full, +-180): turned further than that in all,
+    // the looks contradict each other, and the part would be placed that far turned (bench, 2026-10-14: a 3.3 mm square
+    // part on a 3.5 mm tip, seen round with the tip behind it, read 45 degrees off twice and placed 90 degrees out).
+    if (const double limit = s.fullRotation ? 180.0 : 45.0;
+        std::abs(JPStageUtil::angleNorm(offsets.rotation(), 180)) > limit + kAngleSlackDeg) {
+        char buf[320];
+        std::snprintf(buf, sizeof buf,
+                      "Part %s: bottom vision's looks turned it %.1f degrees in all, more than the %.0f its angle can be told "
+                      "within: they disagree (the part seen round, as a tip as wide as it, or wider, behind it makes it?).",
+                      s.partName.c_str(), JPStageUtil::angleNorm(offsets.rotation(), 180), limit);
+        why = buf;
+        return false;
+    }
     offsets = offsets.subtract(s.visionOffset.rotateXy(wantedAngle));
     if (!offsetsCheck(s, offsets, why)) return false;
     if (!partSizeCheck(s, seen, why)) return false;

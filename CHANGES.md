@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- Bottom vision refuses a part its looks turned further in all than a look can tell (45 degrees; 180 with Rotation
+  Full), instead of placing it turned: a square part on a tip as wide as it was seen round and placed 90 degrees
+  out. Each look is now in the log, with how far off and turned it saw the part.
+
 - A nozzle turned past 180 degrees (taken the short way, then brought back into range) no longer turns the long way
   round on its next move: a bottom vision pass correcting a part by a degree turned it 361 degrees, slowly.
 - Bottom vision's looks after the first (Max. vision passes, when a part is further off than Max. linear or angular
