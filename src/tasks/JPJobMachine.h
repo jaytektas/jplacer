@@ -13,6 +13,7 @@
 #include <j/config/Json.h>
 
 #include <array>
+#include <cmath>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -243,6 +244,14 @@ public:
         double partZ = 0;                  // the nozzle's Z it was seen at: the part's bottom at the camera's focus
         // A part of unknown height measured on the way (OpenPnP's auto focus part height): its height.
         std::optional<double> measuredPartHeightMm;
+        // Where the nozzle goes to put the part at `place` (its centre there, turned to its rotation): the part
+        // turned from its angle then to the placement's, its offset on the nozzle turned with it and taken off; the
+        // nozzle's rotation its angle then plus that turn. The job's place, and the nozzle's placement check.
+        JPLocation placeFor(const JPLocation& place) const {
+            const double turn = place.rotation() - partAngle, t = turn * M_PI / 180;
+            const double ox = dx * std::cos(t) - dy * std::sin(t), oy = dx * std::sin(t) + dy * std::cos(t);
+            return JPLocation(JPLengthUnit::Millimeters, place.x() - ox, place.y() - oy, place.z(), nozzleAngle + turn);
+        }
     };
     // The head camera over `at` (its X and Y), `pipeline` run on its picture
     // and shown on the camera for `showMs`: its "results" stage's

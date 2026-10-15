@@ -1159,6 +1159,56 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
              "then Calibrate. The offsets (and, with two heights, the lean) change by what was found (Undo takes them "
              "back), and the run is kept below.");
 
+    // The whole chain, as a job places: where the test object lands against where it was put, and its pieces.
+    add.group("Placement Check");
+    add.note("The nozzle picks the test object off the primary fiducial and puts it back unturned " + std::string("a few times (the drift: ")
+             + "the pick and the let-go alone), then at 0, 90, 180 and 270 degrees, twice round, aligns it on the camera "
+             "looking up as a job aligns a part, puts it back with the job's correction, and the head camera finds where "
+             "it landed. Nothing is changed: it says where the error is.");
+    add.button("checkPlacement", "Check Placement", "Run the placement check with this nozzle. CAUTION: the nozzle picks and "
+               "places the test object on the primary fiducial; load the right tip and ready the vacuum.",
+               rig && head()->rigTestObjectDiameter > 0);
+    if (const std::optional<JPPlacementCheck> c = n().placementCheck) {
+        auto shown = [&add](const std::string& name, const std::string& label, const std::string& value) {
+            add.text(name, label, [value] { return value; }, nullptr);
+        };
+        double tx = 0, ty = 0;
+        c->turning(tx, ty);
+        shown("checkWhen", "Checked", JPWhen::withAgo(c->when));
+        shown("checkBias", "Lands Off By", mmPair(c->biasX(), c->biasY(), true) + " (" + mmText(std::hypot(c->biasX(), c->biasY()))
+                                                + " mm) on average");
+        shown("checkDrift", "Drift (Pick, Let-Go)", mmPair(c->driftX(), c->driftY(), true) + " each time");
+        shown("checkVision", "Bottom Vision's Bias", mmPair(c->visionBiasX(), c->visionBiasY(), true));
+        shown("checkOffset", "Offset Error at Place Height", mmPair(c->offsetErrorX(), c->offsetErrorY(), true));
+        shown("checkTurning", "Turning With the Angle", mmText(std::hypot(tx, ty)) + " mm (runout, the rotation's centre)");
+        shown("checkNoise", "Left Over", mmText(c->worstResidual()) + " mm at most");
+        auto plot = std::make_shared<JPPlot>();
+        plot->kind = JPPlot::Kind::Scatter;
+        plot->xTitle = "X mm";
+        plot->yTitle = "Y mm";
+        JPPlot::Series landed{ "landed", JPPlot::Tone::Third, {} }, drift{ "drift", JPPlot::Tone::Muted, {} },
+            mean{ "average", JPPlot::Tone::First, { { c->biasX(), c->biasY() } } };
+        for (const JPPlacementCheck::Place& p : c->places) landed.points.push_back({ p.errorX, p.errorY });
+        for (const JPPlacementCheck::Drift& d : c->drifts) drift.points.push_back({ d.dx, d.dy });
+        plot->series = { landed, drift, mean };
+        add.plot("Where It Landed, Against Where It Was Put", plot);
+        add.note("The bias is the offset error, less bottom vision's bias, plus the drift: each of the three is measured "
+                 "on its own, so the one that is not about 0 is where to look. Drift: the vacuum letting go, a blow-off, the "
+                 "tip dragging. Bottom vision's bias: its lighting or its fit. Offset error: the nozzle's offsets (or lean) at "
+                 "the height parts are put down.");
+        add.header({ "On the Nozzle", "Landed Off By", "Left Over" });
+        for (const JPPlacementCheck::Place& p : c->places) {
+            char label[32];
+            std::snprintf(label, sizeof label, "%g\xC2\xB0", p.angle);
+            add.row(label);
+            add.words(mmPair(p.offsetX, p.offsetY, true));
+            add.words(mmPair(p.errorX, p.errorY, true));
+            add.words(mmText(c->residual(p)) + " mm");
+            add.end();
+        }
+        add.endColumns();
+    }
+
     const std::vector<JPOffsetsRun> runs = n().offsetsRuns;
     if (!runs.empty()) {
         const JPOffsetsRun& r = runs.back();

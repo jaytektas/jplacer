@@ -1307,11 +1307,7 @@ JPJobProcessor::Step JPJobProcessor::place(Planned& p) {
     at = at.add(JPLocation(JPLengthUnit::Millimeters, 0, 0, j.partHeightMm, 0));
     // As bottom vision found it: the part turned from its angle then to the
     // placement's, its offset on the nozzle turned with it, and taken off.
-    if (const auto& a = p.alignment) {
-        const double turn = at.rotation() - a->partAngle, t = turn * M_PI / 180;
-        const double ox = a->dx * std::cos(t) - a->dy * std::sin(t), oy = a->dx * std::sin(t) + a->dy * std::cos(t);
-        at = JPLocation(JPLengthUnit::Millimeters, at.x() - ox, at.y() - oy, at.z(), a->nozzleAngle + turn);
-    }
+    if (const auto& a = p.alignment) at = a->placeFor(at);
     std::string nozzleName = p.nozzleId;
     for (const auto& n : m_machine.nozzles())
         if (n.id == p.nozzleId) nozzleName = n.name;

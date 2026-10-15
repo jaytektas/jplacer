@@ -15,6 +15,9 @@
 #include "pipeline/JPStraightPicture.h"
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
+#include "common/JPWhen.h"
+#include "tasks/JPBottomVision.h"
+#include "tasks/JPJobMachine.h"
 #include "tasks/JPVisionFeature.h"
 #include "ui/JPFootprintOverlay.h"
 
@@ -56,6 +59,13 @@ constexpr int kFeatureShownMs = 4000;
 constexpr int    kExtraVacuumDwellMs = 300;
 constexpr double kTestObjectHeightMm = 0.01;
 constexpr int    kCentrePasses = 3;
+// The placement check: how many times the test object is picked and put back unturned (the drift), the angles it
+// is then placed at (each round), how many rounds, and how far bottom vision may find it off the nozzle (it is picked
+// where the head camera found it, so well within this).
+constexpr int    kDriftCycles = 3;
+constexpr double kCheckAngles[] = { 0, 90, 180, 270 };
+constexpr int    kCheckRounds = 2;
+constexpr double kCheckMaxOffsetMm = 2;
 // How long each of auto focus's pictures is shown (OpenPnP's 1 s).
 constexpr int kAutoFocusShownMs = 1000;
 // How long Auto-Tune when homing may take, all told (the camera's automatic moment, 6 s at most, then the search).
@@ -488,6 +498,43 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
     start();
 }
 
+bool JPlacerCameraTasks::findRound(JPCameraPanel* panel, const JPCameraCalibration& cal, double diameterMm, double cameraX,
+                                   double cameraY, double& x, double& y, const std::string& shown, std::string& words) {
+    // VisionSolutions' circular symmetry at the object's diameter (shrunk and grown by the fiducial margin), near
+    // where it should be; the picture straightened as the camera is calibrated, its picture shown as OpenPnP's
+    // diagnostics, and the find put on the machine by the camera's calibration (which knows how it is turned and
+    // mirrored).
+    cv::Mat bgr;
+    if (!settledColour(panel->feed(), bgr, words)) return false;
+    JPCameraCalibration on = cal;
+    if (const auto straight = JPStraightPicture::of(cal, panel->camera().looksUp, panel->camera().showAll)) {
+        cv::Mat flat;
+        if (straight->straighten(bgr, flat)) {
+            bgr = flat;
+            on = straight->calibration();
+        }
+    }
+    double ex = bgr.cols / 2.0, ey = bgr.rows / 2.0;
+    on.pixelFor(x, y, cameraX, cameraY, ex, ey);
+    const int px = int(std::lround(diameterMm * on.scale()));
+    double score = 0;
+    const auto seen = JPVisionFeature::detectAt(bgr, ex, ey, px, 0, false, true, score);
+    char text[96];
+    std::snprintf(text, sizeof text, "%s - Score %.2f", shown.c_str(), score);
+    JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(bgr), text = std::string(text)] {
+        if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
+    });
+    if (!seen) {
+        words = "the test object was not found (Subject not found.)";
+        return false;
+    }
+    if (!on.machinePoint(seen->x, seen->y, cameraX, cameraY, x, y)) {
+        words = "the test object was found, but the camera's calibration cannot place it on the machine";
+        return false;
+    }
+    return true;
+}
+
 void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
                                                 std::function<void(bool, NozzleOffsetsFound)> done) {
     if (const std::string why = notReady(&camera, true, false); !why.empty()) {
@@ -535,38 +582,7 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             const JPCameraCalibration atZ = cal.twoHeights() ? cal.atHeight(z) : cal;
             for (int pass = 0; pass < kCentrePasses; ++pass) {
                 if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
-                cv::Mat bgr;
-                if (!settledColour(*feed, bgr, words)) return false;
-                JPCameraCalibration on = atZ;
-                if (const auto straight = JPStraightPicture::of(atZ, feed->config().looksUp, feed->config().showAll)) {
-                    cv::Mat flat;
-                    if (straight->straighten(bgr, flat)) {
-                        bgr = flat;
-                        on = straight->calibration();
-                    }
-                }
-                double ex = bgr.cols / 2.0, ey = bgr.rows / 2.0;
-                on.pixelFor(x, y, x, y, ex, ey);
-                const int px = int(std::lround(rig.rigTestObjectDiameter * on.scale()));
-                double score = 0;
-                const auto seen = JPVisionFeature::detectAt(bgr, ex, ey, px, 0, false, true, score);
-                char text[96];
-                std::snprintf(text, sizeof text, "%s - Score %.2f", shown.c_str(), score);
-                JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(bgr),
-                                                        text = std::string(text)] {
-                    if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
-                });
-                if (!seen) {
-                    words = "the test object was not found (Subject not found.)";
-                    return false;
-                }
-                double fx = 0, fy = 0;
-                if (!on.machinePoint(seen->x, seen->y, x, y, fx, fy)) {
-                    words = "the test object was found, but the camera's calibration cannot place it on the machine";
-                    return false;
-                }
-                x = fx;
-                y = fy;
+                if (!findRound(panel, atZ, rig.rigTestObjectDiameter, x, y, x, y, shown, words)) return false;
             }
             return true;
         };
@@ -643,6 +659,152 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         return true;
     }, [found, done](bool ok) {
         if (done) done(ok, *found);
+    });
+}
+
+void JPlacerCameraTasks::checkPlacement(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
+                                        std::function<void(bool, JPPlacementCheck)> done) {
+    JPCameraPanel* up = nullptr;
+    for (JPCameraPanel* p : m_cameras)
+        if (!up && p->camera().mount.headId.empty() && p->camera().looksUp) up = p;
+    const JPHeadConfig* h = head(camera.camera());
+    std::string why = notReady(&camera, true, false);
+    if (why.empty() && !up) why = "there is no fixed camera looking up";
+    if (why.empty() && (!h || !h->rigPrimary || h->rigTestObjectDiameter <= 0))
+        why = "the head's calibration rig needs its primary fiducial and the test object's diameter";
+    if (!why.empty()) {
+        m_window.showStatus("Placement check: " + why, kResultMs);
+        if (done) done(false, {});
+        return;
+    }
+    const JPHeadConfig rig = *h;
+    const JPNozzleConfig n = nozzle;
+    JPCameraPanel* top = &camera;
+    auto check = std::make_shared<JPPlacementCheck>();
+    run(camera, "Checking " + nozzle.name + "'s placement", [this, top, up, rig, n, check](std::string& words, const auto& progress) {
+        const JPMountConfig& cm = top->camera().mount;
+        JPCameraCalibration topCal, upCal;
+        if (!JPCameraLook::calibration(m_cell, top->feed(), topCal, words) || !JPCameraLook::calibration(m_cell, up->feed(), upCal, words))
+            return false;
+        // The test object on the primary fiducial: picked and put down at its top; seen from below with its bottom at the
+        // camera's focus, as a job holds a part (the nozzle its thickness above the camera's Z).
+        const JPMachineLocation target = *rig.testObjectOn(false);
+        const double diameter = rig.rigTestObjectDiameter;
+        const JPCameraCalibration topAt = topCal.twoHeights() ? topCal.atHeight(target.z) : topCal;
+        const JPMountConfig& um = up->camera().mount;
+        const double camX = um.offsetX, camY = um.offsetY, lookZ = um.offsetZ + rig.rigTestObjectThickness;
+        check->z = target.z;
+        // Each camera's light on for its own looks, the other's off against glare (as a task lights its camera).
+        auto light = [&](JPCameraPanel* on) {
+            for (JPCameraPanel* p : { top, up }) {
+                const std::string l = p->camera().lightActuator();
+                if (l.empty()) continue;
+                if (p == on && p->camera().light.beforeCapture) m_cell.switchActuatorAndWait(l, true, words);
+                else if (p != on && p->camera().light.antiGlare) m_cell.switchActuatorAndWait(l, false, words);
+            }
+        };
+        // The head camera over (x, y) and the object found there, three times over (as the precise calibration).
+        auto centreOn = [&](double& x, double& y, const std::string& shown) {
+            light(top);
+            for (int pass = 0; pass < kCentrePasses; ++pass) {
+                if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
+                if (!findRound(top, topAt, diameter, x, y, x, y, shown, words)) return false;
+            }
+            return true;
+        };
+        bool holding = false;
+        auto pick = [&](double x, double y) {
+            if (!m_cell.pickAtAndWait(n.id, { x, y, target.z, 0.0 }, kTaskSpeed, words)) return false;
+            holding = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
+            return true;
+        };
+        auto put = [&](const JPLocation& at) {
+            if (!m_cell.placeAtAndWait(n.id, { at.x(), at.y(), target.z + kTestObjectHeightMm, at.rotation() }, kTaskSpeed, words))
+                return false;
+            holding = false;
+            std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
+            return true;
+        };
+        double x = target.x, y = target.y;
+        progress("finding the test object on the primary fiducial");
+        bool ok = centreOn(x, y, "Placement Check");
+        // The drift: picked and put back where it was, unturned, no bottom vision; how far it moved each time.
+        for (int i = 0; ok && i < kDriftCycles; ++i) {
+            progress("pick and put back unturned, " + std::to_string(i + 1) + " of " + std::to_string(kDriftCycles));
+            const double fromX = x, fromY = y;
+            ok = pick(x, y) && put(JPLocation(JPLengthUnit::Millimeters, x, y, 0, 0)) && centreOn(x, y, "Placement Check drift");
+            if (ok) {
+                check->drifts.push_back({ x - fromX, y - fromY });
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  " << n.name << " drift " << i + 1 << ": " << x - fromX << ", " << y - fromY << " mm";
+            }
+        }
+        // The camera offset for this nozzle (its tip's runout calibration), as bottom vision takes it.
+        double cameraDx = 0, cameraDy = 0;
+        m_cell.cameraOffsetFor(n.id, cameraDx, cameraDy);
+        int at = 0;
+        const int places = kCheckRounds * int(std::size(kCheckAngles));
+        for (int round = 0; ok && round < kCheckRounds; ++round)
+            for (const double angle : kCheckAngles) {
+                if (!ok) break;
+                progress("placing at " + std::to_string(int(angle)) + " deg, " + std::to_string(++at) + " of " + std::to_string(places));
+                ok = pick(x, y);
+                if (!ok) break;
+                // Aligned as a job aligns a part (JPBottomVision::findOffsets, pre-rotated to the angle): each look the
+                // nozzle over the camera less its tip's camera offset, the object found round, where it should be.
+                light(up);
+                JPBottomVision::Settings settings;
+                settings.partName = "test object";
+                settings.preRotate = true;
+                settings.wantedAngle = angle;
+                settings.maxLinearOffsetMm = kCheckMaxOffsetMm;
+                const JPBottomVision::Look look = [&](const JPLocation& nozzleAt, double expected, int, JPBottomVision::Seen& seen,
+                                                      std::string& w) {
+                    if (!m_cell.moveToolAndWait(n.mount, { nozzleAt.x() - cameraDx, nozzleAt.y() - cameraDy, lookZ, nozzleAt.rotation() },
+                                                kTaskSpeed, w))
+                        return false;
+                    double sx = nozzleAt.x(), sy = nozzleAt.y();
+                    if (!findRound(up, upCal, diameter, camX, camY, sx, sy, "Placement Check (bottom)", w)) return false;
+                    seen.x = sx;
+                    seen.y = sy;
+                    seen.angle = expected;   // round: no angle of its own
+                    return true;
+                };
+                JPBottomVision::Offset offset;
+                ok = JPBottomVision::findOffsets(settings, camX, camY, look, offset, words);
+                if (!ok) break;
+                JPJobMachine::AlignResult a;
+                a.dx = offset.location.x();
+                a.dy = offset.location.y();
+                a.partAngle = angle;
+                a.nozzleAngle = angle - offset.location.rotation();
+                // Put back on the fiducial with the job's correction, and found there.
+                ok = put(a.placeFor(JPLocation(JPLengthUnit::Millimeters, target.x, target.y, 0, angle)));
+                x = target.x;
+                y = target.y;
+                ok = ok && centreOn(x, y, "Placement Check " + std::to_string(int(angle)) + "\xC2\xB0");
+                if (ok) {
+                    check->places.push_back({ angle, a.dx, a.dy, x - target.x, y - target.y });
+                    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  " << n.name << " at " << angle << " deg: on the nozzle " << a.dx << ", " << a.dy
+                                                                << " mm; landed " << x - target.x << ", " << y - target.y << " mm off";
+                }
+            }
+        if (holding) m_cell.place(n.id);
+        std::string upWords;
+        m_cell.moveToolAndWait(n.mount, { std::nullopt, std::nullopt, std::nullopt, 0.0 }, kTaskSpeed, upWords);
+        if (!ok) return false;
+        check->when = JPWhen::now();
+        double tx = 0, ty = 0;
+        check->turning(tx, ty);
+        char buf[400];
+        std::snprintf(buf, sizeof buf, "%s lands %+.4f, %+.4f mm off on average (turning %.4f mm; drift %+.4f, %+.4f; bottom vision "
+                      "bias %+.4f, %+.4f; offset error %+.4f, %+.4f)", n.name.c_str(), check->biasX(), check->biasY(), std::hypot(tx, ty),
+                      check->driftX(), check->driftY(), check->visionBiasX(), check->visionBiasY(), check->offsetErrorX(),
+                      check->offsetErrorY());
+        words = buf;
+        return true;
+    }, [check, done](bool ok) {
+        if (done) done(ok, *check);
     });
 }
 

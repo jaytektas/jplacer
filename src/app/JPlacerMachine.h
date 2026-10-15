@@ -410,6 +410,9 @@ private:
     // sees, its diameter kept), capture its thickness (the nozzle touching it on the primary fiducial), or
     // calibrate (calibratePreciseNozzleOffsets).
     void nozzleTestObject(const std::string& nozzleId, const std::string& action);
+    // The nozzle Calibration tab's Check Placement (JPlacerCameraTasks::checkPlacement): what it finds kept on the
+    // nozzle and said in a dialog.
+    void checkPlacement(const std::string& nozzleId);
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;

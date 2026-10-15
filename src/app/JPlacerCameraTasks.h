@@ -90,6 +90,11 @@ public:
     };
     void calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
                                 std::function<void(bool ok, NozzleOffsetsFound)> done);
+    // The nozzle's placement check (JPPlacementCheck): the round test object on the primary fiducial picked and put
+    // back unturned (the drift), then at angles round the circle aligned on the camera looking up as a job aligns a
+    // part (JPBottomVision::findOffsets, the tip's camera offset), put back with the job's correction
+    // (JPJobMachine::AlignResult::placeFor) and found with `camera`. `done` (main thread): what it found; not ok: it failed.
+    void checkPlacement(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(bool ok, JPPlacementCheck)> done);
     // OpenPnP's VisionFeatureIssue, on `camera`'s settled picture where it looks now (JPVisionFeature): the feature
     // of about `px` found and shown on its view (the circle and its cross-hairs, "Diameter N px - Score S", as the
     // issue's Test Object Diameter shows it); and Auto-Detect Next from `fromPx` (`done`, main thread: the diameter,
@@ -167,6 +172,11 @@ public:
     std::optional<JJson> tuneFor(JPCameraFeed& feed, std::string& why);
 
 private:
+    // The round test object (`diameterMm` across) found in `panel`'s settled picture near where (x, y) shows (the
+    // camera at cameraX, cameraY, `cal` its calibration at the object's height): where it is on the machine, into
+    // (x, y); the picture shown on the camera, captioned `shown`. Not found: false, `words` saying so.
+    bool findRound(JPCameraPanel* panel, const JPCameraCalibration& cal, double diameterMm, double cameraX, double cameraY,
+                   double& x, double& y, const std::string& shown, std::string& words);
     // Runs `task` on the worker with `camera` shown and running; its answer
     // (ok, words) comes back on the main thread to `done`. `progress` from the
     // task is shown as it goes.

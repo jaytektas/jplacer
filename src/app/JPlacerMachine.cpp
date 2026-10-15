@@ -1806,6 +1806,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
     } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
         nozzleMarkOffsets(path.substr(7), action == "storeNozzleMark");
+    } else if (action == "checkPlacement" && path.rfind("nozzle:", 0) == 0) {
+        checkPlacement(path.substr(7));
     } else if ((action == "detectTestObject" || action == "captureTestObjectThickness" || action == "calibratePreciseOffsets")
                && path.rfind("nozzle:", 0) == 0) {
         nozzleTestObject(path.substr(7), action);
@@ -2179,6 +2181,41 @@ void JPlacerMachine::nozzleMarkOffsets(const std::string& nozzleId, bool storeMa
     m_window.showStatus("Nozzle Calibration: " + nozzle->name + "'s offset moved by X " + JPUiParts::coordinate(dx) + ", Y "
                         + JPUiParts::coordinate(dy), kErrorMs);
     m_nozzleMark.reset();
+}
+
+void JPlacerMachine::checkPlacement(const std::string& nozzleId) {
+    JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
+    const JPNozzleConfig* nozzle = nullptr;
+    if (m_cell)
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.id == nozzleId) nozzle = &n;
+    if (!camera || !nozzle) {
+        m_window.showStatus("Placement check: a camera on the head and the nozzle are needed", kErrorMs);
+        return;
+    }
+    const std::string name = nozzle->name;
+    m_cameraTasks->checkPlacement(*camera, *nozzle, [this, nozzleId, name](bool ok, JPPlacementCheck check) {
+        if (!ok || !m_setup) return;
+        // A measurement, kept with the nozzle (not a change of its settings, nothing to undo).
+        m_setup->measured([&](JPCellConfig& cell) {
+            for (JPNozzleConfig& k : cell.nozzles)
+                if (k.id == nozzleId) k.placementCheck = check;
+        });
+        m_setup->remakeForm();
+        double tx = 0, ty = 0;
+        check.turning(tx, ty);
+        char text[900];
+        std::snprintf(text, sizeof text,
+                      "Nozzle %s placed the test object %zu times, landing on average %+.4f, %+.4f mm from where it was put "
+                      "(%.4f mm).\n\nOf that:\n  drift at the pick and let-go: %+.4f, %+.4f mm\n  bottom vision's bias: "
+                      "%+.4f, %+.4f mm (taken off, so it shows the other way)\n  the nozzle's offset error at the place height: "
+                      "%+.4f, %+.4f mm\n\nTurning with the angle (runout, the rotation's centre): %.4f mm.\nLeft over "
+                      "(noise): at most %.4f mm.\n\nThe nozzle's Calibration tab shows each placement.",
+                      name.c_str(), check.places.size(), check.biasX(), check.biasY(), std::hypot(check.biasX(), check.biasY()),
+                      check.driftX(), check.driftY(), check.visionBiasX(), check.visionBiasY(), check.offsetErrorX(),
+                      check.offsetErrorY(), std::hypot(tx, ty), check.worstResidual());
+        JDialog::message("Placement check", text);
+    });
 }
 
 void JPlacerMachine::nozzleTestObject(const std::string& nozzleId, const std::string& action) {

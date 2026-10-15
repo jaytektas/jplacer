@@ -6,6 +6,7 @@
 #include "JPMachineLocation.h"
 #include "JPMountConfig.h"
 #include "JPOffsetsRun.h"
+#include "JPPlacementCheck.h"
 
 #include <string>
 #include <vector>
@@ -40,6 +41,8 @@ struct JPNozzleConfig {
     std::string              offsetsWhen, offsetsHow;
     // Its last calibrations of them, the newest last (JPOffsetsRun::kKept at most).
     std::vector<JPOffsetsRun> offsetsRuns;
+    // Its last placement check (the whole chain: JPPlacementCheck); none yet.
+    std::optional<JPPlacementCheck> placementCheck;
     // OpenPnP's Tool Changer: tips changed by their load and unload steps
     // (else asked to be changed by hand, as for a tip without steps); and a
     // pick from the Feeders tab changing to a tip that fits the part.
@@ -122,6 +125,7 @@ struct JPNozzleConfig {
         n.offsetsWhen           = j["offsetsCalibrated"]["when"].str();
         n.offsetsHow            = j["offsetsCalibrated"]["how"].str();
         for (const JJson& r : j["offsetsCalibrated"]["runs"].arr()) n.offsetsRuns.push_back(JPOffsetsRun::fromJson(r));
+        if (j["placementCheck"].isObject()) n.placementCheck = JPPlacementCheck::fromJson(j["placementCheck"]);
         n.changerEnabled        = j["changerEnabled"].boolean(true);
         n.tipChangeOnManualPick = j["tipChangeOnManualPick"].boolean();
         n.manualChangeLocation  = JPMachineLocation::fromJson(j["manualChangeLocation"]);
@@ -168,6 +172,7 @@ struct JPNozzleConfig {
             j["offsetsCalibrated"]["when"] = offsetsWhen;
             j["offsetsCalibrated"]["how"] = offsetsHow;
         }
+        if (placementCheck) j["placementCheck"] = placementCheck->toJson();
         if (!offsetsRuns.empty()) {
             j["offsetsCalibrated"]["runs"] = JJson::array();
             for (const JPOffsetsRun& r : offsetsRuns) j["offsetsCalibrated"]["runs"].push(r.toJson());
