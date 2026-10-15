@@ -10,6 +10,14 @@ notes.
 
 ## Unreleased
 
+## Unreleased
+
+- jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
+  Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
+  cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
+  (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
+  cameras work as on Linux.
+
 ## 0.1.73
 
 - What fails with nothing waiting on it is said in a dialog, with why: a nozzle tip's Calibrate now, the Jog
