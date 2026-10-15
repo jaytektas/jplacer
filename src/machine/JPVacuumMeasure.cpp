@@ -105,10 +105,10 @@ std::optional<JPVacuumMeasure::Range> JPVacuumMeasure::around(const Stats& s, co
         return Range { s.mean - h, s.mean + h, false };
     }
     if (separation(s, *other) < kSigmas) return std::nullopt;
-    // Where the two are as many of their own deviations away from each; away from the other, as far again as the
-    // level itself (to 0, or twice it), at least the boundary's distance: further that way is no risk.
-    const double a = s.sigma(), b = other->sigma();
-    const double boundary = (s.mean * b + other->mean * a) / (a + b);
+    // Halfway between the two: a few seconds' deviations say whether they can be told apart, not where the line goes,
+    // for a level moves by far more over a pump's cycle (a reservoir switched between -75 and -95 kPa). Away from the
+    // other, as far again as the level itself (to 0, or twice it), at least the boundary's distance: no risk that way.
+    const double boundary = (s.mean + other->mean) / 2;
     const double away = s.mean > boundary ? 1 : -1;
     const double far = s.mean + away * std::max(std::abs(s.mean - boundary), std::abs(s.mean));
     return Range { std::min(boundary, far), std::max(boundary, far), true };

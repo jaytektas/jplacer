@@ -24,8 +24,9 @@ inline namespace jf {
 //
 // A range is told apart from the other state's level: a part held from none
 // (part on), a nozzle blocked (as by a part held) from an open one (part off).
-// Its edge towards the other is their boundary, where the two are as many of
-// their own deviations away from each; its far edge as far again as the level
+// Its edge towards the other is halfway between the two (their deviations
+// over a few seconds say nothing of how far a level moves over the pump's
+// cycle, which is far more); its far edge as far again as the level
 // itself (to 0, or twice it), so a level drifting (the pump's does, by
 // thousands over minutes) stays in it as long as it stays on its side. Two fewer than kSigmas
 // deviations apart in all are too close to tell apart: no range. Without the

@@ -3,7 +3,7 @@
 
 // A tip's part detection ranges from measured readings (JPVacuumMeasure), with readings like a bench machine's,
 // whose sensor reads the pump's side of the valve (bigger: more vacuum). A range is told from the other state's
-// level: its edge at their boundary (as many of each one's deviations away), its far edge as far again as the level
+// level: its edge halfway between the two, its far edge as far again as the level
 // itself (to 0, or twice it), so the pump's drift stays in it; two too close to tell apart set none. Part off: a level that comes back
 // most of the way as the valve closes means the Valve close wait goes (0) and the check reads the level as the
 // valve closes; a held part's level (part on, with a part) is a blocked nozzle's. Without the other state,
@@ -44,12 +44,16 @@ int main() {
     // All the same whole number: resolution 1, so half a unit of deviation (never a range of nothing).
     const M::Stats same = M::Stats::of({ -31000, -31000, -31000 });
     assert(same.sd == 0 && same.resolution == 1 && near(same.sigma(), 0.5) && near(same.halfWidth(), 3));
-    // Told from another level: the edge at the boundary (as many deviations from each), the far edge as far again as
+    // Told from another level: the edge halfway between them (whatever their deviations), the far edge as far again as
     // the level; the other way round, down to 0.
     const M::Stats held = M::Stats::of(about(72000, 300)), open = M::Stats::of(about(61000, 300));
     const auto toldOn = M::around(held, open), toldOff = M::around(open, held);
     assert(toldOn && toldOn->bounded && near(toldOn->low, 66500, 1) && near(toldOn->high, 144000, 1));
     assert(toldOff && near(toldOff->low, 0, 1) && near(toldOff->high, 66500, 1));
+    // Halfway, however unlike their deviations: a steady level beside a noisy one does not pull the line to itself
+    // (a pump's cycle moves the steady one further than a few seconds show).
+    const auto steady = M::around(M::Stats::of(about(88000, 20)), M::Stats::of(about(30000, 3000)));
+    assert(steady && near(steady->low, 59000, 1));
     // Too close: none.
     assert(!M::around(held, M::Stats::of(about(71000, 300))));
 
