@@ -464,8 +464,11 @@ void JPlacerJobRun::run() {
             const auto signalled = std::chrono::steady_clock::now();
             const JPJobProcessor::Result r = m_processor->next(f);
             using Ms = std::chrono::duration<double, std::milli>;
-            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "step: signalled in " << Ms(signalled - begun).count() << " ms, done in "
-                                                      << Ms(std::chrono::steady_clock::now() - signalled).count() << " ms";
+            const JPJobProcessor::StepTiming& t = m_processor->lastStep();
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << "step " << t.step << ": signalled in " << Ms(signalled - begun).count()
+                                                      << " ms, done in " << Ms(std::chrono::steady_clock::now() - signalled).count()
+                                                      << " ms, " << t.onMainMs << " ms of it on the screen's thread (" << t.onMainCalls
+                                                      << " visits)";
             if (r == JPJobProcessor::Result::Finished) {
                 signal(JobState::Finished);
                 post([this] {

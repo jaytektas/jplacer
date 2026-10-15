@@ -129,6 +129,14 @@ public:
     // when done; Failed with `failure` (the job paused there: next() goes on
     // from the same step).
     Result next(Failure& failure);
+    // The last step next() ran, by name, and how long of it went on waiting for the screen's thread (its work
+    // there, and the wait to get there), over how many visits: what the run's log says of each step.
+    struct StepTiming {
+        const char* step = "";
+        double      onMainMs = 0;
+        int         onMainCalls = 0;
+    };
+    const StepTiming& lastStep() const { return m_lastStep; }
     // Stopped: the nozzles emptied, the head parked.
     void abort();
     // Load as you go: a part not loaded set aside, its placements left in error ("Skipped: not loaded").
@@ -225,6 +233,8 @@ private:
     Settings                           m_settings;
     Hooks                              m_hooks;
     Step                               m_step = Step::PreFlight;
+    StepTiming                         m_lastStep;
+    static const char* stepName(Step s);
     std::vector<JobPlacement>          m_jobPlacements;
     std::vector<Planned>               m_planned;
     std::set<size_t>                   m_completed;   // of m_planned, in the step under way

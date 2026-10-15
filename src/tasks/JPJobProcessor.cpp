@@ -97,8 +97,11 @@ void JPJobProcessor::main(const std::function<void()>& fn) {
             failed = std::current_exception();
         }
     };
+    const auto begun = std::chrono::steady_clock::now();
     if (m_hooks.onMain) m_hooks.onMain(guarded);
     else guarded();
+    m_lastStep.onMainMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begun).count();
+    ++m_lastStep.onMainCalls;
     if (failed) std::rethrow_exception(failed);
 }
 
@@ -107,8 +110,32 @@ void JPJobProcessor::status(const std::string& s) {
     if (m_hooks.status) m_hooks.status(s);
 }
 
+const char* JPJobProcessor::stepName(Step s) {
+    switch (s) {
+        case Step::PreFlight:           return "PreFlight";
+        case Step::FiducialCheck:       return "FiducialCheck";
+        case Step::Photograph:          return "Photograph";
+        case Step::Plan:                return "Plan";
+        case Step::ChangeNozzleTips:    return "ChangeNozzleTips";
+        case Step::CalibrateNozzleTips: return "CalibrateNozzleTips";
+        case Step::OptimizeForPick:     return "OptimizeForPick";
+        case Step::PrerotateForPick:    return "PrerotateForPick";
+        case Step::Pick:                return "Pick";
+        case Step::OptimizeForAlign:    return "OptimizeForAlign";
+        case Step::PrerotateForAlign:   return "PrerotateForAlign";
+        case Step::Align:               return "Align";
+        case Step::OptimizeForPlace:    return "OptimizeForPlace";
+        case Step::PrerotateForPlace:   return "PrerotateForPlace";
+        case Step::Place:               return "Place";
+        case Step::FinishCycle:         return "FinishCycle";
+        case Step::Finish:              return "Finish";
+    }
+    return "";
+}
+
 JPJobProcessor::Result JPJobProcessor::next(Failure& failure) {
     if (m_finished) return Result::Finished;
+    m_lastStep = { stepName(m_step), 0, 0 };
     try {
         if (m_step != Step::PreFlight) dropDeleted();
         m_step = run(m_step);
