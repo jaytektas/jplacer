@@ -292,9 +292,9 @@ public:
 
     // Whether `value` of the axis is within its safe zone (OpenPnP's isInSafeZZone; no safe zone: anywhere).
     bool inSafeZone(const std::string& axisId, double value) const;
-    // Whether it is below its safe zone (no safe zone low: never).
+    // Whether it is below its safe zone by more than a step of the axis (no safe zone low: never).
     bool belowSafeZone(const std::string& axisId, double value) const;
-    // Whether a Z of a tool on `headId` is below its safe zone now.
+    // Whether a Z of a tool on `headId` is below its safe zone now: where it was sent (jogBase), as OpenPnP decides.
     bool headBelowSafeZ(const std::string& headId) const;
     // Asked before each jog, on the jogging thread, with the tool jogged and
     // where every axis would then be: false refuses it (the owner says why).

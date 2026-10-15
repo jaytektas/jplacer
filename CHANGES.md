@@ -10,10 +10,10 @@ notes.
 
 ## Unreleased
 
-- Backlash Off Below Safe Z no longer turns backlash compensation off with the head at safe Z. A Z axis stops on
-  its nearest step, a few thousandths below safe Z, which counted as below it, so with the option ticked the
-  compensation was off for nearly every move, picks and places included, and a nozzle landed differently
-  depending on the side it came from.
+- Backlash Off Below Safe Z no longer turns backlash compensation off with the head at safe Z: safe Z is judged
+  by where the Z was sent, as OpenPnP does. A Z axis stops on its nearest step, a few thousandths below safe Z,
+  which counted as below it, so with the option ticked the compensation was off for nearly every move, picks
+  and places included, and a nozzle landed differently depending on the side it came from.
 - Part detection's Ratio method, for a vacuum sensor on the pump's side of the valve: each level taken as a
   share of the pump's just before, so a pump cycling on and off does not count. Measure sets it where the
   sensor reads the pump.

@@ -2712,14 +2712,16 @@ bool JPCell::belowSafeZone(const std::string& axisId, double value) const {
         if (!a || !raw) return false;
         value = *raw;
     }
-    // Within a step of it is at it: the axis stops on its nearest step (Z on bench steps 0.015 mm, and a move to safe
+    // Within a step of it is at it: an axis stops on its nearest step (Z on bench steps 0.015 mm, and a move to safe
     // Z 0 stopped at -0.006, read as below it: Backlash Off Below Safe Z then left the compensation off for every move).
     return a->safeZoneLowEnabled && value < a->safeZoneLow - std::max(kInterlockTolerance, a->resolution);
 }
 
 bool JPCell::headBelowSafeZ(const std::string& headId) const {
     if (headId.empty()) return false;
-    const auto now = positions();
+    // Where each Z was sent, not where its motor stopped (OpenPnP decides by the commanded place: a Z sent to safe Z
+    // is at safe Z, though it reads a step's fraction off it).
+    const auto now = jogBase();
     // Every tool on the head: the X and Y moved carry them all (a camera jogged while a nozzle is in a slot).
     auto low = [&](const JPMountConfig& m) {
         if (m.headId != headId || m.axisZ.empty()) return false;
