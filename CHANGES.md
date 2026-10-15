@@ -14,7 +14,9 @@ notes.
   problem anywhere (an axis's controller set to none, say) held every later change back without a word but a
   line under the settings: a test object thickness and a backlash offset typed in were neither used nor saved
   for half an hour. A problem is now said in a dialog, listed, and refused where it is used: Home says in a
-  dialog that an axis has no controller, and a cell file with one loads (it would not open before).
+  dialog that an axis has no controller, and a cell file with one loads (it would not open before). Changes
+  made while a calibration runs wait until it ends (a change mid-way through a backlash calibration had thrown
+  it off: "axis x would go to 8515…").
 - Backlash Calibrate measures and chooses as OpenPnP's calibration does: speed control and a step test first,
   the backlash wound from 90 mm and coming in from distances, the offset found at each speed by compensated
   moves, and OpenPnP's rules for the method. A one-sided offset is the backlash measured after a long move, not

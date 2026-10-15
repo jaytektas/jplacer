@@ -81,17 +81,22 @@ struct CompensationOff {
 JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFeed& feed, const std::string& axisId,
                                                        const Options& o, const Progress& progress) {
     Result r;
-    const JPMountConfig& mount = feed.config().mount;
+    const JPMountConfig mount = feed.config().mount;   // kept, as the axis's settings below
     const bool alongX = mount.axisX == axisId;
     if (!alongX && mount.axisY != axisId) {
         r.why = feed.config().name + " does not ride on this axis: calibrate an X or Y axis the head camera moves on";
         return r;
     }
-    const JPAxisConfig* axis = cell.config().axis(axisId);
-    if (!axis) {
+    // Its settings as they are now, kept: Machine Setup's changes go in use as they are made, the setup replaced
+    // whole, and a pointer into it read freed memory after one made mid-calibration (on bench, "axis x would go to
+    // 85152595665986238430830484333432990676485768243").
+    const JPAxisConfig* found = cell.config().axis(axisId);
+    if (!found) {
         r.why = "no such axis";
         return r;
     }
+    const JPAxisConfig kept = *found;
+    const JPAxisConfig* axis = &kept;
     if (!cell.isHomed()) {
         r.why = "home the machine first";
         return r;

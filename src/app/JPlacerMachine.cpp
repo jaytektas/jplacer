@@ -1138,7 +1138,9 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
     // end, told on the screen's thread once the machine has stopped, was lost with them, and what waited on it never
     // went on (a field edited while homing, taken as the machine stopped from a tip's runout measurement: the homing
     // never finished, its button busy for good). Taken (the panel tries again) once the task has ended.
-    if (keep != Keep::SetupAndCameras && m_cameraTasks && m_cameraTasks->busy()) {
+    // Nor any change while a camera task (a calibration) drives the machine: it sets the axes it measures as it goes,
+    // and the change would put them back under it (a backlash calibration's speed passes). Taken once it has ended.
+    if (m_cameraTasks && m_cameraTasks->busy()) {
         m_window.showStatus("Machine Setup's changes are taken once the camera task under way ends", kStatusMs);
         return false;
     }
