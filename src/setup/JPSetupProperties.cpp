@@ -1520,6 +1520,16 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     add.tip("Default placement blow-off level, if none is given on the Package.");
     add.note("The dwell times are added to the nozzle's own. The blow-off at place: the part's package's level, else this; "
              "0, no blow-off.");
+    add.length("approachHeight", "Approach Height", [t] { return t().approachHeightMm; },
+               [t](double v) { if (v >= 0) t().approachHeightMm = v; });
+    add.tip("A pick or place comes the last of the way down slowly, from this far above it, and goes the same distance "
+            "up again slowly after it. 0: straight down and up at the Z axis's speed.");
+    add.integer("approachSpeed", "Approach Speed (%)", [t]() -> int& { return t().approachSpeedPercent; }, 1, 100);
+    add.tip("The share of the Z axis's speed the last of the way down goes at.");
+    add.integer("liftSpeed", "Lift Speed (%)", [t]() -> int& { return t().liftSpeedPercent; }, 1, 100);
+    add.tip("The share of the Z axis's speed the first of the way up goes at, after the part is picked or let go.");
+    add.note("Approach: the tip meets the part slowly, so a height a touch off presses it gently instead of driving the tip "
+             "into its spring and skidding the part; the lift does not snatch a part the vacuum still holds a moment.");
     add.group("Push and Drag Usage");
     add.flag("pushAndDragAllowed", "Push & Drag allowed?", [t]() -> bool& { return t().pushAndDragAllowed; });
     add.tip("Determines if the NozzleTip is allowed to be used for pushing and dragging.\nShould only be enabled for NozzleTips "

@@ -195,6 +195,9 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     t.pickDwellMs  = int(j["pickDwellMs"].number());
     t.placeBlowOffLevel = j["placeBlowOffLevel"].number(0.0);
     t.placeDwellMs = int(j["placeDwellMs"].number());
+    t.approachHeightMm     = j["approach"]["height"].number(0.0);
+    t.approachSpeedPercent = int(j["approach"]["speed"].number(20.0));
+    t.liftSpeedPercent     = int(j["approach"]["liftSpeed"].number(20.0));
     for (const auto& [key, sensing] : { std::pair{ "partOn", &t.partOn }, std::pair{ "partOff", &t.partOff } }) {
         const JJson& d = j[key];
         if (!d.isObject()) continue;
@@ -279,6 +282,11 @@ JJson JPNozzleTipConfig::toJson() const {
     if (pickDwellMs) j["pickDwellMs"] = pickDwellMs;
     if (placeBlowOffLevel != 0) j["placeBlowOffLevel"] = placeBlowOffLevel;
     if (placeDwellMs) j["placeDwellMs"] = placeDwellMs;
+    if (approachHeightMm > 0 || approachSpeedPercent != 20 || liftSpeedPercent != 20) {
+        j["approach"]["height"] = approachHeightMm;
+        j["approach"]["speed"] = approachSpeedPercent;
+        j["approach"]["liftSpeed"] = liftSpeedPercent;
+    }
     for (const auto& [key, sensing] : { std::pair{ "partOn", &partOn }, std::pair{ "partOff", &partOff } }) {
         j[key]["method"]   = sensing->method;
         j[key]["establish"] = sensing->establish;

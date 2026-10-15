@@ -969,9 +969,20 @@ bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<do
         if (to[1] && !m.axisY.empty()) across[m.axisY] = *to[1] - oy;
         if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3] - rotationModeOffset(n.id);
         compensateRunout(m, across, false);
+        // Its tip's approach: the last of the way down slowly, from its height above, and the same up again after.
+        double approach = 0, down = 1, up = 1;
+        for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+            if (t.id == n.tipId && t.approachHeightMm > 0) {
+                approach = t.approachHeightMm;
+                down = std::clamp(t.approachSpeedPercent, 1, 100) / 100.0;
+                up = std::clamp(t.liftSpeedPercent, 1, 100) / 100.0;
+            }
+        const bool z = to[2] && !m.axisZ.empty();
+        auto zTo = [&](double toolZ, double share) { return doMove({ { m.axisZ, toolZ - zOffsetOf(m) } }, speed * share, why); };
         return doSafeZ(m.headId, speed, why) && (across.empty() || doMove(across, speed, why))
-            && (!to[2] || m.axisZ.empty() || doMove({ { m.axisZ, *to[2] - zOffsetOf(m) } }, speed, why))
-            && (pick ? doPick(n, why) : doPlace(n, why)) && doSafeZ(m.headId, speed, why);
+            && (!z || approach <= 0 || zTo(*to[2] + approach, 1)) && (!z || zTo(*to[2], approach > 0 ? down : 1))
+            && (pick ? doPick(n, why) : doPlace(n, why))
+            && (!z || approach <= 0 || zTo(*to[2] + approach, up)) && doSafeZ(m.headId, speed, why);
     }
     why = "no nozzle " + nozzleId;
     return false;

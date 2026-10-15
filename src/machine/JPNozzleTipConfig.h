@@ -93,6 +93,12 @@ struct JPNozzleTipConfig {
     // OpenPnP's Place Blow-Off Level: the blow-off at place, when the part's package gives none (0: no blow-off).
     double                     placeBlowOffLevel = 0;
     int                        placeDwellMs = 0;
+    // The last of the way down to a pick or place, from this far above it (mm; 0: none, straight down), at this share
+    // of the Z axis's speed; and the same distance up again after it at the lift's share. A tip meeting the part a
+    // little early (its height a touch off) then meets it slowly, rather than driving into its spring and skidding
+    // the part; a part held a moment by what is left of the vacuum is not snatched or dragged.
+    double                     approachHeightMm = 0;
+    int                        approachSpeedPercent = 20, liftSpeedPercent = 20;
     // PART DETECTION by the vacuum, as in OpenPnP's. Part on: the vacuum
     // level read is checked by itself ("Absolute": within low..high), or
     // ("Difference") as its change from the level at the end of the pick's
