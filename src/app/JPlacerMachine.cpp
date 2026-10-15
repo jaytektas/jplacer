@@ -1037,6 +1037,8 @@ void JPlacerMachine::watchCell() {
     m_unwatch.push_back(m_cell->onMotion.connect([this, onMain](bool ok, std::string why) {
         onMain([this, ok, why] {
             if (m_cell->isHomed() || ok) m_homeFailed = false;
+            // What waits for this move to end (emptyThen's discard).
+            if (m_afterMotion) std::exchange(m_afterMotion, {})(ok, why);
             // A camera moved to look somewhere: OpenPnP's Camera.AfterPosition once it is there.
             if (!m_positionedCamera.empty()) {
                 const std::string camera = std::exchange(m_positionedCamera, std::string());
@@ -2188,7 +2190,30 @@ void JPlacerMachine::nozzleMarkOffsets(const std::string& nozzleId, bool storeMa
     m_nozzleMark.reset();
 }
 
-void JPlacerMachine::checkPlacement(const std::string& nozzleId) {
+void JPlacerMachine::checkPlacement(const std::string& nozzleId, bool runoutTried) {
+    if (!nozzlePart(nozzleId).empty()) {
+        emptyThen(nozzleId, "checking its placement", [this, nozzleId, runoutTried] { checkPlacement(nozzleId, runoutTried); });
+        return;
+    }
+    // Its tip's runout measured on it first, when its calibration is on and it has none here (the check would take an
+    // uncompensated swing for an error); then the check. A calibration that fails says why, and nothing is checked.
+    if (m_cell && !runoutTried)
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.id == nozzleId)
+                for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+                    if (t.id == n.tipId && t.runoutCalibration.enabled && !t.runout.count(nozzleId)) {
+                        m_window.showStatus("Calibrating " + t.name + " on " + n.name + " before checking its placement", kStatusMs);
+                        calibrateTipRunout(nozzleId, [this, nozzleId](bool ok, const std::string& why) {
+                            if (!ok) {
+                                JDialog::message("Placement not checked", "The tip's runout could not be calibrated: " + why);
+                                return;
+                            }
+                            jPostToNextFrame([this, alive = std::weak_ptr<bool>(m_alive), nozzleId] {
+                                if (const auto a = alive.lock(); a && *a) checkPlacement(nozzleId, true);
+                            });
+                        });
+                        return;
+                    }
     JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
     const JPNozzleConfig* nozzle = nullptr;
     if (m_cell)
@@ -2368,6 +2393,32 @@ void JPlacerMachine::keepRunout(const std::string& tipId, const std::string& noz
     m_setup->remakeForm();
 }
 
+void JPlacerMachine::emptyThen(const std::string& nozzleId, const std::string& forWhat, std::function<void()> then) {
+    const std::string part = nozzlePart(nozzleId);
+    if (part.empty() || !m_cell) {
+        then();
+        return;
+    }
+    std::string name = nozzleId;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles)
+        if (n.id == nozzleId) name = n.name;
+    const std::string partName = m_configuration ? m_configuration->partName(part) : part;
+    // The part taken to be on the nozzle discarded first, as the Jog panel's Discard does (it may be there; one let
+    // go by hand is still taken to be), then on: never a calibration of a tip with a part on it, nor one refused.
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << name << ": " << partName << " discarded before " << forWhat;
+    m_window.showStatus("Discarding " + partName + " from " + name + " before " + forWhat, kStatusMs);
+    m_afterMotion = [this, nozzleId, name, partName, forWhat, then](bool ok, const std::string& why) {
+        if (!ok) {
+            JDialog::message("Part not discarded", "Nozzle " + name + " could not discard " + partName + " before " + forWhat
+                                                       + ": " + why + "\n\nNothing was calibrated.");
+            return;
+        }
+        setNozzlePart(nozzleId, "");
+        then();
+    };
+    m_cell->discard(nozzleId, 1.0);
+}
+
 void JPlacerMachine::calibrateTipRunout(const std::string& nozzleId, std::function<void(bool, const std::string&)> done) {
     if (!m_cameraTasks || !m_cell) {
         if (done) done(false, "no machine is open");
@@ -2379,12 +2430,10 @@ void JPlacerMachine::calibrateTipRunout(const std::string& nozzleId, std::functi
             tipId = n.tipId;
             name = n.name;
         }
-    // As OpenPnP's ReferenceNozzleTipCalibration.calibrate: never with a part on the nozzle (its tip is not what is seen).
+    // As OpenPnP's ReferenceNozzleTipCalibration.calibrate: never with a part on the nozzle (its tip is not what is
+    // seen); the part discarded first (emptyThen), and the calibration then made.
     if (!nozzlePart(nozzleId).empty()) {
-        const std::string why = "Cannot calibrate nozzle tip with part on nozzle " + name + ".";
-        JLOGC(JPlacerLog::kCamera, JLogLevel::Warn) << why;
-        m_window.showStatus(why, kErrorMs);
-        if (done) done(false, why);
+        emptyThen(nozzleId, "calibrating its tip", [this, nozzleId, done] { calibrateTipRunout(nozzleId, done); });
         return;
     }
     // As OpenPnP's, a measurement that fails leaves the tip uncalibrated (OpenPnP resets it as it begins; here once
@@ -2492,6 +2541,13 @@ void JPlacerMachine::setTipOn(const std::string& nozzleId, const std::string& ti
     for (const JPNozzleConfig& n : m_cell->config().nozzles) if (n.id == nozzleId) nozzle = n.name;
     for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips) if (t.id == tipId) tip = t.name;
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << nozzle << ": " << tip << " on it";
+    // A part on the nozzle went with the tip it was on: none on it now (one let go by hand, the vacuum switched off
+    // on the Actuators panel, was still taken to be there, and refused the new tip's calibration).
+    if (const std::string part = nozzlePart(nozzleId); !part.empty()) {
+        JLOGC(JPlacerLog::kCell, JLogLevel::Info) << nozzle << ": its part " << (m_configuration ? m_configuration->partName(part) : part)
+                                                  << " forgotten with the tip change";
+        setNozzlePart(nozzleId, "");
+    }
     // OpenPnP's loadNozzleTip, a tip put on by hand as one the changer loads: its runout forgotten when
     // its Auto Recalibration says it is measured on each load, and measured again now where it says so
     // (NozzleTipChange: every load; MachineHome: when not yet measured on this nozzle; NozzleTipChangeInJob:
@@ -2673,6 +2729,10 @@ std::optional<double> JPlacerMachine::headCameraPixelsPerMm() const {
 }
 
 void JPlacerMachine::calibratePreciseNozzleOffsets(const std::string& nozzleId, std::function<void(bool ok)> finished) {
+    if (!nozzlePart(nozzleId).empty()) {
+        emptyThen(nozzleId, "calibrating its offsets", [this, nozzleId, finished] { calibratePreciseNozzleOffsets(nozzleId, finished); });
+        return;
+    }
     JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
     const JPNozzleConfig* nozzle = nullptr;
     if (m_cell)

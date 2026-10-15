@@ -411,8 +411,13 @@ private:
     // calibrate (calibratePreciseNozzleOffsets).
     void nozzleTestObject(const std::string& nozzleId, const std::string& action);
     // The nozzle Calibration tab's Check Placement (JPlacerCameraTasks::checkPlacement): what it finds kept on the
-    // nozzle and said in a dialog.
-    void checkPlacement(const std::string& nozzleId);
+    // nozzle and said in a dialog. A part on the nozzle is discarded first, and its tip's runout calibrated first
+    // when its calibration is on and it has none on this nozzle (once: `runoutTried` after that).
+    void checkPlacement(const std::string& nozzleId, bool runoutTried = false);
+    // A part taken to be on the nozzle discarded first (the Jog panel's Discard), then `then`: what needs the nozzle
+    // empty (its tip's calibration, its offsets', its placement check). None on it: `then` at once. The discard
+    // failing: said in a dialog, and `then` not done.
+    void emptyThen(const std::string& nozzleId, const std::string& forWhat, std::function<void()> then);
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;
@@ -498,6 +503,7 @@ private:
         std::string nozzleId;
         double      x, y;
     };
+    std::function<void(bool, const std::string&)> m_afterMotion;   // emptyThen's: once the move under way ends
     std::optional<NozzleMark>           m_nozzleMark;      // the Calibration tab's stored mark
 };
 
