@@ -60,6 +60,11 @@ public:
     void setTips(const JPCellConfig& from);
     // The machine's Vision settings and the job processor's, as `from` has them, set where they are.
     void setRunSettings(const JPCellConfig& from);
+    // A measurement (a camera's settle trace, a nozzle's placement check, a tip's last readings: what changes no
+    // setting the machine moves by) taken into the cell's setup where it is, and the setup then written to `path`
+    // (none: not written): so every save after carries it. On the cell's thread, not waited for (`edit` must hold
+    // what it needs by value).
+    void record(std::function<void(JPCellConfig&)> edit, std::string path);
 
     // Connect every controller, identify it and read its stored settings.
     // All or nothing: if one fails, the others are disconnected again.

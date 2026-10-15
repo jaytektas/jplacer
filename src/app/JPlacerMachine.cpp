@@ -219,7 +219,7 @@ void JPlacerMachine::buildCameras() {
         d.panel->feed().onSettleTrace = [this, alive, id = c.id](const JPSettleTrace& trace) {
             JMainThreadDispatcher::instance().post([this, alive, id, trace] {
                 if (const auto a = alive.lock(); !a || !*a || !m_setup) return;
-                m_setup->measured([&](JPCellConfig& cell) {
+                measured([=](JPCellConfig& cell) {
                     for (JPCameraConfig& cam : cell.cameras)
                         if (cam.id == id) cam.settleTrace = trace;
                 });
@@ -434,7 +434,7 @@ void JPlacerMachine::buildCameras() {
     };
     m_cameraTasks->onTuned = [this](const std::string& cameraId, const JJson& controls) {
         if (!m_setup) return;
-        m_setup->measured([&](JPCellConfig& cell) {
+        measured([=](JPCellConfig& cell) {
             for (JPCameraConfig& c : cell.cameras)
                 if (c.id == cameraId) c.device["controls"] = controls;
         });
@@ -919,7 +919,7 @@ void JPlacerMachine::watchCell() {
     auto showFirmware = [this] {
         if (!m_setup || !m_cell) return;
         const auto said = m_cell->firmwareIdentity();
-        m_setup->measured([&](JPCellConfig& cell) {
+        measured([=](JPCellConfig& cell) {
             for (JPDriverConfig& d : cell.drivers)
                 if (const auto it = said.find(d.id); it != said.end()) d.detectedFirmware = it->second;
         });
@@ -934,7 +934,7 @@ void JPlacerMachine::watchCell() {
             if (!m_setup || !m_cell) return;
             JPNozzleTipConfig::Sensing on, off;
             m_cell->vacuumReadings(tipId, on, off);
-            m_setup->measured([&](JPCellConfig& cell) {
+            measured([=](JPCellConfig& cell) {
                 for (JPNozzleTipConfig& t : cell.nozzleTips) {
                     if (t.id != tipId) continue;
                     for (auto [from, into] : { std::pair { &on, &t.partOn }, std::pair { &off, &t.partOff } }) {
@@ -1073,7 +1073,7 @@ void JPlacerMachine::recordCalibration(const std::string& cameraId, const JPCame
         kept.secondLookedY -= dy;
         m_cell->setCameraCalibration(cameraId, kept);
     }
-    m_setup->measured([&](JPCellConfig& cell) {
+    measured([=](JPCellConfig& cell) {
         for (JPCameraConfig& c : cell.cameras)
             if (c.id == cameraId) c.keepCalibration(kept);
     });
@@ -1535,7 +1535,7 @@ bool JPlacerMachine::contactProbeAt(const Where& at, std::function<void(double z
 
 void JPlacerMachine::slotScored(const std::string& tipId, double score) {
     if (!m_setup) return;
-    m_setup->measured([&](JPCellConfig& cell) {
+    measured([=](JPCellConfig& cell) {
         for (JPNozzleTipConfig& t : cell.nozzleTips)
             if (t.id == tipId) t.visionCalibration.lastScore = score;
     });
@@ -1831,7 +1831,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if (c.panel->camera().id == id)
                 m_cameraTasks->settleTest(*c.panel, toolMount(JPSetupForm::Tool::Nozzle), move, [this, id](const JPSettleTrace& trace) {
                     if (!m_setup) return;
-                    m_setup->measured([&](JPCellConfig& cell) {
+                    measured([=](JPCellConfig& cell) {
                         for (JPCameraConfig& cam : cell.cameras)
                             if (cam.id == id) cam.settleTrace = trace;
                     });
@@ -1910,7 +1910,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                 const double fps = double(frame.sequence - first) / std::max(seconds, 1e-3);
                 JMainThreadDispatcher::instance().post([this, id, fps, alive] {
                     if (const auto a = alive.lock(); !a || !*a || !m_setup) return;
-                    m_setup->measured([&](JPCellConfig& cell) {
+                    measured([=](JPCellConfig& cell) {
                         for (JPCameraConfig& cam : cell.cameras)
                             if (cam.id == id) cam.captureFps = fps;
                     });
@@ -2008,7 +2008,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
                 if (c.panel->camera().id == cameraId)
                     m_cameraTasks->autoFocusTest(*c.panel, *nozzle, [this, cameraId](double distance) {
                         if (!m_setup) return;
-                        m_setup->measured([&](JPCellConfig& cell) {
+                        measured([=](JPCellConfig& cell) {
                             for (JPCameraConfig& cam : cell.cameras)
                                 if (cam.id == cameraId) cam.lastFocusDistanceMm = distance;
                         });
@@ -2227,7 +2227,7 @@ void JPlacerMachine::checkPlacement(const std::string& nozzleId, bool runoutTrie
     m_cameraTasks->checkPlacement(*camera, *nozzle, [this, nozzleId, name](bool ok, JPPlacementCheck check) {
         if (!ok || !m_setup) return;
         // A measurement, kept with the nozzle (not a change of its settings, nothing to undo).
-        m_setup->measured([&](JPCellConfig& cell) {
+        measured([=](JPCellConfig& cell) {
             for (JPNozzleConfig& k : cell.nozzles)
                 if (k.id == nozzleId) k.placementCheck = check;
         });
@@ -2595,6 +2595,13 @@ void JPlacerMachine::showSetupNode(const std::string& path) {
 
 void JPlacerMachine::changeSetup(const std::string& what, const std::function<void(JPCellConfig&)>& edit) {
     if (m_setup) m_setup->change(what, edit);
+}
+
+void JPlacerMachine::measured(const std::function<void(JPCellConfig&)>& edit) {
+    // In Machine Setup's copy (shown, and carried by its next change), and in the running machine's, written to the
+    // cell file now: a save from either copy keeps it (one from the machine's, a tip's change, had dropped it).
+    if (m_setup) m_setup->measured(edit);
+    if (m_cell) m_cell->record(edit, m_cellPath);
 }
 
 void JPlacerMachine::setMeasureBoardZ(bool on) {

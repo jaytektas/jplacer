@@ -414,6 +414,9 @@ private:
     // nozzle and said in a dialog. A part on the nozzle is discarded first, and its tip's runout calibrated first
     // when its calibration is on and it has none on this nozzle (once: `runoutTried` after that).
     void checkPlacement(const std::string& nozzleId, bool runoutTried = false);
+    // A measurement (no setting the machine moves by): into Machine Setup's copy and the running machine's, and
+    // written to the cell file now (JPCell::record). `edit` holds what it needs by value.
+    void measured(const std::function<void(JPCellConfig&)>& edit);
     // A part taken to be on the nozzle discarded first (the Jog panel's Discard), then `then`: what needs the nozzle
     // empty (its tip's calibration, its offsets', its placement check). None on it: `then` at once. The discard
     // failing: said in a dialog, and `then` not done.

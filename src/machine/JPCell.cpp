@@ -257,6 +257,20 @@ void JPCell::setRunSettings(const JPCellConfig& from) {
     set.get();
 }
 
+void JPCell::record(std::function<void(JPCellConfig&)> edit, std::string path) {
+    m_thread.post([this, edit = std::move(edit), path = std::move(path)] {
+        JPCellConfig kept;
+        {
+            std::lock_guard lk(m_mutex);
+            edit(m_config);
+            kept = m_config;
+        }
+        std::string error;
+        if (!path.empty() && !kept.save(path, error))
+            JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << m_config.name << ": a measurement is in use but not saved: " << error;
+    });
+}
+
 JPCell::~JPCell() {
     m_thread.stop();
     doDisconnect();
