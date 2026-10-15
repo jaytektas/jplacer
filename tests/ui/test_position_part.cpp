@@ -5,7 +5,9 @@
 // Nozzle puts the part's centre where the camera looks, and Position Camera after it (the part held, or gone since)
 // brings the camera back there, the part's centre, not the nozzle's. The nozzle leans and its tip runs out, as on
 // bench. Before, the camera came back off the place by the part's offset on the nozzle (0.31 mm on bench).
-// Moved since, the nozzle's own centre again.
+// Moved since, the nozzle's own centre again. With no part, Park Z on the camera after (its virtual Z up to safe Z,
+// the nozzle's with it), the camera comes back where it was, the lean taken where the nozzle was down; with the camera's Z at
+// safe Z, the nozzle stays up.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -35,8 +37,8 @@ JPCellConfig cellConfig() {
                   "safeZone": { "low": 0, "high": 0, "lowEnabled": true, "highEnabled": false } },
                 { "id": "C", "name": "c", "kind": "controller", "type": "rotation", "driver": "D", "letter": "A",
                   "feedratePerSecond": 3600 } ],
-      "cameras": [ { "id": "CAM", "name": "Top", "looking": "down", "mount": { "head": "H", "axisX": "X", "axisY": "Y",
-                     "offset": { "x": 0, "y": 0, "z": -24 } }, "device": { "backend": "simulated" } } ],
+      "cameras": [ { "id": "CAM", "name": "Top", "looking": "down", "mount": { "head": "H", "axisX": "X", "axisY": "Y" },
+                     "device": { "backend": "simulated" } } ],
       "nozzleTips": [ { "id": "T", "name": "Tip" } ],
       "nozzles": [ { "id": "N", "name": "N1", "tip": "T", "tips": [ "T" ],
                      "mount": { "head": "H", "axisX": "X", "axisY": "Y", "axisZ": "Z", "axisRotation": "C",
@@ -70,8 +72,17 @@ int main() {
     r.radius = 0.05;
     r.phaseDeg = 30;
     tip.runout["N"] = r;
+    // The camera's Z a virtual axis, as OpenPnP's: at the board's height (-24), and taken up with the head to safe Z.
+    JPAxisConfig zc;
+    zc.id = "ZC";
+    zc.name = "zc";
+    zc.kind = JPAxisConfig::Kind::Virtual;
+    zc.type = JPAxisConfig::Type::Z;
+    config.axes.push_back(zc);
+    config.cameras[0].mount.axisZ = "ZC";
     JPMountConfig& m = config.nozzles[0].mount;
     m.leanX = -0.04;
+    m.leanY = 0.017;
     m.leanZ = -24;
     JPCell cell(config, profiles());
     cell.connect();
@@ -99,6 +110,7 @@ int main() {
     std::string why;
     assert(cell.moveToolAndWait(camera, { 100.0, 80.0, std::nullopt, std::nullopt }, 1.0, why));
     assert(cell.moveAxesAndWait({ { "C", 37.0 } }, 1.0, why));
+    auto boardHeight = [&] { assert(cell.moveAxesAndWait({ { "ZC", -24.0 } }, 1.0, why)); };
     auto cameraAt = [&] {
         const auto p = cell.jogBase();
         return std::pair { p.at("X"), p.at("Y") };
@@ -106,6 +118,7 @@ int main() {
     const auto start = cameraAt();
 
     // Held: there and back, the camera where it was.
+    boardHeight();
     assert(jog.act("positionNozzle"));
     settle();
     const auto [nx, ny] = cell.offsetsNow(nozzle, -24.0);
@@ -117,6 +130,7 @@ int main() {
     assert(near(back.first, start.first) && near(back.second, start.second));
 
     // Put down there (the part gone from the nozzle): the camera back on it all the same.
+    boardHeight();
     assert(jog.act("positionNozzle"));
     settle();
     aligned = false;
@@ -127,6 +141,7 @@ int main() {
 
     // The nozzle moved since: the camera to the nozzle's own centre.
     aligned = true;
+    boardHeight();
     assert(jog.act("positionNozzle"));
     settle();
     aligned = false;
@@ -135,6 +150,29 @@ int main() {
     settle();
     back = cameraAt();
     assert(near(back.first, start.first + 1.0 - 0.05) && near(back.second, start.second + 0.31));
+
+    // No part, Park Z with the camera chosen after (the camera's Z up to safe Z, the nozzle's too): the camera
+    // back where it was, the lean taken where the nozzle was down, not at safe Z (0.97 mm off on bench).
+    assert(cell.moveToolAndWait(camera, { 100.0, 80.0, std::nullopt, std::nullopt }, 1.0, why));
+    const auto here = cameraAt();
+    boardHeight();
+    assert(jog.act("positionNozzle"));
+    settle();
+    assert(near(cell.jogBase().at("Z"), -24));
+    jog.selectTool("CAM");
+    assert(jog.act("parkZ"));
+    settle();
+    jog.selectTool("N");
+    assert(near(cell.jogBase().at("ZC"), 0) && near(cell.jogBase().at("Z"), 0));
+    assert(jog.act("positionCamera"));
+    settle();
+    back = cameraAt();
+    assert(near(back.first, here.first) && near(back.second, here.second));
+
+    // The camera's Z at safe Z: the nozzle stays up there.
+    assert(jog.act("positionNozzle"));
+    settle();
+    assert(near(cell.jogBase().at("Z"), 0));
     cell.disconnect();
     return 0;
 }

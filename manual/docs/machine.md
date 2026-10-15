@@ -384,10 +384,13 @@ the camera on the head, and anything else on the head that moves on axes.
   offset on it, as a job's place does, until the part goes (placed, discarded, or picked again). The camera goes over the place the nozzle's tip comes down to
   at that height (with a part, the part's bottom): its tip's centre, the runout at the angle it is turned
   to taken in, and its lean at that height, wherever the nozzle hangs now. A nozzle still where the nozzle
-  button put it with an aligned part's centre at the camera: the camera goes back over the part's centre,
-  where it was, whether the part is still held or put down there since (not the nozzle's, off by the part's
-  offset on it). So there and back again the head ends where it began, and after a place the camera lands
-  on the part, though the nozzle is up at safe Z.
+  button put it: the camera goes back where it was, its lean taken at the height the nozzle went down to (the
+  camera's Z may have gone up since, by **Park Z** with the camera chosen), and, with an aligned part, over
+  the part's centre, whether the part is still held or put down there since (not the nozzle's, off by the
+  part's offset on it). So there and back again the head ends where it began, and after a place the camera
+  lands on the part, though the nozzle is up at safe Z. A camera whose Z is up at safe height (**Park Z**
+  with the camera chosen puts it there) leaves the nozzle up in its safe zone: the note under the buttons
+  says so, as a part let go of there drops.
 - **Distance** [mm, or degrees turning]: a slider of steps (0.01 to 100 a press, unless set otherwise in
   [Preferences, Jog](preferences.md#jog)).
 - **Speed**: the machine's speed, as in OpenPnP: every move goes at this share of its own speed (a jog,

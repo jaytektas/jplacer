@@ -164,7 +164,10 @@ JPJogPanel::JPJogPanel(JSceneGraph& graph, JPCell& cell, Choices start) : JConta
 
     m_note = add(std::make_unique<JLabel>(graph, ""));
     m_note->setWordWrap(true);
-    m_watch.on(cell.onMotion, [this](bool ok, std::string why) { m_note->setText(ok ? std::string() : why); });
+    m_watch.on(cell.onMotion, [this](bool ok, std::string why) {
+        m_note->setText(ok ? m_afterMove : why);
+        m_afterMove.clear();
+    });
     // Unhomed: home it to move it, unless its controllers said where they are (Sync Initial Location), when it can be jogged.
     auto unhomedNote = [&cell] {
         for (const JPDriverConfig& d : cell.config().drivers)
@@ -693,6 +696,18 @@ void JPJogPanel::jog(double dx, double dy, double dz, double dc) {
     if (onJogged) onJogged(m_tools[m_tool].id, dx * d, dy * d, dz * d);
 }
 
+bool JPJogPanel::stays(const JPMountConfig& nozzle, double z) const {
+    // Its Z axis (a mapped one's input) at that height within a safe zone with a floor.
+    const JPAxisConfig* a = m_cell.config().axis(nozzle.axisZ);
+    double v = z - nozzle.offsetZ;
+    if (a && a->transformed()) {
+        const auto raw = a->unmapped(v);
+        a = raw ? m_cell.config().axis(a->inputAxisId) : nullptr;
+        if (raw) v = *raw;
+    }
+    return a && a->safeZoneLowEnabled && m_cell.inSafeZone(a->id, v);
+}
+
 void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     // Where `over` is now (its axes and its offset), for `tool` to go to.
     const auto p = m_cell.jogBase();
@@ -728,9 +743,10 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     // A part held: its bottom at that height, the tip its height above.
     if (z && partHeightOn) *z += partHeightOn(tool.id);
     double x = px->second + ox, y = py->second + oy;
-    // The nozzle still where Position Nozzle put it with its part's centre at the camera: the camera back to the
-    // part's centre (where it was), not the nozzle's; the part held or put down there since. Without it the camera
-    // came back off the place by the part's offset on the nozzle (0.31 mm on bench).
+    // The nozzle still where Position Nozzle put it: the camera back where it was, the centre of the part it put
+    // there (held or put down since), its lean taken at the height it went down to. Without it the camera came back
+    // off by the part's offset on the nozzle (0.31 mm on bench), and, with the camera's Z gone up to safe Z, by the
+    // lean over that height (0.97 mm on bench).
     if (put != m_partPut.end()) {
         constexpr double kStill = 0.001;   // mm: the same place, as worked out again
         if (std::abs(x - put->second.x) <= kStill && std::abs(y - put->second.y) <= kStill) {
@@ -741,13 +757,20 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     // A part aligned on it (Test Alignment): the part's centre there, not the nozzle's (it sits off the nozzle by what
     // bottom vision found, which a job's place takes out too).
     if (tool.nozzle && over.camera) {
-        m_partPut.erase(tool.id);
+        PartPut put { x, y, z, 0, 0 };
         if (partCentredAt)
             if (const auto at = partCentredAt(tool.id, x, y)) {
-                m_partPut[tool.id] = PartPut { (*at)[0], (*at)[1], z, x - (*at)[0], y - (*at)[1] };
+                put = PartPut { (*at)[0], (*at)[1], z, x - (*at)[0], y - (*at)[1] };
                 x = (*at)[0];
                 y = (*at)[1];
             }
+        m_partPut[tool.id] = put;
+        // The camera's Z at safe height (Park Z with the camera chosen takes its virtual Z there): the nozzle stays
+        // up in its safe zone, said, as a part let go of there drops (on bench it did, from 24 mm up).
+        if (z && stays(*tool.mount, *z)) {
+            m_afterMove = over.label + "'s Z is at safe Z: the nozzle stays up there.";
+            JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << "Jog: " << m_afterMove;
+        }
     }
     m_cell.moveTool(*tool.mount, { x, y, z, std::nullopt }, 1.0);
 }

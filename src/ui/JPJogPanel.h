@@ -188,6 +188,8 @@ private:
     std::unique_ptr<JWidget> gap(float size);
     void jog(double dx, double dy, double dz, double dc);
     void moveTo(const Tool& tool, const Tool& over);
+    // Whether `nozzle` sent to height `z` stays up in its Z's safe zone.
+    bool stays(const JPMountConfig& nozzle, double z) const;
     // The nozzle the position buttons use: the chosen tool when it is one,
     // else the nozzle chosen last (else the first).
     const Tool* nozzle() const;
@@ -214,15 +216,18 @@ private:
     JPVerticalSlider*       m_speed = nullptr;
     int                     m_distanceIndex = kDistanceFirst;
     double                  m_speedShare = kSpeedFirst;
-    // Where Position Nozzle last put each nozzle with its part's centre at the camera instead of its own: the
-    // nozzle's centre there (at height z) and the part's centre off it. Position Camera to that nozzle, still there,
-    // goes to the part's centre, back where the camera was (the part held or put down there since).
+    // Where Position Nozzle last put each nozzle: its centre there (at height z) and the centre of the part it
+    // held off it (0, 0: none aligned on it). Position Camera to that nozzle, still there, goes back where the
+    // camera was: the part's centre (held or put down since), at the height the nozzle went down to (its lean
+    // taken there, not at the camera's Z now, which goes up with the head to safe Z).
     struct PartPut {
         double x = 0, y = 0;
         std::optional<double> z;
         double dx = 0, dy = 0;
     };
     std::map<std::string, PartPut> m_partPut;
+    // Said once the move under way has ended (its end clears the note).
+    std::string m_afterMove;
     float                   m_builtW = 0, m_builtH = 0;   // the room the pages were made for
     std::shared_ptr<bool>   m_alive = std::make_shared<bool>(true);   // for a remake posted to the next frame
     JLabel*                 m_note  = nullptr;
