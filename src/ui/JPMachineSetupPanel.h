@@ -195,6 +195,8 @@ private:
     void collectExpanded(const JTreeViewNode& n);
 
     JPCellConfig             m_inUse;      // what the machine has (handed over last)
+    std::string              m_lastChange;     // what the last step recorded was
+    std::string              m_problemsSaid;   // the problems last said (none: in use)
     JPCellConfig             m_draft;      // as set up
     JPCellConfig             m_recorded;   // m_draft as the last step left it
     JPSetupHistory           m_history;

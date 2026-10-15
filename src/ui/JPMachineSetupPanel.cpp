@@ -239,6 +239,7 @@ void JPMachineSetupPanel::record(const std::string& what, const std::string& key
     JPSetupHistory::State after{ m_draft, m_selected };
     m_history.record(what, key, { std::move(m_recorded), from }, after);
     m_recorded = std::move(after.cell);
+    m_lastChange = what;
     handOver();
 }
 
@@ -259,7 +260,24 @@ void JPMachineSetupPanel::restore(const JPSetupHistory::State& state) {
 
 void JPMachineSetupPanel::handOver() {
     m_retry.stop();
-    if (!m_draft.problems().empty() || m_draft.toJson().dump() == m_inUse.toJson().dump()) return;
+    // Held back until put right: logged and said in a dialog when it starts (and what changed last), as every change
+    // made meanwhile is lost to the machine. Shown only on the line under the settings, a thickness typed in was
+    // never used, and a calibration ran with the old one.
+    std::string problems;
+    for (const std::string& p : m_draft.problems()) problems += (problems.empty() ? "" : "\n") + p;
+    if (!problems.empty()) {
+        if (problems != m_problemsSaid) {
+            m_problemsSaid = problems;
+            JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << "Machine Setup: not in use until put right (the last change: "
+                                                    << (m_lastChange.empty() ? "none" : m_lastChange) << "): " << problems;
+            JDialog::message("Machine Setup not in use",
+                             "Changes made in Machine Setup are not put in use, nor saved, until this is put right:\n\n" + problems
+                                 + (m_lastChange.empty() ? std::string() : "\n\nThe last change: " + m_lastChange + "."));
+        }
+        return;
+    }
+    m_problemsSaid.clear();
+    if (m_draft.toJson().dump() == m_inUse.toJson().dump()) return;
     if (!onApply) return;
     if (onApply(m_draft)) m_inUse = m_draft;
     else m_retry.start();   // not taken now (the machine is moving): again shortly
