@@ -1575,6 +1575,79 @@ bool JPCell::partOnAndWait(const std::string& nozzleId, bool& on, std::string& w
     }, why);
 }
 
+bool JPCell::measureVacuumAndWait(const std::string& nozzleId, VacuumMeasuring what, std::vector<double>& baselines,
+                                  std::vector<double>& levels, std::string& why) {
+    return onThreadAndWait([&](std::string& w) {
+        for (const JPNozzleConfig& n : m_config.nozzles)
+            if (n.id == nozzleId) return doMeasureVacuum(n, what, baselines, levels, w);
+        w = "no nozzle " + nozzleId;
+        return false;
+    }, why);
+}
+
+bool JPCell::doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, std::vector<double>& baselines,
+                             std::vector<double>& levels, std::string& why) {
+    if (!m_connected) { why = "not connected"; return false; }
+    const JPNozzleTipConfig* tip = tipOf(n);
+    if (!tip) { why = "Nozzle " + n.name + " has no nozzle tip loaded."; return false; }
+    if (n.vacuumActuatorId.empty()) { why = "Nozzle " + n.name + " has no vacuum valve actuator."; return false; }
+    if (n.vacuumSenseActuatorId.empty()) { why = "Nozzle " + n.name + " has no vacuum sense actuator."; return false; }
+    const bool with = what == VacuumMeasuring::PartOnWith;
+    if (!with && m_holding.count(n.id)) {
+        why = "Nozzle " + n.name + "'s vacuum is on (it holds a part): discard it first, to measure with nothing on the nozzle.";
+        return false;
+    }
+    // Up in the air, nothing against the tip; a part held stays where it is.
+    if (!with && !n.mount.headId.empty() && !doSafeZ(n.mount.headId, 1, why)) return false;
+    auto wait = [](int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0, ms))); };
+    double level = 0;
+    if (what == VacuumMeasuring::PartOff) {
+        // The part-off check's pulse (doPartOff): the level before it, the valve open for its time, closed for its
+        // dwell, the level read as the check reads it.
+        for (int i = 0; i < JPVacuumMeasure::kPulses; ++i) {
+            if (i) wait(JPVacuumMeasure::kRestMs);
+            double baseline = 0;
+            if (!readVacuum(n, baseline, why) || !switchTelling(n.vacuumActuatorId, true, why)) return false;
+            wait(tip->partOffProbingMs);
+            bool read = true;
+            if (tip->partOffDwellMs <= 0) read = readVacuum(n, level, why);
+            std::string closing;
+            if (!switchTelling(n.vacuumActuatorId, false, closing) && read) {
+                why = closing;
+                return false;
+            }
+            if (!read) return false;
+            if (tip->partOffDwellMs > 0) {
+                wait(tip->partOffDwellMs);
+                if (!readVacuum(n, level, why)) return false;
+            }
+            baselines.push_back(baseline);
+            levels.push_back(level);
+        }
+        return true;
+    }
+    // Part on: as a pick, the vacuum on and the pick's dwell; then held.
+    if (!doVacuumOn(n, why)) return false;
+    wait(n.pickDwellMs + tip->pickDwellMs);
+    double baseline = 0;
+    bool ok = readVacuum(n, baseline, why);
+    if (ok) baselines.push_back(baseline);
+    for (int i = 0; ok && i < JPVacuumMeasure::kSamples; ++i) {
+        wait(JPVacuumMeasure::kHoldMs / JPVacuumMeasure::kSamples);
+        if ((ok = readVacuum(n, level, why))) levels.push_back(level);
+    }
+    if (with) return ok;
+    // Without a part: the vacuum off again, the pump as a place leaves it.
+    std::string closing;
+    bool closed = switchTelling(n.vacuumActuatorId, false, closing);
+    if (closed) {
+        m_holding.erase(n.id);
+        closed = doPumpAfterRelease(n, closing);
+    }
+    if (ok && !closed) why = closing;
+    return ok && closed;
+}
+
 bool JPCell::partOffAndWait(const std::string& nozzleId, bool& off, std::string& why) {
     return onThreadAndWait([&](std::string& w) {
         for (const JPNozzleConfig& n : m_config.nozzles)
@@ -1722,7 +1795,10 @@ bool JPCell::doPlace(const JPNozzleConfig& n, std::string& why) {
     if (!doEstablish(n, false, dwell, why)) return false;
     if (blow && !switchTelling(n.blowOffActuatorId, false, why)) return false;
     m_holding.erase(n.id);
-    // The pump goes off with the last part on its head, when it runs for parts (or a task).
+    return doPumpAfterRelease(n, why);
+}
+
+bool JPCell::doPumpAfterRelease(const JPNozzleConfig& n, std::string& why) {
     const JPHeadConfig* head = nullptr;
     for (const JPHeadConfig& h : m_config.heads) if (h.id == n.mount.headId) head = &h;
     if (head && m_pumpOn.count(head->id) && (head->pumpControl == "PartOn" || head->pumpControl == "TaskDuration")) {

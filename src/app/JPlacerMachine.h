@@ -452,6 +452,9 @@ private:
     std::string                         m_positionedCamera;   // a camera moved to look somewhere, by name, until there
     // A tip's runout measured on the nozzle it is on, then kept; `done` whether it was, and why not.
     void calibrateTipRunout(const std::string& nozzleId, std::function<void(bool, const std::string&)> done);
+    // A tip's part detection measured on `nozzleId` (JPCell::measureVacuumAndWait), off the screen's thread; what
+    // was measured kept with the tip and its ranges set from it, one step to undo, and said in a dialog.
+    void measureVacuum(const std::string& nozzleId, const std::string& tipId, JPCell::VacuumMeasuring what);
     // OpenPnP's Calibrate Camera Position and Rotation with the tip on `nozzleId`: the camera's position and turn kept.
     // The last step of the camera looking up's calibration (agreed to at its start: not asked again).
     void calibrateCameraPosition(const std::string& nozzleId);

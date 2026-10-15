@@ -166,6 +166,14 @@ public:
     // vacuum could not be read; else `on` / `off` as sensed.
     bool partOnAndWait(const std::string& nozzleId, bool& on, std::string& why);
     bool partOffAndWait(const std::string& nozzleId, bool& off, std::string& why);
+    // A tip's part detection measured on the nozzle it is on (JPVacuumMeasure): PartOff, the part-off check's
+    // pulse kPulses times, up at safe Z with nothing on the nozzle (`baselines` before each, `levels` after);
+    // PartOnWithout and PartOnWith, the vacuum on as a pick switches it, the pick's dwell, then the level read
+    // kSamples times over kHoldMs (`baselines` the reading as the dwell ends): without a part at safe Z, the
+    // vacuum off again after; with one where the nozzle is, the part left held. Waited for.
+    enum class VacuumMeasuring { PartOff, PartOnWithout, PartOnWith };
+    bool measureVacuumAndWait(const std::string& nozzleId, VacuumMeasuring what, std::vector<double>& baselines,
+                              std::vector<double>& levels, std::string& why);
     // A tip's last readings and graphs, into `on`'s and `off`'s (Sensing's) last reading fields.
     void vacuumReadings(const std::string& tipId, JPNozzleTipConfig::Sensing& on, JPNozzleTipConfig::Sensing& off) const;
     // OpenPnP's changer slot vision calibration: how far off (X, Y mm) a
@@ -522,6 +530,10 @@ private:
     // for a difference); `on` / `off` what was sensed.
     bool doPartOn(const JPNozzleConfig& n, bool& on, std::string& why);
     bool doPartOff(const JPNozzleConfig& n, bool& off, std::string& why);
+    bool doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, std::vector<double>& baselines,
+                         std::vector<double>& levels, std::string& why);
+    // The pump off as a place leaves it: with the last part on its head, when it runs for parts (or a task).
+    bool doPumpAfterRelease(const JPNozzleConfig& n, std::string& why);
     // OpenPnP's establishPickVacuumLevel / establishPlaceVacuumLevel: the
     // pick's (place's) dwell of `ms`, the level read through it (ending it
     // once within range when the tip establishes it), as the tip's sensing graphs it.

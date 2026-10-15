@@ -1582,6 +1582,50 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         }
         add.end();
         const JPNozzleTipConfig::Sensing& now = sensing();
+        // The pulse's times, shown with Measure (which makes it) whatever the method.
+        if (!on) {
+            add.row("Valve open/close (ms)");
+            add.integer("partOffProbingMs", "Valve open (ms)", [t]() -> int& { return t().partOffProbingMs; }, 0, 60000);
+            add.tip("The valve is opened and closed to create a small underpressure pulse. The open time should be quite short, no "
+                    "point in creating full pick suction. The close time can be used to wait for the system to react to the "
+                    "pulse, including delays in sensor signal propagation and readout.");
+            add.integer("partOffDwellMs", "Valve close (ms)", [t]() -> int& { return t().partOffDwellMs; }, 0, 60000);
+            add.end();
+        }
+        // Measured, not guessed: the ranges set from the machine's own readings (JPVacuumMeasure).
+        add.row("Measure");
+        if (on) {
+            add.button("measurePartOnWithout", "Without Part",
+                       "Up at safe Z with nothing on the nozzle: the vacuum switched on as a pick does it, the pick's dwell, "
+                       "then the level read for 3 seconds; the vacuum off again.");
+            add.button("measurePartOnWith", "With Part",
+                       "With a part on the tip (picked, or held to it): the vacuum on as a pick does it, the pick's dwell, "
+                       "then the level read for 3 seconds; the part left held. Sets the ranges, kept off the level without "
+                       "a part.");
+        } else {
+            add.button("measurePartOff", "Measure",
+                       "Up at safe Z with nothing on the nozzle: the part-off check's pulse made 20 times, the level read as "
+                       "the check reads it. Sets the ranges.");
+        }
+        if (now.measured) {
+            const JPVacuumMeasure& m = *now.measured;
+            auto level = [](const JPVacuumMeasure::Stats& st) {
+                char text[96];
+                std::snprintf(text, sizeof text, "%.1f (deviation %.1f, %.1f to %.1f)", st.mean, st.sd, st.lowest, st.highest);
+                return std::string(text);
+            };
+            std::string said = m.when + ": ";
+            if (!on) said += "level " + level(m.level) + ", change " + level(m.difference);
+            else {
+                if (m.held()) said += "with a part " + level(m.level);
+                if (m.held() && m.open) said += "; ";
+                if (m.open) said += "without " + level(*m.open);
+            }
+            add.end();
+            add.note("Measured " + said + ": the readings' mean, their standard deviation, the lowest and the highest.");
+        } else {
+            add.end();
+        }
         if (now.method == "None") continue;
         add.row("Perform Checks?");
         add.skip();
@@ -1594,15 +1638,6 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             add.flag("partOffCheckBeforePick", "Before Pick", [t]() -> bool& { return t().partOffCheckBeforePick; });
         }
         add.end();
-        if (!on) {
-            add.row("Valve open/close (ms)");
-            add.integer("partOffProbingMs", "Valve open (ms)", [t]() -> int& { return t().partOffProbingMs; }, 0, 60000);
-            add.tip("The valve is opened and closed to create a small underpressure pulse. The open time should be quite short, no "
-                    "point in creating full pick suction. The close time can be used to wait for the system to react to the "
-                    "pulse, including delays in sensor signal propagation and readout.");
-            add.integer("partOffDwellMs", "Valve close (ms)", [t]() -> int& { return t().partOffDwellMs; }, 0, 60000);
-            add.end();
-        }
         auto reading = [](const std::optional<double>& v) {
             char text[32] = "";
             if (v) std::snprintf(text, sizeof text, "%.1f", *v);

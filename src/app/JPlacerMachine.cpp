@@ -2089,6 +2089,35 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         }
         if (action == "calibrateZ" && !readyToMove()) return;
         m_cell->calibrateZ(on->id, action == "resetZCalibration");
+    } else if ((action == "measurePartOff" || action == "measurePartOnWithout" || action == "measurePartOnWith")
+               && path.rfind("nozzletip:", 0) == 0) {
+        const std::string tipId = path.substr(10);
+        const JPNozzleConfig* on = nullptr;
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.tipId == tipId) on = &n;
+        if (!on) {
+            JDialog::message("Vacuum not measured", "Load the nozzle tip on a nozzle first: it is measured on that nozzle.");
+            return;
+        }
+        if (action == "measurePartOff") {
+            for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+                if (t.id == tipId && t.partOffProbingMs <= 0) {
+                    JDialog::message("Vacuum not measured",
+                                     "Part Off's Valve open (ms) is 0, so there is no pulse to measure: set how long the valve "
+                                     "opens for the part-off check (as long as the vacuum takes to build on a part, such as "
+                                     "the nozzle's and the tip's pick dwell), and how long it then waits (Valve close), first.");
+                    return;
+                }
+        }
+        if (!readyToMove()) return;
+        const std::string nozzleId = on->id;
+        if (action == "measurePartOnWith") {
+            measureVacuum(nozzleId, tipId, JPCell::VacuumMeasuring::PartOnWith);
+            return;
+        }
+        // With nothing on the nozzle: a part jplacer takes to be on it discarded first.
+        const auto what = action == "measurePartOff" ? JPCell::VacuumMeasuring::PartOff : JPCell::VacuumMeasuring::PartOnWithout;
+        emptyThen(nozzleId, "measuring its vacuum", [this, nozzleId, tipId, what] { measureVacuum(nozzleId, tipId, what); });
     } else if (action == "showBackgroundProblems" && path.rfind("nozzletip:", 0) == 0) {
         // OpenPnP's Show Problems: each picture with problems beside the same with them marked, on the camera looking up.
         const auto found = m_backgroundProblems.find(path.substr(10));
@@ -2408,6 +2437,93 @@ void JPlacerMachine::keepRunout(const std::string& tipId, const std::string& noz
             }
     });
     m_setup->remakeForm();
+}
+
+void JPlacerMachine::measureVacuum(const std::string& nozzleId, const std::string& tipId, JPCell::VacuumMeasuring what) {
+    if (!m_cell) return;
+    std::string nozzleName = nozzleId, tipName = tipId;
+    for (const JPNozzleConfig& n : m_cell->config().nozzles)
+        if (n.id == nozzleId) nozzleName = n.name;
+    for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+        if (t.id == tipId) tipName = t.name;
+    const bool partOn = what != JPCell::VacuumMeasuring::PartOff;
+    const std::string title = partOn ? "Part On Vacuum Sensing" : "Part Off Vacuum Sensing";
+    m_window.showStatus("Measuring " + tipName + "'s vacuum on " + nozzleName + "...", kStatusMs);
+    JPCell* cell = m_cell.get();
+    std::weak_ptr<bool> alive = m_alive;
+    std::thread([this, cell, alive, nozzleId, tipId, what, partOn, title, nozzleName, tipName] {
+        std::vector<double> baselines, levels;
+        std::string why;
+        const bool ok = cell->measureVacuumAndWait(nozzleId, what, baselines, levels, why);
+        JMainThreadDispatcher::instance().post([=, this] {
+            if (const auto a = alive.lock(); !a || !*a) return;
+            if (!ok) {
+                JDialog::message("Vacuum not measured", tipName + " on " + nozzleName + ": " + why);
+                return;
+            }
+            const JPNozzleTipConfig* tip = nullptr;
+            for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
+                if (t.id == tipId) tip = &t;
+            if (!tip || !m_setup) return;
+            const JPNozzleTipConfig::Sensing& was = partOn ? tip->partOn : tip->partOff;
+            // The other half of a part on measuring kept (without a part, with one).
+            JPVacuumMeasure m = was.measured.value_or(JPVacuumMeasure());
+            m.when = JPWhen::now();
+            if (what == JPCell::VacuumMeasuring::PartOnWithout) {
+                m.open = JPVacuumMeasure::Stats::of(levels);
+            } else {
+                std::vector<double> differences;
+                for (size_t i = 0; i < levels.size(); ++i)
+                    differences.push_back(levels[i] - baselines[partOn ? 0 : i]);
+                m.baseline = JPVacuumMeasure::Stats::of(baselines);
+                m.level = JPVacuumMeasure::Stats::of(levels);
+                m.difference = JPVacuumMeasure::Stats::of(differences);
+            }
+            const JPVacuumMeasure::Ranges r = m.ranges(partOn, was.method);
+            m_setup->change(title + " measured: " + tipName, [tipId, partOn, m, r](JPCellConfig& c) {
+                for (JPNozzleTipConfig& t : c.nozzleTips) {
+                    if (t.id != tipId) continue;
+                    JPNozzleTipConfig::Sensing& s = partOn ? t.partOn : t.partOff;
+                    s.measured = m;
+                    if (!r.vacuum) continue;
+                    s.method = r.method;
+                    s.low = r.vacuum->low;
+                    s.high = r.vacuum->high;
+                    if (r.difference) {
+                        s.diffLow = r.difference->low;
+                        s.diffHigh = r.difference->high;
+                    }
+                }
+            });
+            m_setup->remakeForm();
+            auto stats = [](const char* what, const JPVacuumMeasure::Stats& st) {
+                char text[160];
+                std::snprintf(text, sizeof text, "%s: %.1f, deviation %.1f, %.1f to %.1f (%d readings)\n", what, st.mean, st.sd,
+                              st.lowest, st.highest, st.count);
+                return std::string(text);
+            };
+            auto range = [](const char* what, const JPVacuumMeasure::Range& g) {
+                char text[160];
+                std::snprintf(text, sizeof text, "%s %.1f to %.1f%s\n", what, g.low, g.high,
+                              g.stopped ? " (stopped short of the level without a part)" : "");
+                return std::string(text);
+            };
+            std::string text = tipName + " on " + nozzleName + ".\n\n";
+            if (!partOn) {
+                text += stats("Before the pulse", m.baseline) + stats("After it", m.level) + stats("Change", m.difference);
+            } else {
+                if (m.held()) text += stats("With a part", m.level) + stats("Change while held", m.difference);
+                if (m.open) text += stats("Without a part", *m.open);
+            }
+            if (r.vacuum) {
+                text += "\nMeasurement Method " + r.method + "; set:\n" + range("Vacuum Range", *r.vacuum);
+                if (r.difference) text += range("Difference Range", *r.difference);
+            }
+            for (const std::string& note : r.notes) text += "\n" + note + "\n";
+            JLOGC(JPlacerLog::kCell, JLogLevel::Info) << title << " measured: " << text;
+            JDialog::message(title + " measured", text);
+        });
+    }).detach();
 }
 
 void JPlacerMachine::emptyThen(const std::string& nozzleId, const std::string& forWhat, std::function<void()> then) {

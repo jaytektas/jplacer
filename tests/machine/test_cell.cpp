@@ -17,6 +17,7 @@
 #include <cmath>
 #include <chrono>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -738,6 +739,52 @@ int main() {
         cell.disconnect();
         assert(!connection.take().first && !cell.isHomed() && pumpOff);
         watchPump();
+    }
+    // Part detection measured (JPVacuumMeasure): part off, the check's pulse kPulses times at safe Z; part on
+    // without a part, the vacuum on and kSamples read, then off again (and the pump with it); with a part, the
+    // part left held. The simulated sensor reads -31000 throughout.
+    {
+        std::string why;
+        JPCellConfig next = cellConfig();
+        next.nozzles[0].vacuumSenseActuatorId = "V";
+        next.nozzleTips[0].partOffProbingMs = 5;
+        next.nozzleTips[0].partOffDwellMs = 5;
+        std::mutex switchedMutex;
+        std::map<std::string, std::string> switched;   // by actuator: what it was last switched to
+        Latch<std::pair<bool, std::string>> connection, motion;   // before the cell, which tells them to its end
+        JPCell cell(next, profiles());
+        cell.onConnection.connect([&](bool ok, std::string w) { connection.set({ ok, w }); });
+        cell.onMotion.connect([&](bool ok, std::string w) { motion.set({ ok, w }); });
+        cell.connect();
+        assert(connection.take().first);
+        cell.home();
+        assert(motion.take().first && cell.isHomed());
+        auto watch = cell.onActuator.connect([&](std::string id, bool, std::string v) {
+            std::lock_guard lk(switchedMutex);
+            switched[id] = v;
+        });
+        auto last = [&](const std::string& id) {
+            std::lock_guard lk(switchedMutex);
+            return switched[id];
+        };
+        std::vector<double> baselines, levels;
+        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOff, baselines, levels, why));
+        assert(int(baselines.size()) == JPVacuumMeasure::kPulses && int(levels.size()) == JPVacuumMeasure::kPulses
+               && levels.front() == -31000 && baselines.back() == -31000);
+        baselines.clear();
+        levels.clear();
+        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOnWithout, baselines, levels, why));
+        assert(baselines.size() == 1 && int(levels.size()) == JPVacuumMeasure::kSamples);
+        assert(last("V") == "off" && last("P") == "off");
+        baselines.clear();
+        levels.clear();
+        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOnWith, baselines, levels, why));
+        assert(int(levels.size()) == JPVacuumMeasure::kSamples && last("V") == "on");
+        // Held: a measuring without a part is refused until it is let go.
+        assert(!cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOff, baselines, levels, why)
+               && why.find("discard") != std::string::npos);
+        assert(cell.placeAtAndWait("N", { std::nullopt, std::nullopt, std::nullopt, std::nullopt }, 1.0, why));
+        watch();
     }
     {
         // A camera keeps a calibration for each picture size: a new one at a

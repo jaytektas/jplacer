@@ -6,11 +6,13 @@
 #include "JPChangerStep.h"
 #include "JPMachineLocation.h"
 #include "JPRunout.h"
+#include "JPVacuumMeasure.h"
 
 #include <j/config/Json.h>
 
 #include <array>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -117,6 +119,8 @@ struct JPNozzleTipConfig {
         // (ms from its start; the valve 1 open, 0 closed).
         std::optional<double> lastReading, lastDifference;
         std::vector<std::pair<double, double>> vacuumGraph, valveGraph;
+        // What the ranges were last measured from (Measure; kept).
+        std::optional<JPVacuumMeasure> measured;
     };
     Sensing                    partOn, partOff;
     bool                       partOnCheckAfterPick = true, partOnCheckAlign = true, partOnCheckBeforePlace = true;

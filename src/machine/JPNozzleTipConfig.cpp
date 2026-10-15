@@ -207,6 +207,7 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
         sensing->high     = d["high"].number(0.0);
         sensing->diffLow  = d["diffLow"].number(0.0);
         sensing->diffHigh = d["diffHigh"].number(0.0);
+        if (d["measured"].isObject()) sensing->measured = JPVacuumMeasure::fromJson(d["measured"]);
     }
     t.partOffProbingMs = int(j["partOff"]["probingMs"].number());
     t.partOffDwellMs   = int(j["partOff"]["dwellMs"].number());
@@ -294,6 +295,7 @@ JJson JPNozzleTipConfig::toJson() const {
         j[key]["high"]     = sensing->high;
         j[key]["diffLow"]  = sensing->diffLow;
         j[key]["diffHigh"] = sensing->diffHigh;
+        if (sensing->measured) j[key]["measured"] = sensing->measured->toJson();
     }
     j["partOff"]["probingMs"] = partOffProbingMs;
     j["partOff"]["dwellMs"]   = partOffDwellMs;
