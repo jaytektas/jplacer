@@ -484,6 +484,11 @@ void JPlacerMachine::buildPanels(Keep keep) {
         const std::string id = nozzlePart(nozzleId);
         return id.empty() || !m_configuration ? id : m_configuration->partName(id);
     };
+    jog->partHeightOn = [this](const std::string& nozzleId) {
+        const std::string id = nozzlePart(nozzleId);
+        const JPPart* part = id.empty() || !m_configuration ? nullptr : m_configuration->part(id);
+        return part ? m_configuration->partHeight(*part).convertToUnits(JPLengthUnit::Millimeters).value() : 0.0;
+    };
     jog->refreshNames();
     jog->onChoicesChanged = [this] {
         if (!m_jog) return;

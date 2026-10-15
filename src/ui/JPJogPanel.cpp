@@ -709,6 +709,8 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     // worked out for that height (a lean taken in). Not a place in X and Y to be lowered to by hand.
     std::optional<double> z;
     if (tool.nozzle && over.camera) z = m.axisZ.empty() ? std::optional(m.offsetZ) : m_cell.toolZ(m);
+    // A part held: its bottom at that height, the tip its height above.
+    if (z && partHeightOn) *z += partHeightOn(tool.id);
     m_cell.moveTool(*tool.mount, { px->second + ox, py->second + oy, z, std::nullopt }, 1.0);
 }
 

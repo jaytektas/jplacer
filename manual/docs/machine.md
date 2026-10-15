@@ -361,7 +361,8 @@ the camera on the head, and anything else on the head that moves on axes.
   chosen, or the one chosen last when the camera is chosen). Both go up to safe Z first. The nozzle goes
   down to the camera's height (the board's or a feeder's, as the camera's Z is set), its tip's centre on
   the point the camera looks at there, its lean (if it has one) taken in, as a feeder's Position Nozzle
-  goes to the pick.
+  goes to the pick. With a part on it (one jplacer picked, so its part is known), the part's bottom goes to
+  that height and the tip that part's height above it.
 - **Distance** [mm, or degrees turning]: a slider of steps (0.01 to 100 a press, unless set otherwise in
   [Preferences, Jog](preferences.md#jog)).
 - **Speed**: the machine's speed, as in OpenPnP: every move goes at this share of its own speed (a jog,

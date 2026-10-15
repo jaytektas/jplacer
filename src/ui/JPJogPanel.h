@@ -106,6 +106,9 @@ public:
     // The part a nozzle holds (empty: none), named in its entry as OpenPnP's NozzleItem names it; the entries
     // named again when a nozzle's part changes.
     std::function<std::string(const std::string& nozzleId)> partOn;
+    // How tall the part a nozzle holds is (mm; 0: none, or not known): Position Nozzle puts its bottom, not the tip, at
+    // the camera's height.
+    std::function<double(const std::string& nozzleId)> partHeightOn;
     void refreshNames();
     // Which tip is on which nozzle, or a tip's calibration, changed (set in the cell where it is, the panel not
     // made again): the nozzles' names and the tip button shown again.
