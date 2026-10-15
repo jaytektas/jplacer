@@ -5,6 +5,7 @@
 
 #include "JPMachineLocation.h"
 #include "JPMountConfig.h"
+#include "JPOffsetsRun.h"
 
 #include <string>
 #include <vector>
@@ -37,6 +38,8 @@ struct JPNozzleConfig {
     // When its X, Y offsets were last calibrated (JPWhen's form; by the fiducial roughly, or precisely with a
     // test object), and how: empty when never, here.
     std::string              offsetsWhen, offsetsHow;
+    // Its last calibrations of them, the newest last (JPOffsetsRun::kKept at most).
+    std::vector<JPOffsetsRun> offsetsRuns;
     // OpenPnP's Tool Changer: tips changed by their load and unload steps
     // (else asked to be changed by hand, as for a tip without steps); and a
     // pick from the Feeders tab changing to a tip that fits the part.
@@ -86,6 +89,19 @@ struct JPNozzleConfig {
         return false;
     }
 
+    // A calibration's offsets taken (`run.before` filled in from the offsets now), and it kept as the newest run.
+    void calibrated(JPOffsetsRun run) {
+        run.beforeX = mount.offsetX;
+        run.beforeY = mount.offsetY;
+        mount.offsetX = run.afterX;
+        mount.offsetY = run.afterY;
+        offsetsWhen = run.when;
+        offsetsHow = run.how;
+        offsetsRuns.push_back(std::move(run));
+        if (offsetsRuns.size() > JPOffsetsRun::kKept)
+            offsetsRuns.erase(offsetsRuns.begin(), offsetsRuns.end() - JPOffsetsRun::kKept);
+    }
+
     static JPNozzleConfig fromJson(const JJson& j) {
         JPNozzleConfig n{ j["id"].str(), j["name"].str(), JPMountConfig::fromJson(j["mount"]), j["vacuumActuator"].str(), {},
                           j["tip"].str() };
@@ -97,6 +113,7 @@ struct JPNozzleConfig {
         n.dynamicSafeZ          = j["dynamicSafeZ"].boolean();
         n.offsetsWhen           = j["offsetsCalibrated"]["when"].str();
         n.offsetsHow            = j["offsetsCalibrated"]["how"].str();
+        for (const JJson& r : j["offsetsCalibrated"]["runs"].arr()) n.offsetsRuns.push_back(JPOffsetsRun::fromJson(r));
         n.changerEnabled        = j["changerEnabled"].boolean(true);
         n.tipChangeOnManualPick = j["tipChangeOnManualPick"].boolean();
         n.manualChangeLocation  = JPMachineLocation::fromJson(j["manualChangeLocation"]);
@@ -142,6 +159,10 @@ struct JPNozzleConfig {
         if (!offsetsWhen.empty()) {
             j["offsetsCalibrated"]["when"] = offsetsWhen;
             j["offsetsCalibrated"]["how"] = offsetsHow;
+        }
+        if (!offsetsRuns.empty()) {
+            j["offsetsCalibrated"]["runs"] = JJson::array();
+            for (const JPOffsetsRun& r : offsetsRuns) j["offsetsCalibrated"]["runs"].push(r.toJson());
         }
         if (!changerEnabled) j["changerEnabled"] = false;
         if (tipChangeOnManualPick) j["tipChangeOnManualPick"] = true;

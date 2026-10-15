@@ -1735,9 +1735,11 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     i.activate = [c, nozzleId] {
                         if (c.chooseNozzle) c.chooseNozzle(nozzleId);
                     };
-                    // What it changed, to undo: the nozzle's offsets and the fiducial's Z as they were.
+                    // What it changed, to undo: the nozzle's offsets (and their calibrations) and the fiducial's Z as they were.
                     struct Before {
                         double x = 0, y = 0, z = 0, fiducialZ = 0;
+                        std::string when, how;
+                        std::vector<JPOffsetsRun> runs;
                         bool   taken = false;
                     };
                     auto before = std::make_shared<Before>();
@@ -1751,6 +1753,9 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                                         k.mount.offsetX = before->x;
                                         k.mount.offsetY = before->y;
                                         k.mount.offsetZ = before->z;
+                                        k.offsetsWhen = before->when;
+                                        k.offsetsHow = before->how;
+                                        k.offsetsRuns = before->runs;
                                     }
                                 for (JPHeadConfig& hh : cell.heads)
                                     if (hh.id == headId && isDefault) {
@@ -1795,6 +1800,9 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                         before->x = k->mount.offsetX;
                         before->y = k->mount.offsetY;
                         before->z = k->mount.offsetZ;
+                        before->when = k->offsetsWhen;
+                        before->how = k->offsetsHow;
+                        before->runs = k->offsetsRuns;
                         before->fiducialZ = (primary ? hh->rigPrimary : hh->rigSecondary)->z;
                         before->taken = true;
                         c.changeCell(primary ? "Nozzle approximate offsets" : "Secondary fiducial height", [&](JPCellConfig& cell) {
@@ -1816,13 +1824,15 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                                     oy = before->y;
                                     kept = true;
                                 }
-                                x.mount.offsetX = ox;
-                                x.mount.offsetY = oy;
                                 x.mount.offsetZ = oz;
-                                // Its X, Y set roughly (not the ones kept, perhaps precise): when, and how.
+                                // Its X, Y set roughly (not the ones kept, perhaps precise), kept as a calibration run.
                                 if (!kept) {
-                                    x.offsetsWhen = JPWhen::now();
-                                    x.offsetsHow = "roughly, on the primary fiducial";
+                                    JPOffsetsRun run;
+                                    run.when = JPWhen::now();
+                                    run.how = JPOffsetsRun::kOnFiducial;
+                                    run.afterX = ox;
+                                    run.afterY = oy;
+                                    x.calibrated(std::move(run));
                                 }
                             }
                         });
@@ -1935,14 +1945,17 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                                 results = "\n\nOffsets last calibrated: "
                                           + (k.offsetsWhen.empty() ? std::string("never, in jplacer") : JPWhen::withAgo(k.offsetsWhen) + ", " + k.offsetsHow)
                                           + ".";
-                    if (const auto r = c.nozzleOffsetsResult ? c.nozzleOffsetsResult(nozzleId) : std::nullopt) {
-                        char buf[320];
-                        std::snprintf(buf, sizeof buf,
-                                      "\n\nResults:\nDetected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n"
-                                      "Difference: %+.4f, %+.4f mm",
-                                      r->afterX, r->afterY, r->beforeX, r->beforeY, r->afterX - r->beforeX, r->afterY - r->beforeY);
-                        results += buf;
-                    }
+                    if (const JPCellConfig* cell = c.cell ? c.cell() : nullptr)
+                        for (const JPNozzleConfig& k : cell->nozzles)
+                            if (k.id == nozzleId && !k.offsetsRuns.empty() && k.offsetsRuns.back().how == JPOffsetsRun::kPrecise) {
+                                const JPOffsetsRun& r = k.offsetsRuns.back();
+                                char buf[320];
+                                std::snprintf(buf, sizeof buf,
+                                              "\n\nResults:\nDetected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n"
+                                              "Difference: %+.4f, %+.4f mm",
+                                              r.afterX, r.afterY, r.beforeX, r.beforeY, r.changeX(), r.changeY());
+                                results += buf;
+                            }
                     return instructions + results;
                 };
                 const std::string cameraId = camera->id;

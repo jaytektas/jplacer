@@ -83,10 +83,6 @@ public:
         std::function<std::optional<double>()> headCameraPixelsPerMm;
         // OpenPnP's precise nozzle offsets: the test object measured at `px` and kept, then picked, turned and placed.
         std::function<void(const std::string& nozzleId, int px, std::function<void(bool ok)> finished)> calibratePreciseNozzleOffsets;
-        struct OffsetsResult {
-            double beforeX = 0, beforeY = 0, afterX = 0, afterY = 0;
-        };
-        std::function<std::optional<OffsetsResult>(const std::string& nozzleId)> nozzleOffsetsResult;
         // Where a nozzle's Z is now, as a pick at a Z takes it (none: not known).
         std::function<std::optional<double>(const std::string& nozzleId)> nozzleZ;
         // A change to the cell's settings, a Machine Setup step (undone as one).

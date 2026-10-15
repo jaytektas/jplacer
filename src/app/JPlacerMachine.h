@@ -241,10 +241,6 @@ public:
     void autoDetectFeature(int fromPx, std::function<void(std::optional<int>)> done);
     void calibratePreciseNozzleOffsets(const std::string& nozzleId, int px, std::function<void(bool ok)> finished);
     std::optional<double> headCameraPixelsPerMm() const;
-    struct OffsetsResult {
-        double beforeX = 0, beforeY = 0, afterX = 0, afterY = 0;
-    };
-    std::optional<OffsetsResult> nozzleOffsetsResult(const std::string& nozzleId) const;
     // The open cell's file.
     const std::string& cellPath() const { return m_cellPath; }
     // A script's request of the machine (JPScripting::api), answered.
@@ -406,10 +402,13 @@ private:
     // What turns a reticle on camera `cameraId` (reticleRotation): its own rotation axis, else the Jog
     // tool's; none when neither has one (no rotation handle then, as OpenPnP's).
     const JPMountConfig* rotationMount(const std::string& cameraId) const;
-    // The nozzle Offset Wizard's two steps: store where the nozzle left its
+    // The nozzle Calibration tab's mark method: store where the nozzle left its
     // mark; then, the camera over the mark, move the nozzle's offset by the
     // difference (a step in Machine Setup, to undo).
-    void nozzleOffsetWizard(const std::string& nozzleId, bool storeMark);
+    void nozzleMarkOffsets(const std::string& nozzleId, bool storeMark);
+    // The nozzle Calibration tab's precise offsets: detect the test object (the next feature the head camera
+    // sees, its diameter kept), capture its Z (the nozzle's), or calibrate (calibratePreciseNozzleOffsets).
+    void nozzleTestObject(const std::string& nozzleId, const std::string& action);
 
     struct Dock {
         std::unique_ptr<JDockWidget> dock;
@@ -465,7 +464,6 @@ private:
     JPVisionTests                       m_setupVisionTests;
     JPConfiguration*                    m_configuration = nullptr;
     JPPnpChecking                  m_pnpChecking;
-    std::map<std::string, OffsetsResult> m_offsetsResults;   // by nozzle: Calibrate precise offsets' last   // Simulation Mode's Pick & Place Checking
     JPlacerScriptVision                 m_scriptVision;  // scripts' pipelines (OpenPnP's CvPipeline)
     JPlacerNeoden4Buzzer                m_neoden4Buzzer { *this };   // Neoden4Signaler's beeping
     std::map<std::string, std::string>  m_nozzleParts;   // nozzle: the part it holds
@@ -496,7 +494,7 @@ private:
         std::string nozzleId;
         double      x, y;
     };
-    std::optional<NozzleMark>           m_nozzleMark;      // the Offset Wizard's stored mark
+    std::optional<NozzleMark>           m_nozzleMark;      // the Calibration tab's stored mark
 };
 
 } // inline namespace jf

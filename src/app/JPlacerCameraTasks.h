@@ -4,6 +4,7 @@
 #pragma once
 
 #include "machine/JPCell.h"
+#include "machine/JPOffsetsRun.h"
 #include "machine/JPScripting.h"
 #include "tasks/JPVisualTest.h"
 #include "tasks/JPBackgroundCalibration.h"
@@ -80,8 +81,9 @@ public:
     // picks it at 6 angles round the circle and places it turned 180 degrees,
     // the camera finding it after each. `done` (main thread): how far the
     // nozzle's X and Y offsets are off (the average of where it moved, half
-    // its turns' displacement each); not ok: it failed.
-    void calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle, std::function<void(bool ok, double, double)> done);
+    // its turns' displacement each), and each angle's own estimate; not ok: it failed.
+    void calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
+                                std::function<void(bool ok, double, double, std::vector<JPOffsetsRun::Angle>)> done);
     // OpenPnP's VisionFeatureIssue, on `camera`'s settled picture where it looks now (JPVisionFeature): the feature
     // of about `px` found and shown on its view (the circle and its cross-hairs, "Diameter N px - Score S", as the
     // issue's Feature diameter shows it); Auto-Detect Next from `fromPx` (`done`, main thread: the diameter, none

@@ -489,17 +489,17 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
 }
 
 void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
-                                                std::function<void(bool, double, double)> done) {
+                                                std::function<void(bool, double, double, std::vector<JPOffsetsRun::Angle>)> done) {
     if (const std::string why = notReady(&camera, true, false); !why.empty()) {
         m_window.showStatus("Nozzle offsets: " + why, kResultMs);
-        if (done) done(false, 0, 0);
+        if (done) done(false, 0, 0, {});
         return;
     }
     const JPHeadConfig* h = head(camera.camera());
     if (!h || !h->rigPrimary || h->rigTestObjectDiameter <= 0) {
         m_window.showStatus("Nozzle offsets: the head's calibration rig needs its primary fiducial and the test object's diameter",
                             kResultMs);
-        if (done) done(false, 0, 0);
+        if (done) done(false, 0, 0, {});
         return;
     }
     const JPHeadConfig rig = *h;
@@ -511,8 +511,9 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
     if (m_featureAt) start = *m_featureAt;
     else if (const auto now = cameraAt(camera)) start = *now;
     auto offsets = std::make_shared<std::pair<double, double>>(0, 0);
+    auto each = std::make_shared<std::vector<JPOffsetsRun::Angle>>();   // each angle's own estimate (half how far it moved)
     JPCameraPanel* panel = &camera;
-    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, panel, feed, rig, n, offsets, start](std::string& words,
+    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, panel, feed, rig, n, offsets, each, start](std::string& words,
                                                                                                          const auto& progress) {
         const JPMountConfig& cm = feed->config().mount;
         JPCameraCalibration cal;
@@ -578,7 +579,6 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         bool holding = false;   // picked and not yet placed
         const int angles = std::max(1, m_cell.config().nozzleOffsetAngles);
         int at = 0;
-        std::vector<std::pair<double, double>> each;   // each angle's own estimate (half how far it moved)
         for (double angle = -180 + da / 2; angle < 180 && ok; angle += da) {
             char step[80];
             std::snprintf(step, sizeof step, "pick and place at %.0f deg, %d of %d", angle, ++at, angles);
@@ -601,9 +601,9 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             accumulated += 2;
             if (ok) {
                 // This angle's estimate, in the log, so how well they agree can be seen.
-                each.push_back({ (x - beforeX) / 2, (y - beforeY) / 2 });
+                each->push_back({ angle, (x - beforeX) / 2, (y - beforeY) / 2 });
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  " << n.name << " at " << angle << " deg: "
-                                                            << each.back().first << ", " << each.back().second << " mm off";
+                                                            << each->back().dx << ", " << each->back().dy << " mm off";
             }
         }
         // The test object let go where it is, if it is still held (as OpenPnP's); then up, unturned, whatever happened.
@@ -615,14 +615,14 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
         offsets->second = sumY / accumulated;
         // How far the angles' estimates are from their mean, at most: how far the result can be trusted.
         double spread = 0;
-        for (const auto& [ex, ey] : each) spread = std::max(spread, std::hypot(ex - offsets->first, ey - offsets->second));
+        for (const JPOffsetsRun::Angle& a : *each) spread = std::max(spread, std::hypot(a.dx - offsets->first, a.dy - offsets->second));
         char buf[200];
         std::snprintf(buf, sizeof buf, "%s's offsets %+.4f, %+.4f mm off (%zu angles, each within %.4f mm of that)", n.name.c_str(),
-                      offsets->first, offsets->second, each.size(), spread);
+                      offsets->first, offsets->second, each->size(), spread);
         words = buf;
         return true;
-    }, [offsets, done](bool ok) {
-        if (done) done(ok, offsets->first, offsets->second);
+    }, [offsets, each, done](bool ok) {
+        if (done) done(ok, offsets->first, offsets->second, *each);
     });
 }
 

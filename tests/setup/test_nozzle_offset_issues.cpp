@@ -99,7 +99,6 @@ int main() {
     std::map<std::string, double> at { { "x", 157.0 }, { "y", 241.2 }, { "zl", -23.6 }, { "z2", -23.4 } };
     int previewed = -1, calibratedAt = -1;
     std::string chosen;
-    std::optional<JPIssueChecks::Context::OffsetsResult> result;
     JPIssueChecks::Context c;
     c.cell = [&cell]() -> const JPCellConfig* { return &cell; };
     c.calibrated = [](const std::string&) { return true; };
@@ -114,10 +113,14 @@ int main() {
     c.headCameraPixelsPerMm = [] { return std::optional(30.0); };
     c.calibratePreciseNozzleOffsets = [&](const std::string&, int px, std::function<void(bool)> finished) {
         calibratedAt = px;
-        result = JPIssueChecks::Context::OffsetsResult { -19.925, -61.945, -19.3, -62.56 };
+        JPOffsetsRun run;
+        run.when = "2026-10-15 10:00";
+        run.how = JPOffsetsRun::kPrecise;
+        run.afterX = -19.3;
+        run.afterY = -62.56;
+        cell.nozzles[0].calibrated(run);
         finished(true);
     };
-    c.nozzleOffsetsResult = [&result](const std::string&) { return result; };
     c.nozzleZ = [&at](const std::string& id) -> std::optional<double> { return id == "L" ? at["zl"] - 0.4 : at["z2"]; };
 
     S s;
@@ -150,9 +153,14 @@ int main() {
     assert(near(cell.heads[0].rigPrimary->z, -23.6));
     assert(near(cell.nozzles[0].mount.offsetX, 137.137 - 157.0) && near(cell.nozzles[0].mount.offsetY, 179.265 - 241.2)
            && near(cell.nozzles[0].mount.offsetZ, 0));
-    // Undone: as they were.
+    // Kept as a rough calibration run.
+    assert(cell.nozzles[0].offsetsRuns.size() == 1 && cell.nozzles[0].offsetsRuns[0].how == JPOffsetsRun::kOnFiducial
+           && cell.nozzles[0].offsetsRuns[0].beforeX == 0 && near(cell.nozzles[0].offsetsRuns[0].afterX, 137.137 - 157.0)
+           && cell.nozzles[0].offsetsHow == JPOffsetsRun::kOnFiducial);
+    // Undone: as they were, the run gone.
     assert(s.setState(*leftPrimary, S::State::Open, why));
     assert(cell.nozzles[0].mount.offsetX == 0 && cell.heads[0].rigPrimary->z == 0);
+    assert(cell.nozzles[0].offsetsRuns.empty() && cell.nozzles[0].offsetsWhen.empty());
     assert(s.setState(*leftPrimary, S::State::Solved, why));
 
     // The secondary fiducial known: its Z for the first nozzle (at least 2 mm from the primary's); the second nozzle's
@@ -184,6 +192,7 @@ int main() {
     rightPrimary = find(s, "Set nozzle RIGHT approximate offsets and match its Z to nozzle LEFT (coarse nozzle calibration).");
     assert(rightPrimary && s.setState(*rightPrimary, S::State::Open, why) && s.setState(*rightPrimary, S::State::Solved, why));
     assert(cell.nozzles[1].mount.offsetX == keptX && cell.nozzles[1].mount.offsetY == keptY);
+    assert(cell.nozzles[1].offsetsRuns.size() == 1);   // kept: no new run
     assert(near(cell.nozzles[1].mount.offsetZ, -23.6 + 23.5));
     // Further off than that: taken.
     at["x"] = 116.0;
@@ -192,6 +201,7 @@ int main() {
     rightPrimary = find(s, "Set nozzle RIGHT approximate offsets and match its Z to nozzle LEFT (coarse nozzle calibration).");
     assert(rightPrimary && s.setState(*rightPrimary, S::State::Open, why) && s.setState(*rightPrimary, S::State::Solved, why));
     assert(near(cell.nozzles[1].mount.offsetX, 137.137 - 116.0));
+    assert(cell.nozzles[1].offsetsRuns.size() == 2 && near(cell.nozzles[1].offsetsRuns[1].beforeX, keptX));
 
     // Calibration: the precise offsets, now that they are roughly set.
     s.setTargetMilestone(S::Milestone::Calibration);
@@ -223,6 +233,7 @@ int main() {
     assert(s.setState(*precise, S::State::Solved, why) && calibratedAt == 244);
     // The result on its page at once, as it is now (not as when the issues were found, before it was calibrated).
     assert(precise->described().find("Detected Nozzle Head Offsets: -19.3000, -62.5600 mm") != std::string::npos);
+    assert(precise->described().find("Previous Nozzle Head Offsets: " + std::string("-19.8630")) != std::string::npos);
     s.find();
     s.publish();
     precise = find(s, "Calibrate precise camera ↔ nozzle LEFT offsets.");

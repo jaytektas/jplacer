@@ -826,11 +826,6 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
         context.calibratePreciseNozzleOffsets = [this](const std::string& id, int px, std::function<void(bool)> finished) {
             m_machine.calibratePreciseNozzleOffsets(id, px, std::move(finished));
         };
-        context.nozzleOffsetsResult = [this](const std::string& id) -> std::optional<JPIssueChecks::Context::OffsetsResult> {
-            const auto r = m_machine.nozzleOffsetsResult(id);
-            if (!r) return std::nullopt;
-            return JPIssueChecks::Context::OffsetsResult { r->beforeX, r->beforeY, r->afterX, r->afterY };
-        };
         context.nozzleZ = [this](const std::string& id) -> std::optional<double> {
             const JPCell* cell = m_machine.cell();
             if (!cell || !cell->isConnected()) return std::nullopt;

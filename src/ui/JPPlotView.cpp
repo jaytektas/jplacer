@@ -103,7 +103,7 @@ void JPPlotView::drawChart(JPrimitiveBuffer& buf, const JRect& b) const {
             else chart.setYRange(-reach * ah / aw, reach * ah / aw);
         }
         if (m_plot->circle > 0) {
-            const int c = chart.addSeries("outlier limit", toneColour(JPPlot::Tone::Second), st.borderWidth);
+            const int c = chart.addSeries(m_plot->circleLabel, toneColour(JPPlot::Tone::Second), st.borderWidth);
             constexpr int kPieces = 72;
             for (int i = 0; i <= kPieces; ++i) {
                 const double a = 2 * M_PI * i / kPieces;

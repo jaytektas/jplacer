@@ -1104,6 +1104,148 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.tip("When switching on the pump, wait this time for it to reach proper pressure.");
 }
 
+// A length in mm, signed or not, as the nozzle's Calibration tab shows its offsets.
+std::string mmText(double v, bool sign = false) {
+    char b[32];
+    std::snprintf(b, sizeof b, sign ? "%+.4f" : "%.4f", v);
+    return b;
+}
+
+std::string mmPair(double x, double y, bool sign = false) { return mmText(x, sign) + ", " + mmText(y, sign) + " mm"; }
+
+// A nozzle's Calibration tab: where it is on its head (its X, Y offsets), precisely by the test object (as
+// Issues & Solutions' Calibrate precise camera <-> nozzle offsets), or by a mark it leaves (OpenPnP's Offset
+// Wizard); and what its calibrations found, run by run, drawn so outliers stand out.
+void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPNozzleConfig&()> n) {
+    add.tab("Calibration");
+    const std::string headId = n().mount.headId;
+    auto head = [&cell, headId]() -> JPHeadConfig* {
+        for (JPHeadConfig& h : cell.heads)
+            if (h.id == headId) return &h;
+        return nullptr;
+    };
+    add.group("Precise Offsets, by the Test Object");
+    add.note("The nozzle picks a small round test object off the head's primary calibration fiducial at "
+             + std::to_string(std::max(1, cell.nozzleOffsetAngles)) + " angles round the circle, placing it turned 180 "
+             "degrees each time; the camera finds it after each. Where its axis really is lies halfway between, so each "
+             "angle gives its own estimate of how far the offsets are off, and their mean is the correction made.");
+    const bool rig = head() && head()->rigPrimary;
+    if (rig) {
+        add.row("Test Object Diameter");
+        add.length("testObjectDiameter", "Test Object Diameter", [head] { return head()->rigTestObjectDiameter; },
+                   [head](double v) { if (v >= 0) head()->rigTestObjectDiameter = v; });
+        add.bare();
+        add.tip("How wide the test object is: what the camera looks for.");
+        add.button("detectTestObject", "Detect", "Find the test object where the camera looks now and measure its diameter "
+                   "(again: the next one the camera sees).");
+        add.end();
+        add.row("Test Object Z");
+        add.length("testObjectZ", "Test Object Z", [head] { return head()->rigTestObjectZ.value_or(head()->rigPrimary->z); },
+                   [head](double v) { head()->rigTestObjectZ = v; });
+        add.bare();
+        add.tip("The test object's top, where the nozzle picks and places it: typed in, or captured with the nozzle's tip "
+                "touching it. Until it is set, the primary fiducial's Z.");
+        add.button("captureTestObjectZ", "Capture", "This nozzle's Z now, its tip touching the test object.");
+        add.end();
+    } else {
+        add.note("The head needs its primary calibration fiducial first (Issues & Solutions, Calibration).");
+    }
+    add.button("calibratePreciseOffsets", "Calibrate", "Pick, turn and place the test object at each angle, and take the "
+               "correction found. CAUTION: the nozzle goes down to the test object; load the right tip and ready the vacuum.",
+               rig && head()->rigTestObjectDiameter > 0);
+    add.note("Put the test object on the primary fiducial and the camera over it, detect it, set its Z, then Calibrate. "
+             "The offsets change by the correction found (Undo takes them back), and the run is kept below.");
+
+    const std::vector<JPOffsetsRun> runs = n().offsetsRuns;
+    if (!runs.empty()) {
+        const JPOffsetsRun& r = runs.back();
+        add.group("Last Calibration, " + JPWhen::withAgo(r.when));
+        auto shown = [&add](const std::string& name, const std::string& label, const std::string& value) {
+            add.text(name, label, [value] { return value; }, nullptr);
+        };
+        shown("lastHow", "How", r.how);
+        shown("lastBefore", "Offsets Before", mmPair(r.beforeX, r.beforeY));
+        shown("lastAfter", "Offsets Found", mmPair(r.afterX, r.afterY));
+        shown("lastChange", "Change", mmPair(r.changeX(), r.changeY(), true) + " (" + mmText(r.change()) + " mm)");
+        if (!r.angles.empty()) {
+            const int outliers = r.outliers();
+            shown("lastSpread", "Angles Agree Within", mmText(r.spread()) + " mm of the correction");
+            shown("lastOutliers", "Outliers", std::to_string(outliers) + (outliers ? " (further than " : " (none further than ")
+                                                  + mmText(r.outlierLimit()) + " mm)");
+            auto plot = std::make_shared<JPPlot>();
+            plot->kind = JPPlot::Kind::Scatter;
+            plot->xTitle = "X mm";
+            plot->yTitle = "Y mm";
+            plot->circle = r.outlierLimit();
+            plot->circleLabel = "outlier limit";
+            JPPlot::Series kept{ "each angle", JPPlot::Tone::Third, {} }, out{ "outlier", JPPlot::Tone::First, {} };
+            for (const JPOffsetsRun::Angle& a : r.angles)
+                (r.outlier(a) ? out : kept).points.push_back({ a.dx - r.changeX(), a.dy - r.changeY() });
+            plot->series.push_back(kept);
+            if (!out.points.empty()) plot->series.push_back(out);
+            add.plot("Each Angle's Estimate, About the Correction Made", plot);
+            add.note("The middle is the correction made (their mean). Angles in a tight cluster: a good run. One on its "
+                     "own outside the circle: a bad find, or the test object slipped on the tip; calibrate again. All of them "
+                     "round a ring: the tip's runout, which its runout calibration takes out.");
+            add.header({ "X", "Y", "From the Correction" });
+            for (const JPOffsetsRun::Angle& a : r.angles) {
+                char label[32];
+                std::snprintf(label, sizeof label, "%g\xC2\xB0", a.angle);
+                add.row(label);
+                add.words(mmText(a.dx, true));
+                add.words(mmText(a.dy, true));
+                add.words(mmText(r.distance(a)) + (r.outlier(a) ? " (outlier)" : ""));
+                add.end();
+            }
+            add.endColumns();
+        }
+    }
+    if (runs.size() > 1) {
+        add.group("Calibrations, Run by Run");
+        add.header({ "How", "Offsets Found", "Change", "Outliers" });
+        for (auto it = runs.rbegin(); it != runs.rend(); ++it) {
+            add.row(JPWhen::withAgo(it->when));
+            add.words(it->how);
+            add.words(mmPair(it->afterX, it->afterY));
+            add.words(mmPair(it->changeX(), it->changeY(), true));
+            add.words(it->angles.empty() ? std::string("-") : std::to_string(it->outliers()) + " of " + std::to_string(it->angles.size()));
+            add.end();
+        }
+        add.endColumns();
+    }
+    // Where each precise run put the nozzle, against where the last one did: how well they repeat (a rough run is
+    // too far off to draw beside them; the table above has it).
+    std::vector<const JPOffsetsRun*> precise;
+    for (const JPOffsetsRun& r : runs)
+        if (r.how == JPOffsetsRun::kPrecise) precise.push_back(&r);
+    if (precise.size() > 1) {
+        const JPOffsetsRun& last = *precise.back();
+        auto plot = std::make_shared<JPPlot>();
+        plot->kind = JPPlot::Kind::Scatter;
+        plot->xTitle = "X mm";
+        plot->yTitle = "Y mm";
+        JPPlot::Series earlier{ "earlier runs", JPPlot::Tone::Third, {} }, now{ "last run", JPPlot::Tone::Second, { { 0, 0 } } };
+        for (size_t i = 0; i + 1 < precise.size(); ++i)
+            earlier.points.push_back({ precise[i]->afterX - last.afterX, precise[i]->afterY - last.afterY });
+        plot->series = { earlier, now };
+        add.plot("Precise Offsets Found, Against the Last Run", plot);
+        add.note("Each earlier precise run's offsets from the last one's: runs landing close together repeat well; one "
+                 "far from the others was likely a bad run.");
+    }
+
+    // OpenPnP's Offset Wizard: where the nozzle is on the head, from a mark it leaves.
+    add.group("Rough Offsets, by a Mark");
+    add.note("1. Put something on the table the nozzle can leave a mark in (putty, flour, carbon paper).");
+    add.note("2. Choose this nozzle on the Jog panel, move it over the object and lower it until it leaves a mark; "
+             "turning it a full turn there keeps the tip's runout out of the measurement.");
+    add.note("3. Store the nozzle mark position (where the nozzle is now):");
+    add.actions({ { "Store Nozzle Mark Position", "storeNozzleMark" } });
+    add.note("4. Raise the nozzle, choose the camera on the Jog panel and move it over the centre of the mark, then:");
+    add.actions({ { "Calculate Nozzle Offset", "calculateNozzleOffset" } });
+    add.note("The offsets on the Configuration tab change by how far the camera is from where the nozzle thought it "
+             "was (Undo takes them back), and the run is kept above.");
+}
+
 void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f) {
     auto n = finder(cell.nozzles, id);
     f.title = "Nozzle " + n().name;
@@ -1233,18 +1375,7 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
              "as after Home. A nozzle sharing the motor is homed with it. Empty: no Z home.");
     add.actions({ { "Home Z", "homeNozzleZ" } });
 
-    // OpenPnP's Offset Wizard: where the nozzle is on the head, from a mark it leaves.
-    add.tab("Offset Wizard");
-    add.group("Nozzle Offset Wizard Steps");
-    add.note("1. Put something on the table the nozzle can leave a mark in (putty, flour, carbon paper).");
-    add.note("2. Choose this nozzle on the Jog panel, move it over the object and lower it until it leaves a mark; "
-             "turning it a full turn there keeps the tip's runout out of the measurement.");
-    add.note("3. Store the nozzle mark position (where the nozzle is now):");
-    add.actions({ { "Store Nozzle Mark Position", "storeNozzleMark" } });
-    add.note("4. Raise the nozzle, choose the camera on the Jog panel and move it over the centre of the mark, then:");
-    add.actions({ { "Calculate Nozzle Offset", "calculateNozzleOffset" } });
-    add.note("The offsets on the Configuration tab change by how far the camera is from where the nozzle thought it "
-             "was; Undo takes them back.");
+    nozzleCalibration(add, cell, n);
 
     // OpenPnP's ContactProbeNozzle wizard (a ReferenceNozzle has none).
     if (!n().contactProbe.nozzle) return;
@@ -1779,6 +1910,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         plot->xTitle = "X mm";
         plot->yTitle = "Y mm";
         plot->circle = r.radius;
+        plot->circleLabel = "runout";
         JPPlot::Series seen{ "measured", JPPlot::Tone::First, {} };
         for (const JPRunout::Point& p : r.points) seen.points.push_back({ p.dx - r.centreX, p.dy - r.centreY });
         plot->series.push_back(seen);
@@ -2050,6 +2182,7 @@ void calibrationResults(JPFormBuilder& add, const JPCameraCalibration& cal, bool
     scatter->xTitle = "X px";
     scatter->yTitle = "Y px";
     scatter->circle = cal.outlierPx;
+    scatter->circleLabel = "outlier limit";
     JPPlot::Series kept{ "measured", JPPlot::Tone::First, {} }, out{ "left out", JPPlot::Tone::Muted, {} };
     auto map = std::make_shared<JPPlot>();
     map->kind = JPPlot::Kind::Map;

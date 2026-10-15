@@ -8,6 +8,7 @@
 #include "tasks/JPCameraSimulation.h"
 #include "tasks/JPCellJobMachine.h"
 #include "tasks/JPTipSlotVision.h"
+#include "tasks/JPVisionFeature.h"
 #include "model/JPBoardLocation.h"
 #include "model/JPBoard.h"
 #include "camera/JPImageFile.h"
@@ -1801,7 +1802,10 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         for (CameraDock& c : m_cameras)
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
     } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
-        nozzleOffsetWizard(path.substr(7), action == "storeNozzleMark");
+        nozzleMarkOffsets(path.substr(7), action == "storeNozzleMark");
+    } else if ((action == "detectTestObject" || action == "captureTestObjectZ" || action == "calibratePreciseOffsets")
+               && path.rfind("nozzle:", 0) == 0) {
+        nozzleTestObject(path.substr(7), action);
     } else if (action.rfind("settleTest", 0) == 0 && path.rfind("camera:", 0) == 0) {
         // One jog step (the Jog pad's distance) out and back, or none.
         const std::string id = path.substr(7);
@@ -2116,9 +2120,9 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
     }
 }
 
-void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeMark) {
+void JPlacerMachine::nozzleMarkOffsets(const std::string& nozzleId, bool storeMark) {
     if (!m_cell || !m_cell->isConnected()) {
-        m_window.showStatus("Offset Wizard: connect the machine first", kErrorMs);
+        m_window.showStatus("Nozzle Calibration: connect the machine first", kErrorMs);
         return;
     }
     const auto p = m_cell->positions();
@@ -2136,22 +2140,22 @@ void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeM
     if (storeMark) {
         double x = 0, y = 0;
         if (!where(nozzle->mount, x, y)) {
-            m_window.showStatus("Offset Wizard: " + nozzle->name + " has no X and Y position", kErrorMs);
+            m_window.showStatus("Nozzle Calibration: " + nozzle->name + " has no X and Y position", kErrorMs);
             return;
         }
         m_nozzleMark = { nozzleId, x, y };
-        m_window.showStatus("Offset Wizard: " + nozzle->name + " mark stored at X " + JPUiParts::coordinate(x) + ", Y "
+        m_window.showStatus("Nozzle Calibration: " + nozzle->name + " mark stored at X " + JPUiParts::coordinate(x) + ", Y "
                             + JPUiParts::coordinate(y) + "; now move the camera over the mark", kErrorMs);
         return;
     }
     if (!m_nozzleMark || m_nozzleMark->nozzleId != nozzleId) {
-        m_window.showStatus("Offset Wizard: store the nozzle mark position first", kErrorMs);
+        m_window.showStatus("Nozzle Calibration: store the nozzle mark position first", kErrorMs);
         return;
     }
     const JPMountConfig* camera = toolMount(JPSetupForm::Tool::Camera);
     double cx = 0, cy = 0;
     if (!camera || !where(*camera, cx, cy)) {
-        m_window.showStatus("Offset Wizard: no camera on a head to look at the mark with", kErrorMs);
+        m_window.showStatus("Nozzle Calibration: no camera on a head to look at the mark with", kErrorMs);
         return;
     }
     // The mark is where the camera is; the nozzle thought it was at the stored place.
@@ -2159,13 +2163,77 @@ void JPlacerMachine::nozzleOffsetWizard(const std::string& nozzleId, bool storeM
     m_setup->change("Offset of " + nozzle->name, [&](JPCellConfig& cell) {
         for (JPNozzleConfig& n : cell.nozzles)
             if (n.id == nozzleId) {
-                n.mount.offsetX += dx;
-                n.mount.offsetY += dy;
+                JPOffsetsRun run;
+                run.when = JPWhen::now();
+                run.how = JPOffsetsRun::kByMark;
+                run.afterX = n.mount.offsetX + dx;
+                run.afterY = n.mount.offsetY + dy;
+                n.calibrated(std::move(run));
             }
     });
-    m_window.showStatus("Offset Wizard: " + nozzle->name + "'s offset moved by X " + JPUiParts::coordinate(dx) + ", Y "
+    m_setup->remakeForm();
+    m_window.showStatus("Nozzle Calibration: " + nozzle->name + "'s offset moved by X " + JPUiParts::coordinate(dx) + ", Y "
                         + JPUiParts::coordinate(dy), kErrorMs);
     m_nozzleMark.reset();
+}
+
+void JPlacerMachine::nozzleTestObject(const std::string& nozzleId, const std::string& action) {
+    const JPNozzleConfig* nozzle = nullptr;
+    const JPHeadConfig* head = nullptr;
+    if (m_cell)
+        for (const JPNozzleConfig& n : m_cell->config().nozzles)
+            if (n.id == nozzleId) nozzle = &n;
+    if (nozzle)
+        for (const JPHeadConfig& h : m_cell->config().heads)
+            if (h.id == nozzle->mount.headId) head = &h;
+    if (!nozzle || !head || !m_cell->isConnected()) {
+        m_window.showStatus("Nozzle Calibration: connect the machine first", kErrorMs);
+        return;
+    }
+    const std::string headId = head->id;
+    if (action == "captureTestObjectZ") {
+        const auto z = m_cell->toolZ(nozzle->mount);
+        if (!z) {
+            m_window.showStatus("Nozzle Calibration: " + nozzle->name + "'s Z is not known", kErrorMs);
+            return;
+        }
+        changeSetup("Test object Z", [&](JPCellConfig& cell) {
+            for (JPHeadConfig& h : cell.heads)
+                if (h.id == headId) h.rigTestObjectZ = *z;
+        });
+        m_setup->remakeForm();
+        return;
+    }
+    // The test object's diameter on the camera's picture (none: not known yet).
+    const auto scale = headCameraPixelsPerMm();
+    const std::optional<int> px = scale && head->rigTestObjectDiameter > 0
+                                      ? std::optional(int(std::lround(head->rigTestObjectDiameter * *scale))) : std::nullopt;
+    if (action == "calibratePreciseOffsets") {
+        if (!px) {
+            m_window.showStatus("Nozzle Calibration: detect the test object first (the head camera calibrated)", kErrorMs);
+            return;
+        }
+        calibratePreciseNozzleOffsets(nozzleId, *px, nullptr);
+        return;
+    }
+    // Detect: the next feature the camera sees from the one known (from the smallest, at first), measured and kept.
+    autoDetectFeature(px.value_or(JPVisionFeature::kLeastDiameterPx), [this, headId](std::optional<int> found) {
+        if (!found || !m_cameraTasks) {
+            m_window.showStatus("Nozzle Calibration: no test object found where the camera looks", kErrorMs);
+            return;
+        }
+        JPCameraPanel* camera = m_cameraTasks->headCamera();
+        if (!camera) return;
+        m_cameraTasks->measureFeature(*camera, *found, [this, headId](std::optional<double> mm) {
+            if (!mm) return;
+            changeSetup("Calibration test object diameter", [&](JPCellConfig& cell) {
+                for (JPHeadConfig& h : cell.heads)
+                    if (h.id == headId) h.rigTestObjectDiameter = *mm;
+            });
+            if (m_setup) m_setup->remakeForm();
+            m_window.showStatus("Nozzle Calibration: test object " + JPUiParts::coordinate(*mm) + " wide", kStatusMs);
+        });
+    });
 }
 
 std::optional<JJson> JPlacerMachine::tuneHeadCamera(std::string& why) {
@@ -2554,11 +2622,6 @@ std::optional<double> JPlacerMachine::headCameraPixelsPerMm() const {
     return cals.front().scale();
 }
 
-std::optional<JPlacerMachine::OffsetsResult> JPlacerMachine::nozzleOffsetsResult(const std::string& nozzleId) const {
-    const auto it = m_offsetsResults.find(nozzleId);
-    return it == m_offsetsResults.end() ? std::nullopt : std::optional(it->second);
-}
-
 void JPlacerMachine::calibratePreciseNozzleOffsets(const std::string& nozzleId, int px, std::function<void(bool ok)> finished) {
     JPCameraPanel* camera = m_cameraTasks ? m_cameraTasks->headCamera() : nullptr;
     const JPNozzleConfig* nozzle = nullptr;
@@ -2590,34 +2653,39 @@ void JPlacerMachine::calibratePreciseNozzleOffsets(const std::string& nozzleId, 
             if (finished) finished(false);
             return;
         }
-        m_cameraTasks->calibrateNozzleOffsets(*again, *n, [this, nozzleId, finished](bool ok, double dx, double dy) {
+        m_cameraTasks->calibrateNozzleOffsets(*again, *n, [this, nozzleId, finished](bool ok, double dx, double dy,
+                                                                                    std::vector<JPOffsetsRun::Angle> angles) {
             if (ok && m_setup) {
+                std::optional<JPOffsetsRun> made;
+                std::string name = nozzleId;
                 m_setup->change("Precise nozzle offsets", [&](JPCellConfig& cell) {
                     for (JPNozzleConfig& k : cell.nozzles)
                         if (k.id == nozzleId) {
-                            OffsetsResult r { k.mount.offsetX, k.mount.offsetY, k.mount.offsetX + dx, k.mount.offsetY + dy };
-                            JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Set nozzle " << k.name << " head offsets to " << r.afterX
-                                << ", " << r.afterY << " (previously " << r.beforeX << ", " << r.beforeY << ")";
-                            k.mount.offsetX = r.afterX;
-                            k.mount.offsetY = r.afterY;
-                            k.offsetsWhen = JPWhen::now();
-                            k.offsetsHow = "precisely, with the test object";
-                            m_offsetsResults[nozzleId] = r;
+                            JPOffsetsRun r;
+                            r.when = JPWhen::now();
+                            r.how = JPOffsetsRun::kPrecise;
+                            r.afterX = k.mount.offsetX + dx;
+                            r.afterY = k.mount.offsetY + dy;
+                            r.angles = std::move(angles);
+                            k.calibrated(std::move(r));
+                            made = k.offsetsRuns.back();
+                            name = k.name;
+                            JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Set nozzle " << k.name << " head offsets to " << made->afterX
+                                << ", " << made->afterY << " (previously " << made->beforeX << ", " << made->beforeY << ")";
                         }
                 });
                 m_setup->remakeForm();
-                // The correction made, said at once: the issue, solved, leaves the list (and its page was made before).
-                if (const auto r = nozzleOffsetsResult(nozzleId)) {
-                    std::string name = nozzleId;
-                    if (m_cell)
-                        for (const JPNozzleConfig& k : m_cell->config().nozzles)
-                            if (k.id == nozzleId) name = k.name;
-                    char text[400];
+                // The correction made, said at once (the issue, solved, leaves the list; the nozzle's Calibration tab
+                // keeps it, with each angle's estimate drawn).
+                if (made) {
+                    char text[520];
                     std::snprintf(text, sizeof text,
                                   "Nozzle %s's head offsets were corrected by %+.4f, %+.4f mm (%.4f mm).\n\n"
-                                  "Detected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm",
-                                  name.c_str(), r->afterX - r->beforeX, r->afterY - r->beforeY,
-                                  std::hypot(r->afterX - r->beforeX, r->afterY - r->beforeY), r->afterX, r->afterY, r->beforeX, r->beforeY);
+                                  "Detected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n\n"
+                                  "%zu angles, within %.4f mm of the correction; outliers (further than %.4f mm): %d.",
+                                  name.c_str(), made->changeX(), made->changeY(), made->change(), made->afterX, made->afterY,
+                                  made->beforeX, made->beforeY, made->angles.size(), made->spread(), made->outlierLimit(),
+                                  made->outliers());
                     JDialog::message("Nozzle offsets calibrated", text);
                 }
             }

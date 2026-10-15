@@ -14,7 +14,7 @@ inline namespace jf {
 //  - Lines: each series as a line through its points, x along, y up.
 //  - Points: each series as dots, each axis scaled to its own range.
 //  - Scatter: each series as dots, the same scale both ways, and a circle
-//    of `circle` about the origin when it is more than 0.
+//    of `circle` about the origin when it is more than 0, named `circleLabel`.
 //  - Map: `spots` over an area `width` x `height` (y down, as a picture),
 //    the area coloured by their values from the least (cool) to the most
 //    (hot), each point by the spots nearest it.
@@ -39,6 +39,7 @@ struct JPPlot {
     bool                logX = false;   // x on a log scale (Lines, Points)
     std::vector<Series> series;
     double              circle = 0;
+    std::string         circleLabel;
     std::vector<Spot>   spots;
     double              width = 0, height = 0;
 };

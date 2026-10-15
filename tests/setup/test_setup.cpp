@@ -220,7 +220,55 @@ int main() {
     // Laid out as OpenPnP lays out a nozzle: its tips on a tab of their own,
     // the axes and offsets as columns under X / Y / Z / Rotation.
     assert(nozzle.tabs.size() == 6 && nozzle.tabs[0].title == "Configuration" && nozzle.tabs[1].title == "Nozzle Tips"
-           && nozzle.tabs[2].title == "Vacuum" && nozzle.tabs[3].title == "Tool Changer" && nozzle.tabs[4].title == "Homing" && nozzle.tabs[5].title == "Offset Wizard");
+           && nozzle.tabs[2].title == "Vacuum" && nozzle.tabs[3].title == "Tool Changer" && nozzle.tabs[4].title == "Homing" && nozzle.tabs[5].title == "Calibration");
+    // Its Calibration tab: the precise offsets (needing the head's primary fiducial, Calibrate the test object's
+    // diameter too), the last run with each angle drawn about the correction (the outlier its own series), every
+    // run when there are more, and the rough offsets by a mark.
+    {
+        auto group = [](const JPSetupProperties::Tab& t, const std::string& title) -> const JPSetupProperties::Group* {
+            for (const JPSetupProperties::Group& g : t.groups)
+                if (g.title.rfind(title, 0) == 0) return &g;
+            return nullptr;
+        };
+        auto button = [](const JPSetupProperties::Group& g, const std::string& action) -> const JPSetupProperties::Cell* {
+            for (const JPSetupProperties::Row& r : g.rows)
+                for (const JPSetupProperties::Cell& k : r.cells)
+                    if (k.button && k.property == action) return &k;
+            return nullptr;
+        };
+        JPCellConfig cal = c;
+        const JPSetupProperties::Form unset = JPSetupProperties::forNode(cal, "nozzle:N", {});
+        const JPSetupProperties::Tab& bare = unset.tabs[5];
+        const JPSetupProperties::Group* p = group(bare, "Precise Offsets");
+        assert(p && button(*p, "calibratePreciseOffsets") && !button(*p, "calibratePreciseOffsets")->enabled);
+        assert(!group(bare, "Last Calibration") && group(bare, "Rough Offsets, by a Mark"));
+        cal.heads[0].rigPrimary = JPMachineLocation { 10, 20, -5, 0 };
+        cal.heads[0].rigTestObjectDiameter = 1.5;
+        JPOffsetsRun rough;
+        rough.when = "2026-10-14 09:00";
+        rough.how = JPOffsetsRun::kOnFiducial;
+        rough.afterX = 1;
+        cal.nozzles[0].calibrated(rough);
+        JPOffsetsRun run;
+        run.when = "2026-10-15 09:00";
+        run.how = JPOffsetsRun::kPrecise;
+        run.afterX = 1.02;
+        run.angles = { { -90, 0.02, 0 }, { 0, 0.021, 0 }, { 90, 0.019, 0 }, { 180, 0.08, 0 } };
+        cal.nozzles[0].calibrated(run);
+        const JPSetupProperties::Form f = JPSetupProperties::forNode(cal, "nozzle:N", {});
+        const JPSetupProperties::Tab& t = f.tabs[5];
+        p = group(t, "Precise Offsets");
+        assert(p && button(*p, "calibratePreciseOffsets")->enabled);
+        assert(f.model.get("testObjectZ").toDouble() == -5);   // not set: the primary fiducial's
+        const JPSetupProperties::Group* last = group(t, "Last Calibration");
+        assert(last && f.model.get("lastOutliers").toString().rfind("1 ", 0) == 0);
+        const JPPlot* plot = nullptr;
+        for (const JPSetupProperties::Row& r : last->rows)
+            if (r.kind == JPSetupProperties::Row::Kind::Plot) plot = r.plot.get();
+        assert(plot && plot->kind == JPPlot::Kind::Scatter && plot->series.size() == 2 && plot->series[1].points.size() == 1
+               && std::abs(plot->series[1].points[0].x - 0.06) < 1e-9);
+        assert(group(t, "Calibrations, Run by Run"));
+    }
     // A ContactProbeNozzle has OpenPnP's Contact Probe tab too.
     {
         JPCellConfig probing = c;
