@@ -2239,11 +2239,13 @@ void JPlacerMachine::checkPlacement(const std::string& nozzleId, bool runoutTrie
                       "Nozzle %s placed the test object %zu times, landing on average %+.4f, %+.4f mm from where it was put "
                       "(%.4f mm).\n\nOf that:\n  drift at the pick and let-go: %+.4f, %+.4f mm\n  bottom vision's bias: "
                       "%+.4f, %+.4f mm (taken off, so it shows the other way)\n  the nozzle's offset error at the place height: "
-                      "%+.4f, %+.4f mm\n\nTurning with the angle (runout, the rotation's centre): %.4f mm.\nLeft over "
+                      "%+.4f, %+.4f mm\n\nTurning with the angle (runout, the rotation's centre): %.4f mm.\nThe test "
+                      "object's own offset (its top's centre against its underneath's, taken out): %.4f mm.\nLeft over "
                       "(noise): at most %.4f mm.\n\nThe nozzle's Calibration tab shows each placement.",
                       name.c_str(), check.places.size(), check.biasX(), check.biasY(), std::hypot(check.biasX(), check.biasY()),
                       check.driftX(), check.driftY(), check.visionBiasX(), check.visionBiasY(), check.offsetErrorX(),
-                      check.offsetErrorY(), std::hypot(tx, ty), check.worstResidual());
+                      check.offsetErrorY(), std::hypot(tx, ty), [&check] { double x = 0, y = 0; check.objectOffset(x, y); return std::hypot(x, y); }(),
+                      check.worstResidual());
         JDialog::message("Placement check", text);
     });
 }

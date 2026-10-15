@@ -175,6 +175,9 @@ private:
     // The round test object (`diameterMm` across) found in `panel`'s settled picture near where (x, y) shows (the
     // camera at cameraX, cameraY, `cal` its calibration at the object's height): where it is on the machine, into
     // (x, y); the picture shown on the camera, captioned `shown`. Not found: false, `words` saying so.
+    // A placement check's: where each find's picture is kept (empty: none), and how many so far.
+    std::string m_findsTo;
+    int         m_findCount = 0;
     bool findRound(JPCameraPanel* panel, const JPCameraCalibration& cal, double diameterMm, double cameraX, double cameraY,
                    double& x, double& y, const std::string& shown, std::string& words);
     // Runs `task` on the worker with `camera` shown and running; its answer

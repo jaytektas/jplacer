@@ -1182,6 +1182,10 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         shown("checkOffset", "Offset Error at Place Height", mmPair(c->offsetErrorX(), c->offsetErrorY(), true));
         shown("checkTurning", "Turning With the Angle", mmText(std::hypot(tx, ty)) + " mm (runout, the rotation's centre)");
         shown("checkNoise", "Left Over", mmText(c->worstResidual()) + " mm at most");
+        double qx = 0, qy = 0;
+        shown("checkObject", "Test Object's Own Offset",
+              c->objectOffset(qx, qy) ? mmPair(qx, qy, true) + " (" + mmText(std::hypot(qx, qy)) + " mm): its top's centre against its underneath's, taken out"
+                                      : std::string("not told apart"));
         auto plot = std::make_shared<JPPlot>();
         plot->kind = JPPlot::Kind::Scatter;
         plot->xTitle = "X mm";
@@ -1192,6 +1196,9 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         for (const JPPlacementCheck::Drift& d : c->drifts) drift.points.push_back({ d.dx, d.dy });
         plot->series = { landed, drift, mean };
         add.plot("Where It Landed, Against Where It Was Put", plot);
+        add.note("A test object whose top's centre is not its underneath's (a dot printed off its middle) shows as its own "
+                 "offset, turning as the object is turned: taken out of the rest. Over about 0.05 mm, a matching object gives "
+                 "a cleaner check.");
         add.note("The bias is the offset error, less bottom vision's bias, plus the drift: each of the three is measured "
                  "on its own, so the one that is not about 0 is where to look. Drift: the vacuum letting go, a blow-off, the "
                  "tip dragging. Bottom vision's bias: its lighting or its fit. Offset error: the nozzle's offsets (or lean) at "

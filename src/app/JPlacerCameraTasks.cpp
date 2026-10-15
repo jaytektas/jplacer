@@ -16,6 +16,8 @@
 #include "tasks/JPVisualHoming.h"
 #include "tasks/JPVisualTest.h"
 #include "common/JPWhen.h"
+#include "common/JPlacerPaths.h"
+#include "pipeline/JPStageUtil.h"
 #include "tasks/JPBottomVision.h"
 #include "tasks/JPJobMachine.h"
 #include "tasks/JPVisionFeature.h"
@@ -521,14 +523,39 @@ bool JPlacerCameraTasks::findRound(JPCameraPanel* panel, const JPCameraCalibrati
     const auto seen = JPVisionFeature::detectAt(bgr, ex, ey, px, 0, false, true, score);
     char text[96];
     std::snprintf(text, sizeof text, "%s - Score %.2f", shown.c_str(), score);
-    JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(bgr), text = std::string(text)] {
+    // Shown (and, during a placement check, kept) with what was looked for: where it was expected (a cross in the
+    // camera's own colour, the size wanted round it) and what was found (green).
+    cv::Mat drawn = bgr.clone();
+    const cv::Point at(int(std::lround(ex)), int(std::lround(ey)));
+    cv::drawMarker(drawn, at, cv::Scalar(255, 160, 0), cv::MARKER_CROSS, std::max(9, px / 4), 1);
+    cv::circle(drawn, at, std::max(1, px / 2), cv::Scalar(255, 160, 0), 1);
+    if (seen) {
+        const cv::Point c(int(std::lround(seen->x)), int(std::lround(seen->y)));
+        cv::circle(drawn, c, std::max(1, int(std::lround(seen->diameter / 2))), cv::Scalar(0, 255, 0), 2);
+        cv::drawMarker(drawn, c, cv::Scalar(0, 255, 0), cv::MARKER_CROSS, std::max(9, px / 4), 2);
+    }
+    JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(drawn), text = std::string(text)] {
         if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
     });
+    bool placed = seen && on.machinePoint(seen->x, seen->y, cameraX, cameraY, x, y);
+    if (!m_findsTo.empty()) {
+        char name[64];
+        std::snprintf(name, sizeof name, "%02d %s.png", ++m_findCount, panel->camera().name.c_str());
+        JPStageUtil::writePicture((std::filesystem::path(m_findsTo) / name).string(), drawn);
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  find " << m_findCount << " (" << panel->camera().name << ", " << shown
+                                                    << "): expected at pixel " << ex << ", " << ey << " (" << px << " px across), "
+                                                    << (seen ? "found at " + std::to_string(seen->x) + ", " + std::to_string(seen->y)
+                                                                   + " (" + std::to_string(seen->diameter) + " px, score "
+                                                                   + std::to_string(score) + ")"
+                                                             : std::string("not found"))
+                                                    << ", camera at " << cameraX << ", " << cameraY
+                                                    << (placed ? ": on the machine " + std::to_string(x) + ", " + std::to_string(y) : std::string());
+    }
     if (!seen) {
         words = "the test object was not found (Subject not found.)";
         return false;
     }
-    if (!on.machinePoint(seen->x, seen->y, cameraX, cameraY, x, y)) {
+    if (!placed) {
         words = "the test object was found, but the camera's calibration cannot place it on the machine";
         return false;
     }
@@ -681,7 +708,23 @@ void JPlacerCameraTasks::checkPlacement(JPCameraPanel& camera, const JPNozzleCon
     const JPNozzleConfig n = nozzle;
     JPCameraPanel* top = &camera;
     auto check = std::make_shared<JPPlacementCheck>();
-    run(camera, "Checking " + nozzle.name + "'s placement", [this, top, up, rig, n, check](std::string& words, const auto& progress) {
+    // Every find's picture kept, with what was looked for and found drawn on it, and its numbers in the log: in a
+    // folder of its own beside the vision debug pictures.
+    std::string stamp = JPWhen::now();
+    for (char& ch : stamp)
+        if (ch == ' ' || ch == ':') ch = '-';
+    const std::string folder = (std::filesystem::path(JPlacerPaths::configDir()) / "log" / "vision"
+                                / ("placement-check " + nozzle.name + " " + stamp)).string();
+    run(camera, "Checking " + nozzle.name + "'s placement", [this, top, up, rig, n, check, folder](std::string& words, const auto& progress) {
+        std::error_code made;
+        std::filesystem::create_directories(folder, made);
+        m_findsTo = made ? std::string() : folder;
+        m_findCount = 0;
+        JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "placement check pictures: " << (made ? "not kept (" + made.message() + ")" : folder);
+        struct Done {
+            std::string& to;
+            ~Done() { to.clear(); }
+        } done { m_findsTo };
         const JPMountConfig& cm = top->camera().mount;
         JPCameraCalibration topCal, upCal;
         if (!JPCameraLook::calibration(m_cell, top->feed(), topCal, words) || !JPCameraLook::calibration(m_cell, up->feed(), upCal, words))
@@ -744,6 +787,8 @@ void JPlacerCameraTasks::checkPlacement(JPCameraPanel& camera, const JPNozzleCon
         m_cell.cameraOffsetFor(n.id, cameraDx, cameraDy);
         int at = 0;
         const int places = kCheckRounds * int(std::size(kCheckAngles));
+        // How far the object has been turned in all: picked unturned, put down turned (the drift's put it back as it was).
+        double turned = 0;
         for (int round = 0; ok && round < kCheckRounds; ++round)
             for (const double angle : kCheckAngles) {
                 if (!ok) break;
@@ -779,12 +824,15 @@ void JPlacerCameraTasks::checkPlacement(JPCameraPanel& camera, const JPNozzleCon
                 a.partAngle = angle;
                 a.nozzleAngle = angle - offset.location.rotation();
                 // Put back on the fiducial with the job's correction, and found there.
-                ok = put(a.placeFor(JPLocation(JPLengthUnit::Millimeters, target.x, target.y, 0, angle)));
+                const JPLocation placeAt = a.placeFor(JPLocation(JPLengthUnit::Millimeters, target.x, target.y, 0, angle));
+                const double heldTurn = turned;
+                ok = put(placeAt);
+                turned += placeAt.rotation();   // picked at 0
                 x = target.x;
                 y = target.y;
                 ok = ok && centreOn(x, y, "Placement Check " + std::to_string(int(angle)) + "\xC2\xB0");
                 if (ok) {
-                    check->places.push_back({ angle, a.dx, a.dy, x - target.x, y - target.y });
+                    check->places.push_back({ angle, a.dx, a.dy, x - target.x, y - target.y, heldTurn, turned });
                     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  " << n.name << " at " << angle << " deg: on the nozzle " << a.dx << ", " << a.dy
                                                                 << " mm; landed " << x - target.x << ", " << y - target.y << " mm off";
                 }
