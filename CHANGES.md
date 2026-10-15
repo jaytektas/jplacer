@@ -10,13 +10,14 @@ notes.
 
 ## Unreleased
 
+## 0.1.73
+
 - What fails with nothing waiting on it is said in a dialog, with why: a nozzle tip's Calibrate now, the Jog
   panel's Pick and Place, Detect Firmware, a controller's unasked error, a lost connection. Before, these
   were said to no one: Calibrate now went down to the touch location and stopped there without a word (a tip
   probing by vacuum needs a Part Off sensing method).
 - The calibration test object is given by its thickness (Test Object Thickness, with Capture: the nozzle tip touching it) and lies on the primary fiducial; a test object Z kept before is read as its thickness. The precise offsets calibration looks for it there. Before, it looked wherever the feature was last sized or the camera happened to be.
 - Nozzle offsets can be calibrated at two heights (Two Heights?, on the head's Calibration Rig and a nozzle's Calibration tab): the nozzle carries the test object from the primary fiducial to the secondary, calibrates there too and carries it back, which gives how far its tip moves in X and Y as it goes up and down (its lean). Every move of the nozzle then takes that into account, so a part lands where it is sent at board height as well as at the height calibrated at. The Calibration tab shows the lean and each height's angles.
-
 - Issues & Solutions' precise nozzle offsets calibration takes the test object's size in mm (Test Object Diameter), the same value as the nozzle's Calibration tab. Before, it was a Feature diameter in pixels.
 - The precise nozzle offsets calibration uses the test object's size as set or detected. Before, it measured the object again where the camera happened to be, overwrote the size, and failed when it was not found there.
 - After homing, the bottom camera's light stays on while the tip's runout is measured. Before, it could be switched off as the measuring began, so the runout pictures were taken in the dark.
@@ -30,6 +31,7 @@ notes.
 - Check Placement tells apart and takes out the test object's own offset (a dot whose centre on top is not its centre underneath turned every placement 0.2 to 0.3 mm off on bench), keeps every picture it takes with what it looked for and found drawn on it, and shows the found circle on the camera.
 - A nozzle tip can come the last of the way down to a pick or place slowly, and lift slowly after it (Approach Height, Approach Speed, Lift Speed on its Configuration tab; off until an Approach Height is given). On bench a fast lift after letting go disturbed the part.
 - Measurements (Check Placement's result, a camera's settling trace and tuned values, a tip's last vacuum readings, a controller's detected firmware) are saved to the machine's file as they are made. Before, they waited for the next settings change, and a tip change could save over them.
+
 ## 0.1.72
 
 - A nozzle's Offset Wizard tab in Machine Setup is now its Calibration tab. It runs the precise offsets calibration with the test object (the one Issues & Solutions offers) as well as the rough one by a mark. It keeps the nozzle's last 10 calibrations: when and how each ran, the offsets before and the ones found, and the change. A graph shows each angle's estimate around the correction, so an outlier (a bad find, or the test object slipping) stands out; a second graph shows how closely precise runs repeat.
