@@ -15,6 +15,7 @@ notes.
   cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
   (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
   cameras work as on Linux.
+- The calibration test object has an X and Y (on the head's Calibration Rig, and on a nozzle's Calibration tab with a Capture button that takes where the camera is). The precise offsets calibration goes there to look for it; until they are set, it looks on the primary fiducial, as before. Before, it looked wherever the feature was last sized or the camera happened to be.
 
 ## 0.1.72
 

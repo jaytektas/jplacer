@@ -20,6 +20,8 @@ JPHeadConfig JPHeadConfig::fromJson(const JJson& j) {
     h.rigPrimaryDiameter    = rig["primaryDiameter"].number();
     h.rigSecondaryDiameter  = rig["secondaryDiameter"].number();
     h.rigTestObjectDiameter = rig["testObjectDiameter"].number();
+    if (rig["testObjectX"].isNumber()) h.rigTestObjectX = rig["testObjectX"].number();
+    if (rig["testObjectY"].isNumber()) h.rigTestObjectY = rig["testObjectY"].number();
     if (rig["testObjectZ"].isNumber()) h.rigTestObjectZ = rig["testObjectZ"].number();
     h.pumpActuatorId        = j["pump"]["actuator"].str();
     h.zProbeActuatorId      = j["zProbeActuator"].str();
@@ -39,13 +41,15 @@ JJson JPHeadConfig::toJson() const {
     if (!homingFiducialPart.empty()) j["homingFiducialPart"] = homingFiducialPart;
     j["visualHoming"] = visualHoming;
     if (park) j["park"] = park->toJson();
-    if (rigPrimary || rigSecondary) {
+    if (rigPrimary || rigSecondary || rigTestObjectX || rigTestObjectY || rigTestObjectZ || rigTestObjectDiameter > 0) {
         JJson rig = JJson::object();
         if (rigPrimary)   rig["primary"]   = rigPrimary->toJson();
         if (rigSecondary) rig["secondary"] = rigSecondary->toJson();
         rig["primaryDiameter"]    = rigPrimaryDiameter;
         rig["secondaryDiameter"]  = rigSecondaryDiameter;
         rig["testObjectDiameter"] = rigTestObjectDiameter;
+        if (rigTestObjectX) rig["testObjectX"] = *rigTestObjectX;
+        if (rigTestObjectY) rig["testObjectY"] = *rigTestObjectY;
         if (rigTestObjectZ) rig["testObjectZ"] = *rigTestObjectZ;
         j["calibrationRig"] = rig;
     }

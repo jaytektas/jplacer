@@ -259,7 +259,24 @@ int main() {
         const JPSetupProperties::Tab& t = f.tabs[5];
         p = group(t, "Precise Offsets");
         assert(p && button(*p, "calibratePreciseOffsets")->enabled);
-        assert(f.model.get("testObjectZ").toDouble() == -5);   // not set: the primary fiducial's
+        // Not set: the primary fiducial's X, Y, Z; typed, each its own (and kept in the file).
+        assert(f.model.get("testObjectZ").toDouble() == -5 && f.model.get("testObjectX").toDouble() == 10
+               && f.model.get("testObjectY").toDouble() == 20 && button(*p, "captureTestObjectXY"));
+        {
+            JPCellConfig typed = cal;
+            JPSetupProperties::Form g = JPSetupProperties::forNode(typed, "nozzle:N", {});
+            assert(g.model.set("testObjectX", JVariant(42.5)));
+            assert(typed.heads[0].rigTestObjectX == 42.5 && !typed.heads[0].rigTestObjectY);
+            const JPHeadConfig back = JPHeadConfig::fromJson(JJson::parse(typed.heads[0].toJson().dump()));
+            assert(back.rigTestObjectX == 42.5 && !back.rigTestObjectY && !back.rigTestObjectZ);
+            // The head's Calibration Rig: Test Object Set? on sets each from the primary fiducial; off, none.
+            JPSetupProperties::Form hf = JPSetupProperties::forNode(typed, "head:" + typed.heads[0].id, {});
+            assert(hf.model.get("rigTestObjectX").toDouble() == 42.5 && hf.model.get("rigTestObjectY").toDouble() == 20);
+            assert(hf.model.get("rigTestObjectSet").toBool());
+            assert(hf.model.set("rigTestObjectSet", JVariant(false)) && !typed.heads[0].rigTestObjectX);
+            assert(hf.model.set("rigTestObjectSet", JVariant(true)) && typed.heads[0].rigTestObjectX == 10
+                   && typed.heads[0].rigTestObjectY == 20 && typed.heads[0].rigTestObjectZ == -5);
+        }
         const JPSetupProperties::Group* last = group(t, "Last Calibration");
         assert(last && f.model.get("lastOutliers").toString().rfind("1 ", 0) == 0);
         const JPPlot* plot = nullptr;

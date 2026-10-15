@@ -1803,7 +1803,8 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
     } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
         nozzleMarkOffsets(path.substr(7), action == "storeNozzleMark");
-    } else if ((action == "detectTestObject" || action == "captureTestObjectZ" || action == "calibratePreciseOffsets")
+    } else if ((action == "detectTestObject" || action == "captureTestObjectXY" || action == "captureTestObjectZ"
+                || action == "calibratePreciseOffsets")
                && path.rfind("nozzle:", 0) == 0) {
         nozzleTestObject(path.substr(7), action);
     } else if (action.rfind("settleTest", 0) == 0 && path.rfind("camera:", 0) == 0) {
@@ -2191,6 +2192,26 @@ void JPlacerMachine::nozzleTestObject(const std::string& nozzleId, const std::st
         return;
     }
     const std::string headId = head->id;
+    if (action == "captureTestObjectXY") {
+        // Where the head's camera is now (its axes and its offsets on the head).
+        const JPMountConfig* camera = toolMount(JPSetupForm::Tool::Camera);
+        const auto p = m_cell->positions();
+        const auto px = camera ? p.find(camera->axisX) : p.end(), py = camera ? p.find(camera->axisY) : p.end();
+        if (!camera || px == p.end() || py == p.end()) {
+            m_window.showStatus("Nozzle Calibration: no camera on the head with a known X and Y", kErrorMs);
+            return;
+        }
+        const double x = px->second + camera->offsetX, y = py->second + camera->offsetY;
+        changeSetup("Test object X, Y", [&](JPCellConfig& cell) {
+            for (JPHeadConfig& h : cell.heads)
+                if (h.id == headId) {
+                    h.rigTestObjectX = x;
+                    h.rigTestObjectY = y;
+                }
+        });
+        m_setup->remakeForm();
+        return;
+    }
     if (action == "captureTestObjectZ") {
         const auto z = m_cell->toolZ(nozzle->mount);
         if (!z) {

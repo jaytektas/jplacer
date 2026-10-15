@@ -77,7 +77,7 @@ public:
     // down to the camera). `done` (main thread): the runout, for the owner to keep.
     // OpenPnP's precise camera <-> nozzle offsets calibration (its Calibration
     // Solutions): a test object (the head's Calibration Rig Test Object, this
-    // wide) on the primary fiducial, the camera centred on it; the nozzle
+    // wide) where the head's Test Object X, Y say (else on the primary fiducial), the camera centred on it; the nozzle
     // picks it at 6 angles round the circle and places it turned 180 degrees,
     // the camera finding it after each. `done` (main thread): how far the
     // nozzle's X and Y offsets are off (the average of where it moved, half
@@ -226,7 +226,7 @@ private:
     std::string                              m_tunedId;
     std::optional<std::pair<double, double>> m_tunedAt;
     // Where the camera on the head was (X, Y, its offsets in) when a feature was last sized there (Feature
-    // diameter, Auto-Detect Next): the precise nozzle offsets' test object is looked for there first.
+    // diameter, Auto-Detect Next): where it is measured.
     std::optional<std::pair<double, double>> m_featureAt;
     std::optional<std::pair<double, double>> cameraAt(const JPCameraPanel& camera) const;
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);

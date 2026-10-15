@@ -505,11 +505,8 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
     const JPHeadConfig rig = *h;
     const JPNozzleConfig n = nozzle;
     JPCameraFeed* feed = &camera.feed();
-    // The test object looked for where it was sized (Feature diameter, Auto-Detect Next), else where the camera
-    // is now, as OpenPnP's (the camera targeting it), else on the primary fiducial.
-    std::pair<double, double> start { h->rigPrimary->x, h->rigPrimary->y };
-    if (m_featureAt) start = *m_featureAt;
-    else if (const auto now = cameraAt(camera)) start = *now;
+    // The test object looked for where the head says it is (Test Object X, Y), else on the primary fiducial.
+    const std::pair<double, double> start { h->rigTestObjectX.value_or(h->rigPrimary->x), h->rigTestObjectY.value_or(h->rigPrimary->y) };
     auto offsets = std::make_shared<std::pair<double, double>>(0, 0);
     auto each = std::make_shared<std::vector<JPOffsetsRun::Angle>>();   // each angle's own estimate (half how far it moved)
     JPCameraPanel* panel = &camera;

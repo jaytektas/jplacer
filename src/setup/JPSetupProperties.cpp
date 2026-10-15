@@ -1064,8 +1064,12 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
           "Calibration secondary fiducial location. Must be placed at different Z height than the primary fiducial.",
           [h]() -> double& { return h().rigSecondaryDiameter; });
     add.row("Test Object");
-    add.skip();
-    add.skip();
+    add.length("rigTestObjectX", "Test Object X", [h] { return h().rigTestObjectX.value_or(h().rigPrimary ? h().rigPrimary->x : 0.0); },
+               [h](double v) { h().rigTestObjectX = v; });
+    add.tip("Where the test object is, where the precise offsets calibration goes to look for it. Not set: on the "
+            "primary fiducial.");
+    add.length("rigTestObjectY", "Test Object Y", [h] { return h().rigTestObjectY.value_or(h().rigPrimary ? h().rigPrimary->y : 0.0); },
+               [h](double v) { h().rigTestObjectY = v; });
     add.length("rigTestObjectZ", "Test Object Z",
                [h] { return h().rigTestObjectZ.value_or(h().rigPrimary ? h().rigPrimary->z : 0.0); },
                [h](double v) { h().rigTestObjectZ = v; });
@@ -1074,10 +1078,21 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     add.length("rigTestObjectDiameter", "Test Object", [h]() -> double& { return h().rigTestObjectDiameter; });
     add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with (Issues & Solutions' "
             "Calibrate precise camera \u2194 nozzle offsets).");
-    add.flag("rigTestObjectZSet", "Test Object Z Set?", [h] { return h().rigTestObjectZ.has_value(); },
+    // Set: each of X, Y, Z its own, from the primary fiducial's until changed; not set, the primary fiducial's again.
+    add.flag("rigTestObjectSet", "Test Object Set?",
+             [h] { return h().rigTestObjectX || h().rigTestObjectY || h().rigTestObjectZ; },
              [h](bool on) {
-                 if (!on) h().rigTestObjectZ.reset();
-                 else if (!h().rigTestObjectZ) h().rigTestObjectZ = h().rigPrimary ? h().rigPrimary->z : 0.0;
+                 JPHeadConfig& k = h();
+                 const JPMachineLocation p = k.rigPrimary.value_or(JPMachineLocation());
+                 if (!on) {
+                     k.rigTestObjectX.reset();
+                     k.rigTestObjectY.reset();
+                     k.rigTestObjectZ.reset();
+                     return;
+                 }
+                 if (!k.rigTestObjectX) k.rigTestObjectX = p.x;
+                 if (!k.rigTestObjectY) k.rigTestObjectY = p.y;
+                 if (!k.rigTestObjectZ) k.rigTestObjectZ = p.z;
              });
     add.end();
     add.note("Diameter: diameter of the fiducial. A head camera is calibrated over the homing fiducial and, with Two "
@@ -1125,7 +1140,8 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         return nullptr;
     };
     add.group("Precise Offsets, by the Test Object");
-    add.note("The nozzle picks a small round test object off the head's primary calibration fiducial at "
+    add.note("The nozzle picks a small round test object up where it lies (Test Object X, Y; until they are set, on "
+             "the head's primary calibration fiducial) at "
              + std::to_string(std::max(1, cell.nozzleOffsetAngles)) + " angles round the circle, placing it turned 180 "
              "degrees each time; the camera finds it after each. Where its axis really is lies halfway between, so each "
              "angle gives its own estimate of how far the offsets are off, and their mean is the correction made.");
@@ -1138,6 +1154,16 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         add.tip("How wide the test object is: what the camera looks for.");
         add.button("detectTestObject", "Detect", "Find the test object where the camera looks now and measure its diameter "
                    "(again: the next one the camera sees).");
+        add.end();
+        add.row("Test Object X");
+        add.length("testObjectX", "Test Object X", [head] { return head()->rigTestObjectX.value_or(head()->rigPrimary->x); },
+                   [head](double v) { head()->rigTestObjectX = v; });
+        add.tip("Where the test object is: where Calibrate takes the camera to look for it. Until it is set, on the "
+                "primary fiducial.");
+        add.bare();
+        add.length("testObjectY", "Y", [head] { return head()->rigTestObjectY.value_or(head()->rigPrimary->y); },
+                   [head](double v) { head()->rigTestObjectY = v; });
+        add.button("captureTestObjectXY", "Capture", "Where the head camera is now, centred over the test object.");
         add.end();
         add.row("Test Object Z");
         add.length("testObjectZ", "Test Object Z", [head] { return head()->rigTestObjectZ.value_or(head()->rigPrimary->z); },
@@ -1153,7 +1179,8 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
     add.button("calibratePreciseOffsets", "Calibrate", "Pick, turn and place the test object at each angle, and take the "
                "correction found. CAUTION: the nozzle goes down to the test object; load the right tip and ready the vacuum.",
                rig && head()->rigTestObjectDiameter > 0);
-    add.note("Put the test object on the primary fiducial and the camera over it, detect it, set its Z, then Calibrate. "
+    add.note("Put the test object down (on the primary fiducial, or anywhere the nozzle can reach), centre the camera "
+             "over it, Capture its X, Y and Detect it, set its Z, then Calibrate. "
              "The offsets change by the correction found (Undo takes them back), and the run is kept below.");
 
     const std::vector<JPOffsetsRun> runs = n().offsetsRuns;
