@@ -10,6 +10,10 @@ notes.
 
 ## Unreleased
 
+- What fails with nothing waiting on it is said in a dialog, with why: a nozzle tip's Calibrate now, the Jog
+  panel's Pick and Place, Detect Firmware, a controller's unasked error, a lost connection. Before, these
+  were said to no one: Calibrate now went down to the touch location and stopped there without a word (a tip
+  probing by vacuum needs a Part Off sensing method).
 - jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
   Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
   cameras are read through Windows' own camera support (Media Foundation), with the same camera settings

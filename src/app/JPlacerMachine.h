@@ -468,6 +468,8 @@ private:
     // Cameras whose light a move you made near them switched on (OpenPnP's targeted user action), kept on until
     // switched off by hand.
     std::set<std::string>               m_userLit;
+    // What the cell said went wrong, in a dialog until dismissed: the same words not opened twice.
+    std::set<std::string>               m_alarmsShown;
     // That camera's light on for a move you made at it, when its User Camera Action? says so.
     void userActionLight(const std::string& cameraId);
     JPJogPanel*                         m_jog = nullptr; // its chosen tool, for the status bar

@@ -909,6 +909,19 @@ void JPlacerMachine::watchCell() {
             if (m_setup && m_setupSelected.rfind("axis:", 0) == 0) m_setup->remakeForm();
         });
     }));
+    // What failed with nobody waiting on it (Calibrate now, the Jog panel's pick and place, Detect Firmware, a
+    // controller's alarm, a lost connection), said in a dialog as OpenPnP's machine tasks say theirs: unheard,
+    // Calibrate now went down to the touch location and stopped there without a word.
+    m_unwatch.push_back(m_cell->onAlarm.connect([this, onMain](std::string what) {
+        onMain([this, what] {
+            JLOGC(JPlacerLog::kCell, JLogLevel::Warn) << what;
+            if (!m_alarmsShown.insert(what).second) return;
+            std::weak_ptr<bool> alive = m_alive;
+            JDialog::message("Machine", what, [this, alive, what] {
+                if (const auto a = alive.lock(); a && *a) m_alarmsShown.erase(what);
+            });
+        });
+    }));
     m_unwatch.push_back(m_cell->onCalibration.connect([this, onMain] {
         onMain([this] {
             for (CameraDock& c : m_cameras) c.panel->refreshStraightening();
@@ -2069,7 +2082,9 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
         for (const JPNozzleConfig& n : m_cell->config().nozzles)
             if (n.tipId == tipId) on = &n;
         if (!on) {
-            m_window.showStatus("Load the tip on a nozzle first: it is calibrated on that nozzle", kErrorMs);
+            if (action == "calibrateZ")
+                JDialog::message("Z not calibrated", "Load the nozzle tip on a nozzle first: it is calibrated on that nozzle.");
+            else m_window.showStatus("Load the tip on a nozzle first: it is calibrated on that nozzle", kErrorMs);
             return;
         }
         if (action == "calibrateZ" && !readyToMove()) return;

@@ -158,6 +158,13 @@ coming up to pressure for its Pump On Wait).
 
 <!-- src: src/machine/JPGcodeDriver.cpp (identify: nothing answered); src/machine/JPCell.cpp (onLost, onWaiting, doVacuumOn); src/app/JPlacerMachine.cpp (showState); src/app/JPlacerCameraTasks.cpp (run, onTaskOutcome); JFramework src/io/SerialPort.cpp (one owner) -->
 
+What fails with nothing waiting on it is said in a **Machine** dialog, with why, and in the log: a nozzle
+tip's **Calibrate now**, the Jog panel's **Pick** and **Place**, **Detect Firmware**, an error a
+controller sends unasked, a controller reset mid-move, a connection lost. The same words are not opened
+again while their dialog is showing.
+
+<!-- src: src/app/JPlacerMachine.cpp (watchCell, m_alarmsShown); src/machine/JPCell.cpp (onAlarm, calibrateZ, pick, place, detectFirmware, makeDriver); src/machine/JPGcodeDriver.cpp (onAlarm) -->
+
 ### Choosing the port
 
 USB serial ports are numbered in the order devices happen to start (`ttyACM0`, `ttyACM1`, …), so the
