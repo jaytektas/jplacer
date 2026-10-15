@@ -806,6 +806,23 @@ int main() {
         watch();
     }
     {
+        // An axis with no controller (set so in Machine Setup, which hands every change over as OpenPnP's Apply does):
+        // refused where it is used, naming it, as OpenPnP's homing does; the machine keeps running.
+        JPCellConfig c = cellConfig();
+        c.axes[0].driverId.clear();
+        assert(!c.problems().empty());
+        Latch<std::pair<bool, std::string>> connection, motion;
+        JPCell cell(c, profiles());
+        cell.onConnection.connect([&](bool ok, std::string w) { connection.set({ ok, w }); });
+        cell.onMotion.connect([&](bool ok, std::string w) { motion.set({ ok, w }); });
+        cell.connect();
+        assert(connection.take().first);
+        cell.home();
+        const auto [homed, why] = motion.take();
+        assert(!homed && why.find("axis x has no controller set") != std::string::npos && !cell.isHomed());
+        cell.disconnect();
+    }
+    {
         // A camera keeps a calibration for each picture size: a new one at a
         // size replaces the old, and they go through the cell file.
         JPCellConfig c = cellConfig();

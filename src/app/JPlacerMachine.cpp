@@ -1062,7 +1062,11 @@ void JPlacerMachine::watchCell() {
             if (!ok && !why.empty()) {
                 if (!m_cell->isHomed()) m_homeFailed = true;
                 m_window.showStatus(why, kErrorMs);
+                // A home asked for and refused (an axis with no controller set, say): said in a dialog, as OpenPnP's
+                // homing error is, not left to the status line.
+                if (m_homeAsked && !m_cell->isHomed()) JDialog::message("Homing failed", why + ".");
             }
+            m_homeAsked = false;
         });
     }));
 }
@@ -3460,6 +3464,7 @@ void JPlacerMachine::disconnectAndWait() {
 void JPlacerMachine::home() {
     if (!m_cell || !m_cell->isConnected()) return;
     m_homeFailed = false;
+    m_homeAsked = true;
     m_cell->home();
     showState();
 }

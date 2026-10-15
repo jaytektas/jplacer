@@ -506,6 +506,7 @@ private:
     std::string                         m_waiting;   // a wait on purpose under way (the cell's onWaiting), shown in the banner
     std::string                         m_failure;   // the last camera task's failure, shown until the next begins
     bool                                m_homeFailed = false;
+    bool                                m_homeAsked = false;   // home() asked: its end not yet told
     std::string                         m_setupSelected;   // Machine Setup's node, kept while the cell reopens
     struct NozzleMark {
         std::string nozzleId;

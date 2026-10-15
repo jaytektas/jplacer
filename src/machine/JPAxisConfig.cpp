@@ -144,10 +144,6 @@ std::optional<JPAxisConfig> JPAxisConfig::fromJson(const JJson& j, std::string& 
     }
     a.linearOffset = linear["offset"].number(0.0);
 
-    if (a.kind == Kind::Controller && (a.driverId.empty() || a.letter.empty())) {
-        error = "axis " + a.name + ": a controller axis needs a controller and a letter";
-        return std::nullopt;
-    }
     if (a.kind == Kind::Linear)
         for (size_t i = 0; i < 4; ++i)
             if (a.linearFactors[i] != 0 && a.linearInputs[i].empty()) {

@@ -260,24 +260,37 @@ void JPMachineSetupPanel::restore(const JPSetupHistory::State& state) {
 
 void JPMachineSetupPanel::handOver() {
     m_retry.stop();
-    // Held back until put right: logged and said in a dialog when it starts (and what changed last), as every change
-    // made meanwhile is lost to the machine. Shown only on the line under the settings, a thickness typed in was
-    // never used, and a calibration ran with the old one.
+    // As OpenPnP's Apply: every change goes to the machine (and is saved) at once, whatever else is wrong. A problem
+    // is said (in a dialog when it starts, and on the line under the settings) and refused where it is used (a move
+    // on an axis with no controller); it never holds the other changes back. Held back until put right, as it once
+    // was, a stray "(none)" on axis x silently kept every change for half an hour on bench from being used or saved.
     std::string problems;
     for (const std::string& p : m_draft.problems()) problems += (problems.empty() ? "" : "\n") + p;
-    if (!problems.empty()) {
-        if (problems != m_problemsSaid) {
-            m_problemsSaid = problems;
-            JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << "Machine Setup: not in use until put right (the last change: "
+    if (problems != m_problemsSaid) {
+        m_problemsSaid = problems;
+        if (!problems.empty()) {
+            JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << "Machine Setup: a problem (the last change: "
                                                     << (m_lastChange.empty() ? "none" : m_lastChange) << "): " << problems;
-            JDialog::message("Machine Setup not in use",
-                             "Changes made in Machine Setup are not put in use, nor saved, until this is put right:\n\n" + problems
+            JDialog::message("Machine Setup", "This is wrong in the machine's setup, and what needs it will refuse until it "
+                                              "is put right:\n\n" + problems
                                  + (m_lastChange.empty() ? std::string() : "\n\nThe last change: " + m_lastChange + "."));
+        }
+    }
+    if (m_draft.toJson().dump() == m_inUse.toJson().dump()) return;
+    // Only a setup that could not even be read back (a transformed axis still without its input, part way through
+    // being made) is held: said at once, never silently.
+    JPCellConfig check;
+    std::string unreadable;
+    if (!check.fromJson(m_draft.toJson(), unreadable)) {
+        if (unreadable != m_heldSaid) {
+            m_heldSaid = unreadable;
+            JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << "Machine Setup: held back: " << unreadable;
+            JDialog::message("Machine Setup", "The last change cannot be put in use or saved until this is finished:\n\n"
+                                                  + unreadable + "\n\nEvery change after it waits with it.");
         }
         return;
     }
-    m_problemsSaid.clear();
-    if (m_draft.toJson().dump() == m_inUse.toJson().dump()) return;
+    m_heldSaid.clear();
     if (!onApply) return;
     if (onApply(m_draft)) m_inUse = m_draft;
     else m_retry.start();   // not taken now (the machine is moving): again shortly
@@ -752,7 +765,7 @@ void JPMachineSetupPanel::update() {
 
     std::string problems;
     for (const std::string& p : m_draft.problems()) problems += (problems.empty() ? "" : "\n") + p;
-    showLine(m_problems, problems.empty() ? "" : "Not in use until put right:\n" + problems);
+    showLine(m_problems, problems.empty() ? "" : "To put right (refused where it is used):\n" + problems);
 }
 
 void JPMachineSetupPanel::setNote(const std::string& text) {

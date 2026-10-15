@@ -196,7 +196,8 @@ private:
 
     JPCellConfig             m_inUse;      // what the machine has (handed over last)
     std::string              m_lastChange;     // what the last step recorded was
-    std::string              m_problemsSaid;   // the problems last said (none: in use)
+    std::string              m_problemsSaid;   // the problems last said (none: none)
+    std::string              m_heldSaid;       // why the setup is held back, last said (none: not held)
     JPCellConfig             m_draft;      // as set up
     JPCellConfig             m_recorded;   // m_draft as the last step left it
     JPSetupHistory           m_history;

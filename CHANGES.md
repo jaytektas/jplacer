@@ -10,9 +10,11 @@ notes.
 
 ## Unreleased
 
-- When Machine Setup has a problem that holds its changes back (an axis naming no controller, say), it says so in
-  a dialog, with the last change made, and in the log. Before, only a line under the settings said it, and
-  every change after it was silently not used or saved.
+- Every change made in Machine Setup is put in use and saved at once, as OpenPnP's Apply does. Before, one
+  problem anywhere (an axis's controller set to none, say) held every later change back without a word but a
+  line under the settings: a test object thickness and a backlash offset typed in were neither used nor saved
+  for half an hour. A problem is now said in a dialog, listed, and refused where it is used: Home says in a
+  dialog that an axis has no controller, and a cell file with one loads (it would not open before).
 - Backlash Calibrate measures and chooses as OpenPnP's calibration does: speed control and a step test first,
   the backlash wound from 90 mm and coming in from distances, the offset found at each speed by compensated
   moves, and OpenPnP's rules for the method. A one-sided offset is the backlash measured after a long move, not

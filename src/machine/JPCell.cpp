@@ -2127,6 +2127,12 @@ void JPCell::home() {
 
 bool JPCell::doHome(std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
+    // As OpenPnP's homing: a controller axis with no controller set stops it.
+    for (const JPAxisConfig& a : m_config.axes)
+        if (a.kind == JPAxisConfig::Kind::Controller && (!driver(a.driverId) || a.letter.empty())) {
+            why = "axis " + a.name + (a.letter.empty() ? " has no letter on its controller" : " has no controller set");
+            return false;
+        }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": homing";
     // Moves left running (continuous motion) were waited for as their work ended, or stopped.
     m_inMotion.clear();
@@ -2314,7 +2320,10 @@ bool JPCell::doCorrectPosition(const std::map<std::string, double>& by, std::str
     for (const auto& [id, v] : toAxes(renamed, base)) {
         const JPAxisConfig* a = m_config.axis(id);
         JPGcodeDriver* dr = driver(a->driverId);
-        if (!dr) { why = "no controller " + a->driverId; return false; }
+        if (!dr || a->letter.empty()) {
+            why = "axis " + a->name + (dr ? " has no letter on its controller" : " has no controller set");
+            return false;
+        }
         std::string& w = words[a->driverId];
         w += (w.empty() ? "" : " ") + word(*a, v + backlashApplied(id), *dr);
     }
@@ -3222,7 +3231,12 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
         JPMotion::Location location0, location1;
         for (const auto& [driverId, all] : byDriver) {
             JPGcodeDriver* d = driver(driverId);
-            if (!d) { why = "no controller " + driverId; return false; }
+            if (!d) { why = "axis " + all.front()->name + " has no controller set"; return false; }
+            for (const JPAxisConfig* a : all)
+                if (a->letter.empty()) {
+                    why = "axis " + a->name + " has no letter on its controller";
+                    return false;
+                }
             const JPMotionControlType type = JPMotionControlType::fromName(d->config().motionControlType).value_or(JPMotionControlType());
             const double u = driverUnits(*d);
             JPMotion::Driver md;
