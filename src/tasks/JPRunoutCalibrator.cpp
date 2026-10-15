@@ -107,7 +107,8 @@ std::optional<JPRunout> JPRunoutCalibrator::run(JPCell& cell, JPCameraFeed& came
     const double search = k.offsetThresholdMm * (1 + JPNozzleTipConfig::RunoutCalibration::kDetectionMargin);
     // Where the camera looks, and the axes that put the tip's axis there.
     const double camX = cam.mount.offsetX, camY = cam.mount.offsetY;
-    const double ax = camX - m.offsetX, ay = camY - m.offsetY, az = cam.mount.offsetZ + k.zOffset - m.offsetZ;
+    const double tipZ = cam.mount.offsetZ + k.zOffset;   // where the tip is looked at: the nozzle's lean there
+    const double ax = camX - m.offsetXAt(tipZ), ay = camY - m.offsetYAt(tipZ), az = tipZ - m.offsetZ;
 
     std::vector<JPRunout::Point> points;
     int failed = 0;

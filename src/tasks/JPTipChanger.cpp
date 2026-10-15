@@ -71,8 +71,10 @@ bool JPTipChanger::run(JPCell& cell, const JPCellConfig& names, const JPNozzleCo
     // A place for the nozzle, as its axes' targets: the nozzle's offset taken off.
     auto targets = [&m](const JPChangerStep& s, bool withZ) {
         std::map<std::string, double> t;
-        if (s.x && !m.axisX.empty()) t[m.axisX] = *s.x - m.offsetX;
-        if (s.y && !m.axisY.empty()) t[m.axisY] = *s.y - m.offsetY;
+        // A nozzle's lean at the step's Z (none given: where its offsets were calibrated).
+        const double z = s.z ? *s.z : m.leanZ;
+        if (s.x && !m.axisX.empty()) t[m.axisX] = *s.x - m.offsetXAt(z);
+        if (s.y && !m.axisY.empty()) t[m.axisY] = *s.y - m.offsetYAt(z);
         if (s.rotation && !m.axisRotation.empty()) t[m.axisRotation] = *s.rotation;
         if (withZ && s.z && !m.axisZ.empty()) t[m.axisZ] = *s.z - m.offsetZ;
         return t;

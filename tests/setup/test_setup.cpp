@@ -253,50 +253,48 @@ int main() {
         run.when = "2026-10-15 09:00";
         run.how = JPOffsetsRun::kPrecise;
         run.afterX = 1.02;
-        run.angles = { { -90, 0.02, 0 }, { 0, 0.021, 0 }, { 90, 0.019, 0 }, { 180, 0.08, 0 } };
+        run.first = { -5, { { -150, 0.02, 0 }, { -90, 0.021, 0 }, { -30, 0.019, 0 }, { 30, 0.12, 0 }, { 90, 0.02, 0 },
+                            { 150, 0.021, 0 } } };
         cal.nozzles[0].calibrated(run);
         const JPSetupProperties::Form f = JPSetupProperties::forNode(cal, "nozzle:N", {});
         const JPSetupProperties::Tab& t = f.tabs[5];
         p = group(t, "Precise Offsets");
         assert(p && button(*p, "calibratePreciseOffsets")->enabled);
-        // Not set: the primary fiducial's X, Y, Z; typed, each its own (and kept in the file).
-        assert(f.model.get("testObjectZ").toDouble() == -5 && f.model.get("testObjectX").toDouble() == 10
-               && f.model.get("testObjectY").toDouble() == 20);
-        // A place row with the capture and move buttons, as the head's places: X, Y, Z, no rotation.
-        {
-            const JPSetupProperties::Row* place = nullptr;
-            for (const JPSetupProperties::Row& r : p->rows)
-                if (r.label == "Test Object") place = &r;
-            assert(place && place->place == JPSetupProperties::Place::Location && place->placeCell(0) == "testObjectX"
-                   && place->placeCell(2) == "testObjectZ" && place->placeCell(3).empty());
-        }
+        // The test object's thickness (0 at first) and Two Heights?, greyed without a secondary fiducial; typed, the
+        // head's, kept in the file; a file from before, its test object's top Z, read as a thickness.
+        assert(f.model.get("testObjectThickness").toDouble() == 0 && !f.model.get("twoHeights").toBool());
+        assert(std::find(f.disabled.begin(), f.disabled.end(), "twoHeights") != f.disabled.end());
         {
             JPCellConfig typed = cal;
             JPSetupProperties::Form g = JPSetupProperties::forNode(typed, "nozzle:N", {});
-            assert(g.model.set("testObjectX", JVariant(42.5)));
-            assert(typed.heads[0].rigTestObjectX == 42.5 && !typed.heads[0].rigTestObjectY);
+            assert(g.model.set("testObjectThickness", JVariant(0.3)) && typed.heads[0].rigTestObjectThickness == 0.3);
+            assert(typed.heads[0].testObjectOn(false)->z == -4.7 && !typed.heads[0].testObjectOn(true));
+            typed.heads[0].rigSecondary = JPMachineLocation { 30, 20, 6, 0 };
+            JPSetupProperties::Form g2 = JPSetupProperties::forNode(typed, "nozzle:N", {});
+            assert(std::find(g2.disabled.begin(), g2.disabled.end(), "twoHeights") == g2.disabled.end());
+            assert(g2.model.set("twoHeights", JVariant(true)) && typed.heads[0].rigTwoHeights);
+            assert(std::abs(typed.heads[0].testObjectOn(true)->z - 6.3) < 1e-9 && typed.heads[0].testObjectOn(true)->x == 30);
             const JPHeadConfig back = JPHeadConfig::fromJson(JJson::parse(typed.heads[0].toJson().dump()));
-            assert(back.rigTestObjectX == 42.5 && !back.rigTestObjectY && !back.rigTestObjectZ);
-            // The head's Calibration Rig: Test Object Set? on sets each from the primary fiducial; off, none.
-            JPSetupProperties::Form hf = JPSetupProperties::forNode(typed, "head:" + typed.heads[0].id, {});
+            assert(back.rigTestObjectThickness == 0.3 && back.rigTwoHeights);
+            JJson old = typed.heads[0].toJson();
+            old["calibrationRig"]["testObjectThickness"] = JJson();
+            old["calibrationRig"]["testObjectZ"] = -4.4;
+            assert(std::abs(JPHeadConfig::fromJson(old).rigTestObjectThickness - 0.6) < 1e-9);
             // The head's places have no rotation: the Primary Fiducial's Diameter is not a coordinate to capture or go to.
-            for (const JPSetupProperties::Group& g : hf.tabs[0].groups)
-                for (const JPSetupProperties::Row& r : g.rows)
-                    if (r.label == "Primary Fiducial" || r.label == "Test Object")
+            JPSetupProperties::Form hf = JPSetupProperties::forNode(typed, "head:" + typed.heads[0].id, {});
+            for (const JPSetupProperties::Group& hg : hf.tabs[0].groups)
+                for (const JPSetupProperties::Row& r : hg.rows)
+                    if (r.label == "Primary Fiducial")
                         assert(r.place == JPSetupProperties::Place::Location && !r.placeCell(2).empty() && r.placeCell(3).empty());
-            assert(hf.model.get("rigTestObjectX").toDouble() == 42.5 && hf.model.get("rigTestObjectY").toDouble() == 20);
-            assert(hf.model.get("rigTestObjectSet").toBool());
-            assert(hf.model.set("rigTestObjectSet", JVariant(false)) && !typed.heads[0].rigTestObjectX);
-            assert(hf.model.set("rigTestObjectSet", JVariant(true)) && typed.heads[0].rigTestObjectX == 10
-                   && typed.heads[0].rigTestObjectY == 20 && typed.heads[0].rigTestObjectZ == -5);
+            assert(hf.model.get("rigTestObjectThickness").toDouble() == 0.3 && hf.model.get("rigTwoHeights").toBool());
         }
         const JPSetupProperties::Group* last = group(t, "Last Calibration");
-        assert(last && f.model.get("lastOutliers").toString().rfind("1 ", 0) == 0);
+        assert(last && f.model.get("firstOutliers").toString().rfind("1 ", 0) == 0);
         const JPPlot* plot = nullptr;
         for (const JPSetupProperties::Row& r : last->rows)
             if (r.kind == JPSetupProperties::Row::Kind::Plot) plot = r.plot.get();
         assert(plot && plot->kind == JPPlot::Kind::Scatter && plot->series.size() == 2 && plot->series[1].points.size() == 1
-               && std::abs(plot->series[1].points[0].x - 0.06) < 1e-9);
+               && std::abs(plot->series[1].points[0].x - (0.12 - 0.221 / 6)) < 1e-9);
         assert(group(t, "Calibrations, Run by Run"));
     }
     // A ContactProbeNozzle has OpenPnP's Contact Probe tab too.

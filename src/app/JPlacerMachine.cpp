@@ -1355,7 +1355,8 @@ JPlacerMachine::Where JPlacerMachine::whereIsMount(const JPMountConfig* m) const
         if (axis.empty() || i == p.end()) return std::nullopt;
         return i->second + offset;
     };
-    return { take(m->axisX, m->offsetX), take(m->axisY, m->offsetY), take(m->axisZ, m->offsetZ), take(m->axisRotation, 0) };
+    const auto [ox, oy] = m_cell->offsetsAt(*m);   // a nozzle's lean at its Z now
+    return { take(m->axisX, ox), take(m->axisY, oy), take(m->axisZ, m->offsetZ), take(m->axisRotation, 0) };
 }
 
 std::optional<JPLocation> JPlacerMachine::toolLocation(JPSetupForm::Tool tool) const {
@@ -1805,7 +1806,7 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             if ("camera:" + c.panel->camera().id == path) m_cameraTasks->calibrate(*c.panel);
     } else if ((action == "storeNozzleMark" || action == "calculateNozzleOffset") && path.rfind("nozzle:", 0) == 0) {
         nozzleMarkOffsets(path.substr(7), action == "storeNozzleMark");
-    } else if ((action == "detectTestObject" || action == "calibratePreciseOffsets")
+    } else if ((action == "detectTestObject" || action == "captureTestObjectThickness" || action == "calibratePreciseOffsets")
                && path.rfind("nozzle:", 0) == 0) {
         nozzleTestObject(path.substr(7), action);
     } else if (action.rfind("settleTest", 0) == 0 && path.rfind("camera:", 0) == 0) {
@@ -2129,11 +2130,12 @@ void JPlacerMachine::nozzleMarkOffsets(const std::string& nozzleId, bool storeMa
     }
     const auto p = m_cell->positions();
     // Where a tool is now: its axes plus its offset on the head.
-    auto where = [&p](const JPMountConfig& m, double& x, double& y) {
+    auto where = [this, &p](const JPMountConfig& m, double& x, double& y) {
         const auto px = p.find(m.axisX), py = p.find(m.axisY);
         if (px == p.end() || py == p.end()) return false;
-        x = px->second + m.offsetX;
-        y = py->second + m.offsetY;
+        const auto [ox, oy] = m_cell->offsetsAt(m);
+        x = px->second + ox;
+        y = py->second + oy;
         return true;
     };
     const JPNozzleConfig* nozzle = nullptr;
@@ -2193,6 +2195,26 @@ void JPlacerMachine::nozzleTestObject(const std::string& nozzleId, const std::st
         return;
     }
     const std::string headId = head->id;
+    if (action == "captureTestObjectThickness") {
+        // The nozzle's tip touching the test object on the primary fiducial: its top that far above the fiducial.
+        const auto z = m_cell->toolZ(nozzle->mount);
+        if (!z || !head->rigPrimary) {
+            m_window.showStatus("Nozzle Calibration: " + nozzle->name + "'s Z is not known", kErrorMs);
+            return;
+        }
+        const double thickness = *z - head->rigPrimary->z;
+        if (thickness < 0) {
+            m_window.showStatus("Nozzle Calibration: " + nozzle->name + " is below the primary fiducial (" + JPUiParts::coordinate(thickness)
+                                    + " mm): touch the test object lying on it", kErrorMs);
+            return;
+        }
+        changeSetup("Test object thickness", [&](JPCellConfig& cell) {
+            for (JPHeadConfig& h : cell.heads)
+                if (h.id == headId) h.rigTestObjectThickness = thickness;
+        });
+        m_setup->remakeForm();
+        return;
+    }
     // The test object's diameter on the camera's picture (none: not known yet).
     const auto scale = headCameraPixelsPerMm();
     const std::optional<int> px = scale && head->rigTestObjectDiameter > 0
@@ -2620,39 +2642,58 @@ void JPlacerMachine::calibratePreciseNozzleOffsets(const std::string& nozzleId, 
         return;
     }
     // At the test object's size as set (typed, Detect, Auto-Detect Next): not measured again here.
-    m_cameraTasks->calibrateNozzleOffsets(*camera, *nozzle, [this, nozzleId, finished](bool ok, double dx, double dy,
-                                                                                std::vector<JPOffsetsRun::Angle> angles) {
+    m_cameraTasks->calibrateNozzleOffsets(*camera, *nozzle, [this, nozzleId, finished](bool ok,
+                                                                                JPlacerCameraTasks::NozzleOffsetsFound found) {
         if (ok && m_setup) {
             std::optional<JPOffsetsRun> made;
             std::string name = nozzleId;
             m_setup->change("Precise nozzle offsets", [&](JPCellConfig& cell) {
                 for (JPNozzleConfig& k : cell.nozzles)
                     if (k.id == nozzleId) {
+                        // Where the tip truly is at each height: the offsets the moves used there (the lean as it
+                        // was) and the correction found there. Two heights: the lean between them; one: kept.
+                        const JPMountConfig& m = k.mount;
+                        const double z1 = found.first.z;
+                        const double x1 = m.offsetXAt(z1) + found.first.meanX(), y1 = m.offsetYAt(z1) + found.first.meanY();
                         JPOffsetsRun r;
                         r.when = JPWhen::now();
                         r.how = JPOffsetsRun::kPrecise;
-                        r.afterX = k.mount.offsetX + dx;
-                        r.afterY = k.mount.offsetY + dy;
-                        r.angles = std::move(angles);
+                        r.afterX = x1;
+                        r.afterY = y1;
+                        r.leanX = m.leanX;
+                        r.leanY = m.leanY;
+                        if (const auto& s2 = found.second; s2 && s2->z != z1) {
+                            const double x2 = m.offsetXAt(s2->z) + s2->meanX(), y2 = m.offsetYAt(s2->z) + s2->meanY();
+                            r.leanX = (x2 - x1) / (s2->z - z1);
+                            r.leanY = (y2 - y1) / (s2->z - z1);
+                        }
+                        r.first = found.first;
+                        r.second = found.second;
                         k.calibrated(std::move(r));
                         made = k.offsetsRuns.back();
                         name = k.name;
                         JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Set nozzle " << k.name << " head offsets to " << made->afterX
-                            << ", " << made->afterY << " (previously " << made->beforeX << ", " << made->beforeY << ")";
+                            << ", " << made->afterY << " at Z " << z1 << " (previously " << made->beforeX << ", " << made->beforeY
+                            << "), lean " << made->leanX << ", " << made->leanY << " mm/mm";
                     }
             });
             m_setup->remakeForm();
             // The correction made, said at once (the issue, solved, leaves the list; the nozzle's Calibration tab
             // keeps it, with each angle's estimate drawn).
             if (made) {
-                char text[520];
-                std::snprintf(text, sizeof text,
-                              "Nozzle %s's head offsets were corrected by %+.4f, %+.4f mm (%.4f mm).\n\n"
-                              "Detected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n\n"
-                              "%zu angles, within %.4f mm of the correction; outliers (further than %.4f mm): %d.",
-                              name.c_str(), made->changeX(), made->changeY(), made->change(), made->afterX, made->afterY,
-                              made->beforeX, made->beforeY, made->angles.size(), made->spread(), made->outlierLimit(),
-                              made->outliers());
+                char text[720];
+                int n = std::snprintf(text, sizeof text,
+                                      "Nozzle %s's head offsets were corrected by %+.4f, %+.4f mm (%.4f mm).\n\n"
+                                      "Detected Nozzle Head Offsets: %.4f, %.4f mm\nPrevious Nozzle Head Offsets: %.4f, %.4f mm\n\n"
+                                      "%zu angles, within %.4f mm of their mean; outliers: %d.",
+                                      name.c_str(), made->changeX(), made->changeY(), made->change(), made->afterX, made->afterY,
+                                      made->beforeX, made->beforeY, made->angles(), made->spread(), made->outliers());
+                if (made->second && n > 0 && size_t(n) < sizeof text)
+                    std::snprintf(text + n, sizeof text - size_t(n),
+                                  "\n\nLean (two heights, %.2f mm apart): %+.4f, %+.4f mm of X and Y per mm of Z%s",
+                                  std::abs(made->second->z - made->first.z), made->leanX, made->leanY,
+                                  std::max(std::abs(made->leanX), std::abs(made->leanY)) > JPOffsetsRun::kNotableLean
+                                      ? ": more than a nozzle should lean; look for a bent tip or a loose Z carriage." : ".");
                 JDialog::message("Nozzle offsets calibrated", text);
             }
         }

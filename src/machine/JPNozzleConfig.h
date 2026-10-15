@@ -90,11 +90,19 @@ struct JPNozzleConfig {
     }
 
     // A calibration's offsets taken (`run.before` filled in from the offsets now), and it kept as the newest run.
+    // A precise run's offsets are at the height it was made at, and its lean (found at two heights, else kept)
+    // holds from there; a rough one's are the offsets as they are kept, the lean left as it is.
     void calibrated(JPOffsetsRun run) {
-        run.beforeX = mount.offsetX;
-        run.beforeY = mount.offsetY;
+        const bool atHeight = !run.first.angles.empty();
+        run.beforeX = atHeight ? mount.offsetXAt(run.first.z) : mount.offsetX;
+        run.beforeY = atHeight ? mount.offsetYAt(run.first.z) : mount.offsetY;
         mount.offsetX = run.afterX;
         mount.offsetY = run.afterY;
+        if (atHeight) {
+            mount.leanX = run.leanX;
+            mount.leanY = run.leanY;
+            mount.leanZ = run.first.z;
+        }
         offsetsWhen = run.when;
         offsetsHow = run.how;
         offsetsRuns.push_back(std::move(run));

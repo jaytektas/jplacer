@@ -15,6 +15,9 @@ JPMountConfig JPMountConfig::fromJson(const JJson& j) {
     m.offsetX      = j["offset"]["x"].number();
     m.offsetY      = j["offset"]["y"].number();
     m.offsetZ      = j["offset"]["z"].number();
+    m.leanX        = j["lean"]["x"].number();
+    m.leanY        = j["lean"]["y"].number();
+    m.leanZ        = j["lean"]["z"].number();
     return m;
 }
 
@@ -28,6 +31,11 @@ JJson JPMountConfig::toJson() const {
     j["offset"]["x"]  = offsetX;
     j["offset"]["y"]  = offsetY;
     j["offset"]["z"]  = offsetZ;
+    if (leans()) {
+        j["lean"]["x"] = leanX;
+        j["lean"]["y"] = leanY;
+        j["lean"]["z"] = leanZ;
+    }
     return j;
 }
 

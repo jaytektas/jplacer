@@ -407,7 +407,8 @@ private:
     // difference (a step in Machine Setup, to undo).
     void nozzleMarkOffsets(const std::string& nozzleId, bool storeMark);
     // The nozzle Calibration tab's precise offsets: detect the test object (the next feature the head camera
-    // sees, its diameter kept) or calibrate (calibratePreciseNozzleOffsets).
+    // sees, its diameter kept), capture its thickness (the nozzle touching it on the primary fiducial), or
+    // calibrate (calibratePreciseNozzleOffsets).
     void nozzleTestObject(const std::string& nozzleId, const std::string& action);
 
     struct Dock {

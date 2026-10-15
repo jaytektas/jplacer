@@ -31,10 +31,18 @@ struct JPHeadConfig {
     // calibration measures the camera in 3D from them), and a test object.
     std::optional<JPMachineLocation> rigPrimary, rigSecondary;
     double rigPrimaryDiameter = 0, rigSecondaryDiameter = 0, rigTestObjectDiameter = 0;
-    // Where the test object is (X, Y), where the precise offsets calibration goes to look for it; none: on the
-    // primary fiducial. Its top (Z), where a nozzle picks and places it, captured with the nozzle tip touching
-    // it; none: the primary fiducial's Z (a paper-thin object, as OpenPnP takes it).
-    std::optional<double> rigTestObjectX, rigTestObjectY, rigTestObjectZ;
+    // The test object the nozzles' precise offsets are calibrated with: it lies on the primary fiducial, its top
+    // this far above it (0: paper-thin, as OpenPnP takes it). With two heights, the nozzle carries it to the
+    // secondary fiducial and calibrates there too: the nozzle's lean (JPMountConfig) from the two.
+    double rigTestObjectThickness = 0;
+    bool   rigTwoHeights = false;
+    // Where the test object is put for the precise offsets: on the primary (or secondary) fiducial, its top
+    // (Z) the thickness above it; none without that fiducial.
+    std::optional<JPMachineLocation> testObjectOn(bool secondary) const {
+        const std::optional<JPMachineLocation>& f = secondary ? rigSecondary : rigPrimary;
+        if (!f) return std::nullopt;
+        return JPMachineLocation { f->x, f->y, f->z + rigTestObjectThickness, 0 };
+    }
     // The vacuum pump: its actuator, when it runs, how long it takes to come up.
     std::string pumpActuatorId;
     std::string pumpControl;

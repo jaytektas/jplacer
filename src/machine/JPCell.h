@@ -250,6 +250,9 @@ public:
     // Where a tool's Z is now, as a move to a Z takes it (its axis, its offset and a nozzle tip's Z calibration):
     // what a captured height is; none when its Z axis's place is not known.
     std::optional<double> toolZ(const JPMountConfig& mount) const;
+    // A tool's X, Y offsets on its head at Z `z` (a nozzle's lean, JPMountConfig::offsetXAt); none: at its Z now.
+    // Going to a place, its axes are the place less these at the place's Z; where it is, its axes plus these.
+    std::pair<double, double> offsetsAt(const JPMountConfig& mount, std::optional<double> z = std::nullopt) const;
     // The offset of the nozzle `mount` is (0 for another tool).
     double rotationModeOffsetOf(const JPMountConfig& mount) const;
     // Simulation Mode's Pick & Place Checking (OpenPnP's): a nozzle holding

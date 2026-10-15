@@ -77,13 +77,19 @@ public:
     // down to the camera). `done` (main thread): the runout, for the owner to keep.
     // OpenPnP's precise camera <-> nozzle offsets calibration (its Calibration
     // Solutions): a test object (the head's Calibration Rig Test Object, this
-    // wide) where the head's Test Object X, Y say (else on the primary fiducial), the camera centred on it; the nozzle
-    // picks it at 6 angles round the circle and places it turned 180 degrees,
-    // the camera finding it after each. `done` (main thread): how far the
-    // nozzle's X and Y offsets are off (the average of where it moved, half
-    // its turns' displacement each), and each angle's own estimate; not ok: it failed.
+    // wide and thick) on the primary fiducial, the camera centred on it; the
+    // nozzle picks it at 6 angles round the circle and places it turned 180
+    // degrees, the camera finding it after each. With the head's two heights,
+    // the nozzle then carries it to the secondary fiducial, does the same there,
+    // and carries it back. `done` (main thread): each angle's own estimate of
+    // how far the nozzle's X and Y offsets are off at each height (half its
+    // turns' displacement; their mean the correction); not ok: it failed.
+    struct NozzleOffsetsFound {
+        JPOffsetsRun::Height                first;
+        std::optional<JPOffsetsRun::Height> second;
+    };
     void calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
-                                std::function<void(bool ok, double, double, std::vector<JPOffsetsRun::Angle>)> done);
+                                std::function<void(bool ok, NozzleOffsetsFound)> done);
     // OpenPnP's VisionFeatureIssue, on `camera`'s settled picture where it looks now (JPVisionFeature): the feature
     // of about `px` found and shown on its view (the circle and its cross-hairs, "Diameter N px - Score S", as the
     // issue's Test Object Diameter shows it); and Auto-Detect Next from `fromPx` (`done`, main thread: the diameter,

@@ -1294,7 +1294,8 @@ bool JPCellJobMachine::alignPart(const std::string& nozzleId, const AlignRequest
             const auto p = here.find(axis);
             return p == here.end() ? std::nullopt : std::optional<double>(p->second + offset);
         };
-        const auto hx = axisAt(nozzle.mount.axisX, nozzle.mount.offsetX), hy = axisAt(nozzle.mount.axisY, nozzle.mount.offsetY);
+        const auto [ox, oy] = c->offsetsAt(nozzle.mount);
+        const auto hx = axisAt(nozzle.mount.axisX, ox), hy = axisAt(nozzle.mount.axisY, oy);
         const JPNozzleTipConfig defaults;
         const bool over = hx && hy
                           && std::hypot(*hx + cameraDx - camX, *hy + cameraDy - camY)
@@ -1340,8 +1341,9 @@ bool JPCellJobMachine::alignComposite(JPCell& cell, const JPMountConfig& nozzle,
             const auto p = at.find(axis);
             return p == at.end() ? 0.0 : p->second + offset;
         };
-        x = where(nozzle.axisX, nozzle.offsetX) + cameraDx;
-        y = where(nozzle.axisY, nozzle.offsetY) + cameraDy;
+        const auto [ox, oy] = cell.offsetsAt(nozzle);   // its lean at the camera's height
+        x = where(nozzle.axisX, ox) + cameraDx;
+        y = where(nozzle.axisY, oy) + cameraDy;
         return true;
     };
     const JPNozzleTipConfig defaults;

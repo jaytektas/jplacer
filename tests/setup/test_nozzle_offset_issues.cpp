@@ -9,8 +9,8 @@
 // fiducials' Z too close; undone, as they were. Calibration: "Calibrate precise camera <-> nozzle N offsets." once
 // the offsets are roughly set, its Test Object Diameter (mm, the head's; each change previewed at its pixels by the
 // camera's scale), its Auto-Detect Next (the diameter found kept, the issue shown again), and Accept: the calibration
-// at that diameter's pixels, its result shown with the issue. Capture Test Object Z: the nozzle's Z as it touches the
-// test object, kept as the rig's test object height (typed in or captured; not set, the primary fiducial's Z).
+// at that diameter's pixels, its result shown with the issue. Capture Test Object Thickness: the nozzle's Z as it touches
+// the test object less the primary fiducial's, kept as the rig's test object thickness (typed in or captured).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -218,18 +218,18 @@ int main() {
     s.onSolutionChanged = [&shownAgain] { shownAgain = true; };
     precise->properties[1].action();   // found at 244 px
     assert(shownAgain && near(diameter.getNumber(), 244.0 / 30) && near(cell.heads[0].rigTestObjectDiameter, 244.0 / 30));
-    // The test object's height: until set, the primary fiducial's; typed in; or the nozzle tip touching it,
-    // captured (as a pick takes the nozzle's Z). The box shows it as set, either way.
-    S::Property& objectZ = precise->properties[2];
-    assert(objectZ.label == "Test Object Z" && objectZ.kind == S::Property::Kind::Length && near(objectZ.getNumber(), -23.6));
+    // The test object's thickness (its top above the primary fiducial, at -23.6): typed in, or the nozzle tip touching
+    // it captured (as a pick takes the nozzle's Z) less the fiducial's Z. The box shows it as set, either way.
+    S::Property& thickness = precise->properties[2];
+    assert(thickness.label == "Test Object Thickness" && thickness.kind == S::Property::Kind::Length && thickness.getNumber() == 0);
     shownAgain = false;
-    objectZ.setNumber(-23.0);
-    assert(shownAgain && cell.heads[0].rigTestObjectZ && near(*cell.heads[0].rigTestObjectZ, -23.0) && near(objectZ.getNumber(), -23.0));
-    assert(precise->properties[3].actionLabel == "Capture Test Object Z");
+    thickness.setNumber(0.6);
+    assert(shownAgain && near(cell.heads[0].rigTestObjectThickness, 0.6) && near(thickness.getNumber(), 0.6));
+    assert(precise->properties[3].actionLabel == "Capture Test Object Thickness");
     at["zl"] = -22.0;
     shownAgain = false;
     precise->properties[3].action();
-    assert(shownAgain && cell.heads[0].rigTestObjectZ && near(*cell.heads[0].rigTestObjectZ, -22.4) && near(objectZ.getNumber(), -22.4));
+    assert(shownAgain && near(cell.heads[0].rigTestObjectThickness, 1.2) && near(thickness.getNumber(), 1.2));
     assert(s.setState(*precise, S::State::Solved, why) && calibratedAt == 244);
     // The result on its page at once, as it is now (not as when the issues were found, before it was calibrated).
     assert(precise->described().find("Detected Nozzle Head Offsets: -19.3000, -62.5600 mm") != std::string::npos);
@@ -238,6 +238,6 @@ int main() {
     s.publish();
     precise = find(s, "Calibrate precise camera ↔ nozzle LEFT offsets.");
     assert(precise && precise->described().find("Detected Nozzle Head Offsets: -19.3000, -62.5600 mm") != std::string::npos);
-    assert(near(precise->properties[2].getNumber(), -22.4));   // found again: as captured
+    assert(near(precise->properties[2].getNumber(), 1.2));   // found again: as captured
     return 0;
 }

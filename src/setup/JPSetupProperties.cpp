@@ -1064,39 +1064,17 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     place("rigSecondary", "Secondary Fiducial", [h]() -> std::optional<JPMachineLocation>& { return h().rigSecondary; }, true,
           "Calibration secondary fiducial location. Must be placed at different Z height than the primary fiducial.",
           [h]() -> double& { return h().rigSecondaryDiameter; });
-    add.row("Test Object", Place::Location);
-    add.placeWithoutRotation();
-    add.length("rigTestObjectX", "Test Object X", [h] { return h().rigTestObjectX.value_or(h().rigPrimary ? h().rigPrimary->x : 0.0); },
-               [h](double v) { h().rigTestObjectX = v; });
-    add.tip("Where the test object is, where the precise offsets calibration goes to look for it. Not set: on the "
-            "primary fiducial.");
-    add.length("rigTestObjectY", "Test Object Y", [h] { return h().rigTestObjectY.value_or(h().rigPrimary ? h().rigPrimary->y : 0.0); },
-               [h](double v) { h().rigTestObjectY = v; });
-    add.length("rigTestObjectZ", "Test Object Z",
-               [h] { return h().rigTestObjectZ.value_or(h().rigPrimary ? h().rigPrimary->z : 0.0); },
-               [h](double v) { h().rigTestObjectZ = v; });
-    add.tip("The test object's top, where a nozzle picks and places it for its precise offsets (captured in Issues & "
-            "Solutions with the nozzle tip touching it). Not set: the primary fiducial's Z, for a paper-thin object.");
-    add.length("rigTestObjectDiameter", "Test Object", [h]() -> double& { return h().rigTestObjectDiameter; });
-    add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with (Issues & Solutions' "
-            "Calibrate precise camera \u2194 nozzle offsets).");
-    // Set: each of X, Y, Z its own, from the primary fiducial's until changed; not set, the primary fiducial's again.
-    add.flag("rigTestObjectSet", "Test Object Set?",
-             [h] { return h().rigTestObjectX || h().rigTestObjectY || h().rigTestObjectZ; },
-             [h](bool on) {
-                 JPHeadConfig& k = h();
-                 const JPMachineLocation p = k.rigPrimary.value_or(JPMachineLocation());
-                 if (!on) {
-                     k.rigTestObjectX.reset();
-                     k.rigTestObjectY.reset();
-                     k.rigTestObjectZ.reset();
-                     return;
-                 }
-                 if (!k.rigTestObjectX) k.rigTestObjectX = p.x;
-                 if (!k.rigTestObjectY) k.rigTestObjectY = p.y;
-                 if (!k.rigTestObjectZ) k.rigTestObjectZ = p.z;
-             });
-    add.end();
+    add.endColumns();
+    add.length("rigTestObjectDiameter", "Test Object Diameter", [h]() -> double& { return h().rigTestObjectDiameter; });
+    add.tip("The diameter of the test object the nozzles' precise offsets are calibrated with: what the camera looks for.");
+    add.length("rigTestObjectThickness", "Test Object Thickness", [h] { return h().rigTestObjectThickness; },
+               [h](double v) { if (v >= 0) h().rigTestObjectThickness = v; });
+    add.tip("How thick the test object is: it lies on the primary fiducial (and, with two heights, the secondary), the "
+            "nozzle picking and placing it this far above the fiducial. 0: paper-thin.");
+    add.flag("rigTwoHeights", "Calibrate Nozzles at Two Heights?", [h]() -> bool& { return h().rigTwoHeights; });
+    add.tip("A nozzle's precise offsets calibrated on the primary fiducial, then (the nozzle carrying the test object "
+            "there) on the secondary: how far its tip moves in X and Y as it goes up and down (its lean), taken into "
+            "every move. Needs the secondary fiducial.");
     add.note("Diameter: diameter of the fiducial. A head camera is calibrated over the homing fiducial and, with Two "
              "Heights? on (its Advanced Calibration), again over the secondary fiducial, at least 1 mm higher or lower.");
 
@@ -1142,12 +1120,14 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         return nullptr;
     };
     add.group("Precise Offsets, by the Test Object");
-    add.note("The nozzle picks a small round test object up where it lies (Test Object X, Y; until they are set, on "
-             "the head's primary calibration fiducial) at "
+    add.note("The nozzle picks a small round test object off the head's primary calibration fiducial at "
              + std::to_string(std::max(1, cell.nozzleOffsetAngles)) + " angles round the circle, placing it turned 180 "
              "degrees each time; the camera finds it after each. Where its axis really is lies halfway between, so each "
-             "angle gives its own estimate of how far the offsets are off, and their mean is the correction made.");
+             "angle gives its own estimate of how far the offsets are off, and their mean is the correction made. With "
+             "two heights, the nozzle then carries it to the secondary fiducial and does the same there: the two give "
+             "how far the tip moves in X and Y as the nozzle goes up and down (its lean), taken into every move.");
     const bool rig = head() && head()->rigPrimary;
+    const bool second = rig && head()->rigSecondary;
     if (rig) {
         add.row("Test Object Diameter");
         add.length("testObjectDiameter", "Test Object Diameter", [head] { return head()->rigTestObjectDiameter; },
@@ -1157,31 +1137,27 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         add.button("detectTestObject", "Detect", "Find the test object where the camera looks now and measure its diameter "
                    "(again: the next one the camera sees).");
         add.end();
-        add.header({ "X", "Y", "Z" });
-        // Where the test object lies and its top, captured with the camera (X, Y) or the nozzle tip touching it (Z).
-        add.row("Test Object", Place::Location);
-        add.placeWithoutRotation();
-        add.length("testObjectX", "Test Object X", [head] { return head()->rigTestObjectX.value_or(head()->rigPrimary->x); },
-                   [head](double v) { head()->rigTestObjectX = v; });
-        add.length("testObjectY", "Test Object Y", [head] { return head()->rigTestObjectY.value_or(head()->rigPrimary->y); },
-                   [head](double v) { head()->rigTestObjectY = v; });
-        add.length("testObjectZ", "Test Object Z", [head] { return head()->rigTestObjectZ.value_or(head()->rigPrimary->z); },
-                   [head](double v) { head()->rigTestObjectZ = v; });
-        add.tip("Where the test object is, where Calibrate looks for it (X, Y), and its top, where the nozzle picks and "
-                "places it (Z): capture X, Y with the camera centred over it and Z with the nozzle's tip touching it. "
-                "Until they are set, the primary fiducial's.");
+        add.row("Test Object Thickness");
+        add.length("testObjectThickness", "Test Object Thickness", [head] { return head()->rigTestObjectThickness; },
+                   [head](double v) { if (v >= 0) head()->rigTestObjectThickness = v; });
+        add.bare();
+        add.tip("How far its top is above the fiducial it lies on: where the nozzle picks and places it. 0: paper-thin.");
+        add.button("captureTestObjectThickness", "Capture", "This nozzle's Z now, its tip touching the test object on the "
+                   "primary fiducial, less the fiducial's Z.");
         add.end();
-        add.endColumns();
+        add.flag("twoHeights", "Two Heights?", [head]() -> bool& { return head()->rigTwoHeights; });
+        add.tip("Calibrate on the primary fiducial, then on the secondary (the nozzle carries the test object there and "
+                "back): the nozzle's lean as well as its offsets.");
+        if (!second) add.disable("twoHeights");
     } else {
         add.note("The head needs its primary calibration fiducial first (Issues & Solutions, Calibration).");
     }
     add.button("calibratePreciseOffsets", "Calibrate", "Pick, turn and place the test object at each angle, and take the "
                "correction found. CAUTION: the nozzle goes down to the test object; load the right tip and ready the vacuum.",
                rig && head()->rigTestObjectDiameter > 0);
-    add.note("Put the test object down (on the primary fiducial, or anywhere the nozzle can reach), centre the camera "
-             "over it, Detect it and capture its X, Y with the camera, capture its Z with the nozzle's tip touching it, then "
-             "Calibrate. "
-             "The offsets change by the correction found (Undo takes them back), and the run is kept below.");
+    add.note("Put the test object on the primary fiducial and centre the camera over it, Detect it, give its thickness, "
+             "then Calibrate. The offsets (and, with two heights, the lean) change by what was found (Undo takes them "
+             "back), and the run is kept below.");
 
     const std::vector<JPOffsetsRun> runs = n().offsetsRuns;
     if (!runs.empty()) {
@@ -1194,38 +1170,52 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         shown("lastBefore", "Offsets Before", mmPair(r.beforeX, r.beforeY));
         shown("lastAfter", "Offsets Found", mmPair(r.afterX, r.afterY));
         shown("lastChange", "Change", mmPair(r.changeX(), r.changeY(), true) + " (" + mmText(r.change()) + " mm)");
-        if (!r.angles.empty()) {
-            const int outliers = r.outliers();
-            shown("lastSpread", "Angles Agree Within", mmText(r.spread()) + " mm of the correction");
-            shown("lastOutliers", "Outliers", std::to_string(outliers) + (outliers ? " (further than " : " (none further than ")
-                                                  + mmText(r.outlierLimit()) + " mm)");
+        if (!r.first.angles.empty()) {
+            char b[160];
+            std::snprintf(b, sizeof b, "%+.5f, %+.5f mm of X and Y per mm of Z%s", r.leanX, r.leanY,
+                          r.second ? "" : " (kept: calibrated at one height)");
+            shown("lastLean", "Lean", b);
+            if (std::max(std::abs(r.leanX), std::abs(r.leanY)) > JPOffsetsRun::kNotableLean)
+                add.note("More than a nozzle should lean: look for a bent tip or a loose Z carriage.");
+        }
+        // Each height's estimates, drawn about their mean (the correction there), with the outliers marked.
+        auto height = [&add, &shown](const JPOffsetsRun::Height& h, const std::string& key, const std::string& where) {
+            const int outliers = h.outliers();
+            char z[48];
+            std::snprintf(z, sizeof z, " (Z %.3f)", h.z);
+            shown(key + "Spread", "Angles Agree Within", mmText(h.spread()) + " mm of their mean, " + where + z);
+            shown(key + "Outliers", "Outliers", std::to_string(outliers) + (outliers ? " (further than " : " (none further than ")
+                                                    + mmText(h.outlierLimit()) + " mm)");
             auto plot = std::make_shared<JPPlot>();
             plot->kind = JPPlot::Kind::Scatter;
             plot->xTitle = "X mm";
             plot->yTitle = "Y mm";
-            plot->circle = r.outlierLimit();
+            plot->circle = h.outlierLimit();
             plot->circleLabel = "outlier limit";
             JPPlot::Series kept{ "each angle", JPPlot::Tone::Third, {} }, out{ "outlier", JPPlot::Tone::First, {} };
-            for (const JPOffsetsRun::Angle& a : r.angles)
-                (r.outlier(a) ? out : kept).points.push_back({ a.dx - r.changeX(), a.dy - r.changeY() });
+            for (const JPOffsetsRun::Angle& a : h.angles)
+                (h.outlier(a) ? out : kept).points.push_back({ a.dx - h.meanX(), a.dy - h.meanY() });
             plot->series.push_back(kept);
             if (!out.points.empty()) plot->series.push_back(out);
-            add.plot("Each Angle's Estimate, About the Correction Made", plot);
-            add.note("The middle is the correction made (their mean). Angles in a tight cluster: a good run. One on its "
-                     "own outside the circle: a bad find, or the test object slipped on the tip; calibrate again. All of them "
-                     "round a ring: the tip's runout, which its runout calibration takes out.");
-            add.header({ "X", "Y", "From the Correction" });
-            for (const JPOffsetsRun::Angle& a : r.angles) {
+            add.plot("Each Angle's Estimate, " + where, plot);
+            add.header({ "X", "Y", "From the Mean" });
+            for (const JPOffsetsRun::Angle& a : h.angles) {
                 char label[32];
                 std::snprintf(label, sizeof label, "%g\xC2\xB0", a.angle);
                 add.row(label);
                 add.words(mmText(a.dx, true));
                 add.words(mmText(a.dy, true));
-                add.words(mmText(r.distance(a)) + (r.outlier(a) ? " (outlier)" : ""));
+                add.words(mmText(h.distance(a)) + (h.outlier(a) ? " (outlier)" : ""));
                 add.end();
             }
             add.endColumns();
-        }
+        };
+        if (!r.first.angles.empty()) height(r.first, "first", "on the Primary Fiducial");
+        if (r.second) height(*r.second, "second", "on the Secondary Fiducial");
+        if (!r.first.angles.empty())
+            add.note("The middle is the correction found at that height (their mean). Angles in a tight cluster: a good "
+                     "run. One on its own outside the circle: a bad find, or the test object slipped on the tip; calibrate "
+                     "again. All of them round a ring: the tip's runout, which its runout calibration takes out.");
     }
     if (runs.size() > 1) {
         add.group("Calibrations, Run by Run");
@@ -1235,7 +1225,7 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
             add.words(it->how);
             add.words(mmPair(it->afterX, it->afterY));
             add.words(mmPair(it->changeX(), it->changeY(), true));
-            add.words(it->angles.empty() ? std::string("-") : std::to_string(it->outliers()) + " of " + std::to_string(it->angles.size()));
+            add.words(it->angles() == 0 ? std::string("-") : std::to_string(it->outliers()) + " of " + std::to_string(it->angles()));
             add.end();
         }
         add.endColumns();

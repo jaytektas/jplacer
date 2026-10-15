@@ -489,46 +489,56 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
 }
 
 void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPNozzleConfig& nozzle,
-                                                std::function<void(bool, double, double, std::vector<JPOffsetsRun::Angle>)> done) {
+                                                std::function<void(bool, NozzleOffsetsFound)> done) {
     if (const std::string why = notReady(&camera, true, false); !why.empty()) {
         m_window.showStatus("Nozzle offsets: " + why, kResultMs);
-        if (done) done(false, 0, 0, {});
+        if (done) done(false, {});
         return;
     }
     const JPHeadConfig* h = head(camera.camera());
     if (!h || !h->rigPrimary || h->rigTestObjectDiameter <= 0) {
         m_window.showStatus("Nozzle offsets: the head's calibration rig needs its primary fiducial and the test object's diameter",
                             kResultMs);
-        if (done) done(false, 0, 0, {});
+        if (done) done(false, {});
+        return;
+    }
+    if (h->rigTwoHeights && !h->rigSecondary) {
+        m_window.showStatus("Nozzle offsets: two heights need the head's secondary fiducial", kResultMs);
+        if (done) done(false, {});
         return;
     }
     const JPHeadConfig rig = *h;
     const JPNozzleConfig n = nozzle;
     JPCameraFeed* feed = &camera.feed();
-    // The test object looked for where the head says it is (Test Object X, Y), else on the primary fiducial.
-    const std::pair<double, double> start { h->rigTestObjectX.value_or(h->rigPrimary->x), h->rigTestObjectY.value_or(h->rigPrimary->y) };
-    auto offsets = std::make_shared<std::pair<double, double>>(0, 0);
-    auto each = std::make_shared<std::vector<JPOffsetsRun::Angle>>();   // each angle's own estimate (half how far it moved)
+    auto found = std::make_shared<NozzleOffsetsFound>();
     JPCameraPanel* panel = &camera;
-    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, panel, feed, rig, n, offsets, each, start](std::string& words,
-                                                                                                         const auto& progress) {
+    run(camera, "Calibrating " + nozzle.name + "'s offsets", [this, panel, feed, rig, n, found](std::string& words,
+                                                                                              const auto& progress) {
         const JPMountConfig& cm = feed->config().mount;
         JPCameraCalibration cal;
         if (!JPCameraLook::calibration(m_cell, *feed, cal, words)) return false;
-        const double scale = cal.scale();
-        // Picked and placed at the test object's top: captured, else the primary fiducial's Z (a paper-thin object).
-        const double z = rig.rigTestObjectZ.value_or(rig.rigPrimary->z);
+        // The test object on the primary fiducial (and the secondary), its top the thickness above it: where the nozzle
+        // picks and places it, and the height the camera's calibration is taken at (another height is another scale).
+        const JPMachineLocation primary = *rig.testObjectOn(false);
+        const std::optional<JPMachineLocation> secondary = rig.rigTwoHeights ? rig.testObjectOn(true) : std::nullopt;
+        if (secondary && !cal.twoHeights()) {
+            words = feed->config().name + " is calibrated at one height: calibrate it at two (Two Heights?, its Advanced "
+                    "Calibration) to see the test object on the secondary fiducial";
+            return false;
+        }
         // OpenPnP's centerInOnSubjectLocation: the camera over where the test object is thought to be, and three
         // times found there by VisionSolutions' circular symmetry at its diameter (shrunk and grown by the fiducial
         // margin) and the camera taken over it; its picture shown, as OpenPnP's diagnostics. The camera's own
-        // calibration turns the picture's pixels into the machine's millimetres (straightened as it is calibrated).
-        auto centreOn = [&](double& x, double& y, const std::string& shown) {
+        // calibration, at the test object's height, turns the picture's pixels into the machine's millimetres
+        // (straightened as it is calibrated).
+        auto centreOn = [&](double& x, double& y, double z, const std::string& shown) {
+            const JPCameraCalibration atZ = cal.twoHeights() ? cal.atHeight(z) : cal;
             for (int pass = 0; pass < kCentrePasses; ++pass) {
                 if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
                 cv::Mat bgr;
                 if (!settledColour(*feed, bgr, words)) return false;
-                JPCameraCalibration on = cal;
-                if (const auto straight = JPStraightPicture::of(cal, feed->config().looksUp, feed->config().showAll)) {
+                JPCameraCalibration on = atZ;
+                if (const auto straight = JPStraightPicture::of(atZ, feed->config().looksUp, feed->config().showAll)) {
                     cv::Mat flat;
                     if (straight->straighten(bgr, flat)) {
                         bgr = flat;
@@ -539,19 +549,19 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
                 on.pixelFor(x, y, x, y, ex, ey);
                 const int px = int(std::lround(rig.rigTestObjectDiameter * on.scale()));
                 double score = 0;
-                const auto found = JPVisionFeature::detectAt(bgr, ex, ey, px, 0, false, true, score);
+                const auto seen = JPVisionFeature::detectAt(bgr, ex, ey, px, 0, false, true, score);
                 char text[96];
                 std::snprintf(text, sizeof text, "%s - Score %.2f", shown.c_str(), score);
                 JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(bgr),
                                                         text = std::string(text)] {
                     if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kFeatureShownMs);
                 });
-                if (!found) {
+                if (!seen) {
                     words = "the test object was not found (Subject not found.)";
                     return false;
                 }
                 double fx = 0, fy = 0;
-                if (!on.machinePoint(found->x, found->y, x, y, fx, fy)) {
+                if (!on.machinePoint(seen->x, seen->y, x, y, fx, fy)) {
                     words = "the test object was found, but the camera's calibration cannot place it on the machine";
                     return false;
                 }
@@ -560,66 +570,79 @@ void JPlacerCameraTasks::calibrateNozzleOffsets(JPCameraPanel& camera, const JPN
             }
             return true;
         };
-        double x = start.first, y = start.second;
-        // Over the test object, tuned there first (Auto-Tune when calibrating?).
-        if (feed->config().autoTuneCalibrating) {
-            if (!m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)
-                || !tuneForCalibration(*feed, progress, words))
-                return false;
-        }
-        progress("finding the test object");
-        if (!centreOn(x, y, "Nozzle Offset Calibration")) return false;
-        double sumX = 0, sumY = 0;
-        int accumulated = 0;
-        const double da = 360.0 / std::max(1, m_cell.config().nozzleOffsetAngles);
-        bool ok = true;
         bool holding = false;   // picked and not yet placed
-        const int angles = std::max(1, m_cell.config().nozzleOffsetAngles);
-        int at = 0;
-        for (double angle = -180 + da / 2; angle < 180 && ok; angle += da) {
-            char step[80];
-            std::snprintf(step, sizeof step, "pick and place at %.0f deg, %d of %d", angle, ++at, angles);
-            progress(step);
-            const double beforeX = x, beforeY = y;
-            sumX -= x;
-            sumY -= y;
-            // Picked at the angle, placed turned 180: the true axis is midway between the two places.
-            ok = m_cell.pickAtAndWait(n.id, { x, y, z, angle }, kTaskSpeed, words);
-            holding = ok;
-            if (ok) std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
-            ok = ok && m_cell.placeAtAndWait(n.id, { x, y, z + kTestObjectHeightMm, angle + 180 }, kTaskSpeed, words);
-            if (ok) holding = false;
-            if (ok) std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
-            char shown[64];
-            std::snprintf(shown, sizeof shown, "Nozzle Offset Calibration %g\xC2\xB0", angle);
-            ok = ok && centreOn(x, y, shown);
-            sumX += x;
-            sumY += y;
-            accumulated += 2;
-            if (ok) {
+        // The nozzle's pick and place patterns at one height: each angle's estimate, half how far the object moved.
+        auto measure = [&](double& x, double& y, double z, const std::string& where, JPOffsetsRun::Height& out) {
+            out.z = z;
+            progress("finding the test object " + where);
+            if (!centreOn(x, y, z, "Nozzle Offset Calibration")) return false;
+            const int angles = std::max(1, m_cell.config().nozzleOffsetAngles);
+            const double da = 360.0 / angles;
+            int at = 0;
+            for (double angle = -180 + da / 2; angle < 180; angle += da) {
+                char step[120];
+                std::snprintf(step, sizeof step, "pick and place %s at %.0f deg, %d of %d", where.c_str(), angle, ++at, angles);
+                progress(step);
+                const double beforeX = x, beforeY = y;
+                // Picked at the angle, placed turned 180: the true axis is midway between the two places.
+                if (!m_cell.pickAtAndWait(n.id, { x, y, z, angle }, kTaskSpeed, words)) return false;
+                holding = true;
+                std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
+                if (!m_cell.placeAtAndWait(n.id, { x, y, z + kTestObjectHeightMm, angle + 180 }, kTaskSpeed, words)) return false;
+                holding = false;
+                std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
+                char shown[64];
+                std::snprintf(shown, sizeof shown, "Nozzle Offset Calibration %g\xC2\xB0", angle);
+                if (!centreOn(x, y, z, shown)) return false;
                 // This angle's estimate, in the log, so how well they agree can be seen.
-                each->push_back({ angle, (x - beforeX) / 2, (y - beforeY) / 2 });
-                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  " << n.name << " at " << angle << " deg: "
-                                                            << each->back().dx << ", " << each->back().dy << " mm off";
+                out.angles.push_back({ angle, (x - beforeX) / 2, (y - beforeY) / 2 });
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  " << n.name << " " << where << " at " << angle << " deg: "
+                                                            << out.angles.back().dx << ", " << out.angles.back().dy << " mm off";
             }
+            return true;
+        };
+        // The test object carried from where it was found to `to` (its fiducial), unturned, and found there.
+        auto carry = [&](double& x, double& y, double fromZ, const JPMachineLocation& to, const std::string& where) {
+            progress("carrying the test object " + where);
+            if (!m_cell.pickAtAndWait(n.id, { x, y, fromZ, 0.0 }, kTaskSpeed, words)) return false;
+            holding = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(kExtraVacuumDwellMs));
+            if (!m_cell.placeAtAndWait(n.id, { to.x, to.y, to.z + kTestObjectHeightMm, 0.0 }, kTaskSpeed, words)) return false;
+            holding = false;
+            x = to.x;
+            y = to.y;
+            return true;
+        };
+        double x = primary.x, y = primary.y;
+        // Over the test object, tuned there first (Auto-Tune when calibrating?).
+        bool ok = !feed->config().autoTuneCalibrating
+                  || (m_cell.moveToolAndWait(cm, { x, y, std::nullopt, std::nullopt }, kTaskSpeed, words)
+                      && tuneForCalibration(*feed, progress, words));
+        ok = ok && measure(x, y, primary.z, "on the primary fiducial", found->first);
+        if (ok && secondary) {
+            JPOffsetsRun::Height second;
+            ok = carry(x, y, primary.z, *secondary, "to the secondary fiducial")
+                 && measure(x, y, secondary->z, "on the secondary fiducial", second)
+                 && carry(x, y, secondary->z, primary, "back to the primary fiducial");
+            if (ok) found->second = second;
         }
         // The test object let go where it is, if it is still held (as OpenPnP's); then up, unturned, whatever happened.
         if (holding) m_cell.place(n.id);
         std::string up;
         m_cell.moveToolAndWait(n.mount, { std::nullopt, std::nullopt, std::nullopt, 0.0 }, kTaskSpeed, up);
         if (!ok) return false;
-        offsets->first = sumX / accumulated;
-        offsets->second = sumY / accumulated;
-        // How far the angles' estimates are from their mean, at most: how far the result can be trusted.
-        double spread = 0;
-        for (const JPOffsetsRun::Angle& a : *each) spread = std::max(spread, std::hypot(a.dx - offsets->first, a.dy - offsets->second));
-        char buf[200];
+        char buf[240];
         std::snprintf(buf, sizeof buf, "%s's offsets %+.4f, %+.4f mm off (%zu angles, each within %.4f mm of that)", n.name.c_str(),
-                      offsets->first, offsets->second, each->size(), spread);
+                      found->first.meanX(), found->first.meanY(), found->first.angles.size(), found->first.spread());
         words = buf;
+        if (found->second) {
+            std::snprintf(buf, sizeof buf, "; %+.4f, %+.4f mm off on the secondary fiducial (each within %.4f mm)",
+                          found->second->meanX(), found->second->meanY(), found->second->spread());
+            words += buf;
+        }
         return true;
-    }, [offsets, each, done](bool ok) {
-        if (done) done(ok, offsets->first, offsets->second, *each);
+    }, [found, done](bool ok) {
+        if (done) done(ok, *found);
     });
 }
 

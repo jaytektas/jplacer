@@ -48,7 +48,8 @@ void JPlacerTestMotion::run(const JPMountConfig& tool, std::function<void(const 
         const auto p = at.find(axis);
         return p == at.end() ? 0.0 : p->second + offset;
     };
-    const double here[4] = { coordinate(tool.axisX, tool.offsetX), coordinate(tool.axisY, tool.offsetY),
+    const auto [ox, oy] = m_cell.offsetsAt(tool);
+    const double here[4] = { coordinate(tool.axisX, ox), coordinate(tool.axisY, oy),
                              coordinate(tool.axisZ, tool.offsetZ), coordinate(tool.axisRotation, 0) };
     auto distance = [&here](const JPMachineLocation& l) {
         return std::sqrt(std::pow(l.x - here[0], 2) + std::pow(l.y - here[1], 2) + std::pow(l.z - here[2], 2)

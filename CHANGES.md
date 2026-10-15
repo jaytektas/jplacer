@@ -15,7 +15,8 @@ notes.
   cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
   (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
   cameras work as on Linux.
-- The calibration test object has an X and Y (on the head's Calibration Rig, and on a nozzle's Calibration tab, with the capture and move buttons the head's other places have). The precise offsets calibration goes there to look for it; until they are set, it looks on the primary fiducial, as before. Before, it looked wherever the feature was last sized or the camera happened to be.
+- The calibration test object is given by its thickness (Test Object Thickness, with Capture: the nozzle tip touching it) and lies on the primary fiducial; a test object Z kept before is read as its thickness. The precise offsets calibration looks for it there. Before, it looked wherever the feature was last sized or the camera happened to be.
+- Nozzle offsets can be calibrated at two heights (Two Heights?, on the head's Calibration Rig and a nozzle's Calibration tab): the nozzle carries the test object from the primary fiducial to the secondary, calibrates there too and carries it back, which gives how far its tip moves in X and Y as it goes up and down (its lean). Every move of the nozzle then takes that into account, so a part lands where it is sent at board height as well as at the height calibrated at. The Calibration tab shows the lean and each height's angles.
 
 - Issues & Solutions' precise nozzle offsets calibration takes the test object's size in mm (Test Object Diameter), the same value as the nozzle's Calibration tab. Before, it was a Feature diameter in pixels.
 - The precise nozzle offsets calibration uses the test object's size as set or detected. Before, it measured the object again where the camera happened to be, overwrote the size, and failed when it was not found there.

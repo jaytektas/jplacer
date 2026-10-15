@@ -1895,50 +1895,44 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     });
                 };
                 i.properties.push_back(std::move(next));
-                // The test object's height, typed in (a measured or known thickness), or captured as the fiducials'
-                // are: the nozzle tip touching it.
-                // As set now (typed or captured), shown until the issues are found again.
-                auto shownZ = std::make_shared<double>(h.rigTestObjectZ.value_or(h.rigPrimary->z));
-                JPSolutions::Property objectZ;
-                objectZ.kind = JPSolutions::Property::Kind::Length;
-                objectZ.label = "Test Object Z";
-                objectZ.tooltip = "The test object's top, where nozzle " + name + " picks and places it: typed in, or "
-                                  "captured below. Until it is set, the primary fiducial's Z.";
-                objectZ.getNumber = [shownZ] { return *shownZ; };
-                objectZ.setNumber = [c, headId, shownZ, sp = &s](double v) {
-                    if (!c.changeCell) return;
-                    *shownZ = v;
-                    c.changeCell("Test object Z", [&](JPCellConfig& cell) {
+                // The test object's thickness (its top above the primary fiducial, where the nozzle picks and places
+                // it), typed in or captured with the nozzle tip touching it; as set now, shown until the issues are
+                // found again.
+                const double fiducialZ = h.rigPrimary->z;
+                auto shownThickness = std::make_shared<double>(h.rigTestObjectThickness);
+                auto keepThickness = [c, headId, shownThickness, sp = &s](double v) {
+                    if (!c.changeCell || v < 0) return;
+                    *shownThickness = v;
+                    c.changeCell("Test object thickness", [&](JPCellConfig& cell) {
                         for (JPHeadConfig& x : cell.heads)
-                            if (x.id == headId) x.rigTestObjectZ = v;
+                            if (x.id == headId) x.rigTestObjectThickness = v;
                     });
                     sp->solutionChanged();
                 };
-                i.properties.push_back(std::move(objectZ));
+                JPSolutions::Property thickness;
+                thickness.kind = JPSolutions::Property::Kind::Length;
+                thickness.label = "Test Object Thickness";
+                thickness.tooltip = "How far the test object's top is above the primary fiducial it lies on: where nozzle " + name
+                                    + " picks and places it. Typed in, or captured below; 0: paper-thin.";
+                thickness.getNumber = [shownThickness] { return *shownThickness; };
+                thickness.setNumber = keepThickness;
+                i.properties.push_back(std::move(thickness));
                 JPSolutions::Property capture;
                 capture.kind = JPSolutions::Property::Kind::Action;
-                capture.tooltip = "Jog nozzle " + name + " down until its tip touches the test object, then capture its Z: where "
-                                  "the nozzle picks and places it. Not captured: the primary fiducial's Z.";
-                capture.actionLabel = "Capture Test Object Z";
-                capture.action = [c, nozzleId, headId, shownZ, sp = &s] {
-                    const auto z = c.nozzleZ ? c.nozzleZ(nozzleId) : std::nullopt;
-                    if (!z || !c.changeCell) return;
-                    *shownZ = *z;
-                    c.changeCell("Test object Z", [&](JPCellConfig& cell) {
-                        for (JPHeadConfig& x : cell.heads)
-                            if (x.id == headId) x.rigTestObjectZ = *z;
-                    });
-                    sp->solutionChanged();
+                capture.tooltip = "Jog nozzle " + name + " down until its tip touches the test object, then capture: its Z less "
+                                  "the primary fiducial's is the object's thickness.";
+                capture.actionLabel = "Capture Test Object Thickness";
+                capture.action = [c, nozzleId, fiducialZ, keepThickness] {
+                    if (const auto z = c.nozzleZ ? c.nozzleZ(nozzleId) : std::nullopt) keepThickness(*z - fiducialZ);
                 };
                 i.properties.push_back(std::move(capture));
                 const std::string instructions =
                     "To calibrate precision camera ↔ nozzle offsets, we let the nozzle pick, rotate and place a small test "
                     "object and then measure the resulting offsets using the camera.\n\nInstructions about suitable test objects "
                     "etc. must be obtained in the OpenPnP Wiki. Press the blue Info button (below) to open the Wiki.\n\nPlace the "
-                    "calibration test object onto the calibration primary fiducial (or anywhere else, setting the head's Test "
-                    "Object X, Y to where it is: the calibration looks for it there).\n\nJog camera " + camera->name + " over the "
+                    "calibration test object onto the calibration primary fiducial.\n\nJog camera " + camera->name + " over the "
                     "test object. Target it with the cross-hairs.\n\nJog nozzle " + name + " down until its tip touches the test "
-                    "object and press Capture Test Object Z, or type its Z into Test Object Z (for anything thicker than paper).\n\nAdjust the Test Object Diameter (mm) up and down, or Auto-Detect Next, and see if it is "
+                    "object and press Capture Test Object Thickness, or type its thickness into Test Object Thickness (for anything thicker than paper).\n\nAdjust the Test Object Diameter (mm) up and down, or Auto-Detect Next, and see if it is "
                     "detected right in the camera view. A green circle and cross-hairs should appear and hug the test object "
                     "contour. Zoom the camera using the scroll-wheel.\n\nCAUTION The nozzle " + name + " will move to the test "
                     "object and perform the calibration pick & place pattern. Make sure to load the right nozzle tip and ready the "

@@ -385,8 +385,9 @@ bool JPCell::doPark(const std::string& headId, double speed, std::string& why) {
     // A park place is often at the end of travel: out of the way is the
     // point, so it goes as near as the soft limits allow (in the axes' own
     // coordinates, where the limits are) rather than not at all.
-    std::map<std::string, double> target = { { by->axisX, head->park->x - by->offsetX },
-                                             { by->axisY, head->park->y - by->offsetY } };
+    const auto [byX, byY] = offsetsAt(*by);
+    std::map<std::string, double> target = { { by->axisX, head->park->x - byX },
+                                             { by->axisY, head->park->y - byY } };
     std::map<std::string, double> axes = toAxes(target, jogBase());
     bool clamped = false;
     for (auto& [id, t] : axes) {
@@ -542,6 +543,12 @@ std::optional<double> JPCell::toolZ(const JPMountConfig& mount) const {
     const auto z = p.find(mount.axisZ);
     if (z == p.end()) return std::nullopt;
     return z->second + zOffsetOf(mount);
+}
+
+std::pair<double, double> JPCell::offsetsAt(const JPMountConfig& mount, std::optional<double> z) const {
+    if (!mount.leans()) return { mount.offsetX, mount.offsetY };
+    const double at = z ? *z : toolZ(mount).value_or(mount.leanZ);
+    return { mount.offsetXAt(at), mount.offsetYAt(at) };
 }
 
 double JPCell::zOffsetOf(const JPMountConfig& mount) const {
@@ -922,8 +929,9 @@ bool JPCell::doDiscard(const std::string& nozzleId, double speed, std::string& w
         const JPMachineLocation& at = *m_config.discardLocation;
         const JPMountConfig& m = n.mount;
         std::map<std::string, double> across;
-        if (!m.axisX.empty()) across[m.axisX] = at.x - m.offsetX;
-        if (!m.axisY.empty()) across[m.axisY] = at.y - m.offsetY;
+        const auto [ox, oy] = offsetsAt(m, at.z);
+        if (!m.axisX.empty()) across[m.axisX] = at.x - ox;
+        if (!m.axisY.empty()) across[m.axisY] = at.y - oy;
         // OpenPnP's discard probing (a contact probing nozzle's Discard Probing): from the tip's tallest
         // part above the place, probed down into it (something soft or slanted to brush the part off),
         // retracted, and the part let go there.
@@ -956,8 +964,9 @@ bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<do
         if (n.id != nozzleId) continue;
         const JPMountConfig& m = n.mount;
         std::map<std::string, double> across;
-        if (to[0] && !m.axisX.empty()) across[m.axisX] = *to[0] - m.offsetX;
-        if (to[1] && !m.axisY.empty()) across[m.axisY] = *to[1] - m.offsetY;
+        const auto [ox, oy] = offsetsAt(m, to[2]);   // where the tip is down at
+        if (to[0] && !m.axisX.empty()) across[m.axisX] = *to[0] - ox;
+        if (to[1] && !m.axisY.empty()) across[m.axisY] = *to[1] - oy;
         if (to[3] && !m.axisRotation.empty()) across[m.axisRotation] = *to[3] - rotationModeOffset(n.id);
         compensateRunout(m, across, false);
         return doSafeZ(m.headId, speed, why) && (across.empty() || doMove(across, speed, why))
@@ -970,8 +979,9 @@ bool JPCell::doAt(const std::string& nozzleId, const std::array<std::optional<do
 
 bool JPCell::reaches(const JPMountConfig& mount, double x, double y) const {
     std::map<std::string, double> target;
-    if (!mount.axisX.empty()) target[mount.axisX] = x - mount.offsetX;
-    if (!mount.axisY.empty()) target[mount.axisY] = y - mount.offsetY;
+    const auto [ox, oy] = offsetsAt(mount);
+    if (!mount.axisX.empty()) target[mount.axisX] = x - ox;
+    if (!mount.axisY.empty()) target[mount.axisY] = y - oy;
     for (const auto& [id, t] : toAxes(target, jogBase())) {
         const JPAxisConfig* a = m_config.axis(id);
         if (!a) continue;
@@ -1091,8 +1101,9 @@ bool JPCell::doMoveTool(const JPMountConfig& mount, const std::array<std::option
             break;
         }
     std::map<std::string, double> axes;
-    if (to[0] && !mount.axisX.empty()) axes[mount.axisX] = *to[0] - mount.offsetX;
-    if (to[1] && !mount.axisY.empty()) axes[mount.axisY] = *to[1] - mount.offsetY;
+    const auto [ox, oy] = offsetsAt(mount, to[2]);   // where the tool ends up (its Z then)
+    if (to[0] && !mount.axisX.empty()) axes[mount.axisX] = *to[0] - ox;
+    if (to[1] && !mount.axisY.empty()) axes[mount.axisY] = *to[1] - oy;
     if (to[3] && !mount.axisRotation.empty()) axes[mount.axisRotation] = *to[3] - rotationModeOffsetOf(mount);
     compensateRunout(mount, axes, false);
     if (!atSafeZ) {
@@ -1249,8 +1260,9 @@ bool JPCell::pnpChecked(const JPNozzleConfig& n, bool pick, std::string& why) {
     check.nozzleId = n.id;
     check.partId = part->second.partId;
     check.pick = pick;
-    check.x = coordinate(n.mount.axisX) + n.mount.offsetX;
-    check.y = coordinate(n.mount.axisY) + n.mount.offsetY;
+    const auto [ox, oy] = offsetsAt(n.mount);
+    check.x = coordinate(n.mount.axisX) + ox;
+    check.y = coordinate(n.mount.axisY) + oy;
     const double axisRotation = coordinate(n.mount.axisRotation);
     check.rotation = axisRotation + rotationModeOffset(n.id);   // the part's angle, as the nozzle reads it
     if (sim.imperfect()) {
@@ -2307,10 +2319,11 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
         std::string why;
         const bool was = m_speedOverPrecision.exchange(speedOverPrecision);
         bool ok = mount.headId.empty() || doSafeZ(mount.headId, speed, why);
-        // Tool = axis + its offset on the head (+ its tip's runout at its angle).
+        // Tool = axis + its offset on the head at the Z it goes down to (+ its tip's runout at its angle).
         std::map<std::string, double> across;
-        if (to[0] && !mount.axisX.empty()) across[mount.axisX] = *to[0] - mount.offsetX;
-        if (to[1] && !mount.axisY.empty()) across[mount.axisY] = *to[1] - mount.offsetY;
+        const auto [ox, oy] = offsetsAt(mount, to[2]);
+        if (to[0] && !mount.axisX.empty()) across[mount.axisX] = *to[0] - ox;
+        if (to[1] && !mount.axisY.empty()) across[mount.axisY] = *to[1] - oy;
         if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3] - rotationModeOffsetOf(mount);
         compensateRunout(mount, across, false);
         if (ok && !across.empty()) ok = doMove(across, speed, why);

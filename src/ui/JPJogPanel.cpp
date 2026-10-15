@@ -703,7 +703,8 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
         return;
     }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << tool.label << " to where " << over.label << " is";
-    m_cell.moveTool(*tool.mount, { px->second + m.offsetX, py->second + m.offsetY, std::nullopt, std::nullopt }, 1.0);
+    const auto [ox, oy] = m_cell.offsetsAt(m);
+    m_cell.moveTool(*tool.mount, { px->second + ox, py->second + oy, std::nullopt, std::nullopt }, 1.0);
 }
 
 void JPJogPanel::selectTool(const std::string& id) {
@@ -792,8 +793,9 @@ std::vector<std::pair<std::string, double>> JPJogPanel::where() const {
     const JPMountConfig& m = *m_tools[m_tool].mount;
     const auto positions = m_cell.positions();
     // A nozzle holding a part reads the part's angle (its rotation mode offset), as OpenPnP's DRO.
+    const auto [ox, oy] = m_cell.offsetsAt(m);   // a nozzle's lean at its Z now
     const std::tuple<const char*, const std::string*, double> axes[] = {
-        { "X", &m.axisX, m.offsetX }, { "Y", &m.axisY, m.offsetY }, { "Z", &m.axisZ, m.offsetZ },
+        { "X", &m.axisX, ox }, { "Y", &m.axisY, oy }, { "Z", &m.axisZ, m.offsetZ },
         { "C", &m.axisRotation, m_cell.rotationModeOffsetOf(m) } };
     for (const auto& [name, axis, offset] : axes)
         if (const auto p = positions.find(*axis); !axis->empty() && p != positions.end())
