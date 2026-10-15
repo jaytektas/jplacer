@@ -37,9 +37,9 @@ constexpr double kConventionalSafeZMm = 2;
 // OpenPnP's: the calibration rig's two fiducials at least this far apart in Z (mm).
 constexpr double kLeastRigZGapMm = 2;
 // OpenPnP's: a default nozzle's head offsets Z beyond this is taken as set (its CAUTION); a feature's diameter to
-// begin with when none is known, and the largest offered when the camera's picture size is not known (pixels).
+// look for when the test object's size is not known (pixels).
 constexpr double kNonZeroReferenceZMm = 0.1;
-constexpr int    kFirstFeaturePx = 20, kMostFeaturePx = 1000;
+constexpr int    kFirstFeaturePx = 20;
 // OpenPnP's: a rotation range this close to 360° is not limited.
 constexpr double kRotationEpsilon = 1e-5;
 // OpenPnP's contact probe command without a Z soft limit or feed rate to go by.
@@ -1855,35 +1855,42 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     "where it went each time.");
                 i.severity = Severity::Fundamental;
                 i.uri = std::string(kWiki) + "Calibration-Solutions#calibrating-precision-camera-to-nozzle-offsets";
-                // The feature diameter (pixels): the test object's as known, else OpenPnP's 20.
-                auto px = std::make_shared<int>(kFirstFeaturePx);
-                if (const auto scale = c.headCameraPixelsPerMm ? c.headCameraPixelsPerMm() : std::nullopt; scale && h.rigTestObjectDiameter > 0)
-                    *px = int(std::lround(h.rigTestObjectDiameter * *scale));
-                int width = 0, height = 0;
-                if (!camera->calibrations.empty()) {
-                    width = camera->calibrations.front().width;
-                    height = camera->calibrations.front().height;
-                }
+                // The test object's diameter in mm, the head's, as the nozzle's Calibration tab shows it; the camera
+                // looks for it in pixels, by its calibration's scale (none: OpenPnP's first 20 px).
+                auto shownMm = std::make_shared<double>(h.rigTestObjectDiameter);
+                auto toPx = [c](double mm) {
+                    const auto scale = c.headCameraPixelsPerMm ? c.headCameraPixelsPerMm() : std::nullopt;
+                    return scale && mm > 0 ? std::max(JPVisionFeature::kLeastDiameterPx, int(std::lround(mm * *scale)))
+                                           : kFirstFeaturePx;
+                };
+                auto keepMm = [c, headId, shownMm](double mm) {
+                    *shownMm = mm;
+                    if (!c.changeCell) return;
+                    c.changeCell("Calibration test object diameter", [&](JPCellConfig& cell) {
+                        for (JPHeadConfig& x : cell.heads)
+                            if (x.id == headId) x.rigTestObjectDiameter = mm;
+                    });
+                };
                 JPSolutions::Property diameter;
-                diameter.kind = JPSolutions::Property::Kind::Integer;
-                diameter.label = "Feature diameter";
-                diameter.tooltip = "Adjust the feature diameter that should be detected.";
-                diameter.min = JPVisionFeature::kLeastDiameterPx;
-                diameter.max = width > 0 ? JPVisionFeature::maxDiameter(width, height) : kMostFeaturePx;
-                diameter.getNumber = [px] { return double(*px); };
-                diameter.setNumber = [c, px](double v) {
-                    *px = int(v);
-                    if (c.previewFeature) c.previewFeature(*px);   // shown on the camera's view
+                diameter.kind = JPSolutions::Property::Kind::Length;
+                diameter.label = "Test Object Diameter";
+                diameter.tooltip = "Adjust the test object's diameter until it is detected right in the camera view.";
+                diameter.getNumber = [shownMm] { return *shownMm; };
+                diameter.setNumber = [c, toPx, keepMm](double v) {
+                    if (v <= 0) return;
+                    keepMm(v);
+                    if (c.previewFeature) c.previewFeature(toPx(v));   // shown on the camera's view
                 };
                 i.properties.push_back(std::move(diameter));
                 JPSolutions::Property next;
                 next.kind = JPSolutions::Property::Kind::Action;
                 next.tooltip = "Cycle to the next auto-detected contour";
                 next.actionLabel = "Auto-Detect Next";
-                next.action = [c, px, sp = &s] {
+                next.action = [c, toPx, keepMm, shownMm, sp = &s] {
                     if (!c.autoDetectFeature) return;
-                    c.autoDetectFeature(*px, [px, sp](std::optional<int> found) {
-                        if (found) *px = *found;
+                    c.autoDetectFeature(toPx(*shownMm), [c, keepMm, sp](std::optional<int> found) {
+                        const auto scale = c.headCameraPixelsPerMm ? c.headCameraPixelsPerMm() : std::nullopt;
+                        if (found && scale && *scale > 0) keepMm(*found / *scale);
                         sp->solutionChanged();
                     });
                 };
@@ -1931,7 +1938,7 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                     "calibration test object onto the calibration primary fiducial (or anywhere else, setting the head's Test "
                     "Object X, Y to where it is: the calibration looks for it there).\n\nJog camera " + camera->name + " over the "
                     "test object. Target it with the cross-hairs.\n\nJog nozzle " + name + " down until its tip touches the test "
-                    "object and press Capture Test Object Z, or type its Z into Test Object Z (for anything thicker than paper).\n\nAdjust the Feature diameter up and down and see if it is "
+                    "object and press Capture Test Object Z, or type its Z into Test Object Z (for anything thicker than paper).\n\nAdjust the Test Object Diameter (mm) up and down, or Auto-Detect Next, and see if it is "
                     "detected right in the camera view. A green circle and cross-hairs should appear and hug the test object "
                     "contour. Zoom the camera using the scroll-wheel.\n\nCAUTION The nozzle " + name + " will move to the test "
                     "object and perform the calibration pick & place pattern. Make sure to load the right nozzle tip and ready the "
@@ -1963,8 +1970,8 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.activate = [c, cameraId] {
                     if (c.showCamera) c.showCamera(cameraId);
                 };
-                solvedByWork(s, i, [c, nozzleId, px](std::function<void(bool)> finished) {
-                    c.calibratePreciseNozzleOffsets(nozzleId, *px, std::move(finished));
+                solvedByWork(s, i, [c, nozzleId, toPx, shownMm](std::function<void(bool)> finished) {
+                    c.calibratePreciseNozzleOffsets(nozzleId, toPx(*shownMm), std::move(finished));
                 });
                 s.add(std::move(i));
             }

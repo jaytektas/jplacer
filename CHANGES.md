@@ -17,6 +17,8 @@ notes.
   cameras work as on Linux.
 - The calibration test object has an X and Y (on the head's Calibration Rig, and on a nozzle's Calibration tab with a Capture button that takes where the camera is). The precise offsets calibration goes there to look for it; until they are set, it looks on the primary fiducial, as before. Before, it looked wherever the feature was last sized or the camera happened to be.
 
+- Issues & Solutions' precise nozzle offsets calibration takes the test object's size in mm (Test Object Diameter), the same value as the nozzle's Calibration tab. Before, it was a Feature diameter in pixels.
+- Changing a head's settings (the test object's size or place, the calibration rig, park) no longer restarts the cameras. Before, the cameras flashed "Starting…", and a precise calibration straight after Detect then failed to find the test object, because the restarted camera had lost the exposure Detect had just tuned.
 ## 0.1.72
 
 - A nozzle's Offset Wizard tab in Machine Setup is now its Calibration tab. It runs the precise offsets calibration with the test object (the one Issues & Solutions offers) as well as the rough one by a mark. It keeps the nozzle's last 10 calibrations: when and how each ran, the offsets before and the ones found, and the change. A graph shows each angle's estimate around the correction, so an outlier (a bad find, or the test object slipping) stands out; a second graph shows how closely precise runs repeat.

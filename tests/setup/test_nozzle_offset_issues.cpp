@@ -7,9 +7,9 @@
 // takes the fiducial's Z (the first nozzle) and the offsets (the fiducial less where the axes are), keeping X, Y
 // that are already within half the fiducial (perhaps calibrated precisely); refused above Safe Z, and the two
 // fiducials' Z too close; undone, as they were. Calibration: "Calibrate precise camera <-> nozzle N offsets." once
-// the offsets are roughly set, its Feature diameter (from the test object's size by the camera's scale; each change
-// previewed), its Auto-Detect Next (the diameter found taken, the issue shown again), and Accept: the calibration
-// with the feature diameter, its result shown with the issue. Capture Test Object Z: the nozzle's Z as it touches the
+// the offsets are roughly set, its Test Object Diameter (mm, the head's; each change previewed at its pixels by the
+// camera's scale), its Auto-Detect Next (the diameter found kept, the issue shown again), and Accept: the calibration
+// at that diameter's pixels, its result shown with the issue. Capture Test Object Z: the nozzle's Z as it touches the
 // test object, kept as the rig's test object height (typed in or captured; not set, the primary fiducial's Z).
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -209,15 +209,15 @@ int main() {
     s.publish();
     S::Issue* precise = find(s, "Calibrate precise camera ↔ nozzle LEFT offsets.");
     assert(precise && precise->properties.size() == 4);
+    // The test object's diameter in mm, the head's (as the nozzle's Calibration tab has it); looked for in pixels.
     S::Property& diameter = precise->properties[0];
-    assert(diameter.label == "Feature diameter" && diameter.getNumber() == 225);   // 7.5 mm at 30 px a mm
-    assert(diameter.max == 503);   // 0.7 of the 720 px side, cut down as OpenPnP casts it
-    diameter.setNumber(230);
-    assert(previewed == 230);
+    assert(diameter.label == "Test Object Diameter" && diameter.kind == S::Property::Kind::Length && diameter.getNumber() == 7.5);
+    diameter.setNumber(230.0 / 30);
+    assert(previewed == 230 && near(cell.heads[0].rigTestObjectDiameter, 230.0 / 30));
     bool shownAgain = false;
     s.onSolutionChanged = [&shownAgain] { shownAgain = true; };
-    precise->properties[1].action();
-    assert(shownAgain && diameter.getNumber() == 244);
+    precise->properties[1].action();   // found at 244 px
+    assert(shownAgain && near(diameter.getNumber(), 244.0 / 30) && near(cell.heads[0].rigTestObjectDiameter, 244.0 / 30));
     // The test object's height: until set, the primary fiducial's; typed in; or the nozzle tip touching it,
     // captured (as a pick takes the nozzle's Z). The box shows it as set, either way.
     S::Property& objectZ = precise->properties[2];

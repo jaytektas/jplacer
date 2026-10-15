@@ -1089,7 +1089,9 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
     cell.squareness = m_cell->squareness();
     // The cameras are made again only
     // when what they show changed: where they are, and how they are set up. A camera's device settings
-    // (brightness, exposure, ...) changed alone are set on it as it runs (JPCameraFeed::keepControls).
+    // (brightness, exposure, ...) changed alone are set on it as it runs (JPCameraFeed::keepControls). A head's
+    // settings are not among them: the cameras and their tasks read the head as it is when they use it, and
+    // remaking them would drop what a task just tuned (a test object detected, then not found by Calibrate).
     auto seen = [](const JPCellConfig& c) {
         JJson j = JJson::array();
         for (const JPCameraConfig& x : c.cameras) {
@@ -1097,7 +1099,6 @@ bool JPlacerMachine::applySetup(JPCellConfig cell) {
             if (without.device.isObject()) without.device["controls"] = JJson();
             j.push(without.toJson());
         }
-        for (const JPHeadConfig& x : c.heads) j.push(x.toJson());
         for (const JPAxisConfig& x : c.axes) j.push(x.toJson());
         return j.dump();
     };
