@@ -395,7 +395,9 @@ void JPlacerCameraTasks::calibrateBacklash(const std::string& axisId,
                       result->worstAfterMm);
         words = buf;
         return true;
-    }, [result, done, finished](bool ok) {
+    }, [result, done, finished, name](bool ok) {
+        // Minutes of moves that stop: said in a dialog, with why (on the status line alone, the machine just stood).
+        if (!ok && !result->why.empty()) JDialog::message("Backlash not calibrated", name + ": " + result->why + ".");
         if (ok && done) done(*result);
         if (finished) finished(ok);
     });

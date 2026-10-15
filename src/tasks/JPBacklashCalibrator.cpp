@@ -229,7 +229,7 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
         if (!go(target, o.speed)) return r;
         for (size_t i = 0; i < distances.size(); ++i) {
             const double d = distances[i];
-            char said[80];
+            char said[120];
             std::snprintf(said, sizeof said, "the backlash at sneak-up distance %.3f mm (%zu of %zu)", d, i + 1, distances.size());
             if (progress) progress(said);
             for (int reverse = 1; reverse >= 0; --reverse) {
@@ -260,8 +260,8 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
     // 4. The offset at each speed: compensated (sneaking up the distance found, below full speed), in to the mark
     //    from kLargeMoveMm either side, the offset corrected by what is left (damped), up to kPasses times.
     for (double sp : kSpeeds) {
-        char said[64];
-        std::snprintf(said, sizeof said, "the backlash offset at %.0f%% speed", sp * 100);
+        char said[96];
+        std::snprintf(said, sizeof said, "the backlash offset, speed factor %.0f%% (the sneak-up's speed)", sp * 100);
         if (progress) progress(said);
         cell.setBacklash(axisId, sp < 1 ? JPAxisConfig::Backlash::DirectionalSneakUp : JPAxisConfig::Backlash::Directional, 0,
                          sp < 1 ? sneakUp : 0, sp);
