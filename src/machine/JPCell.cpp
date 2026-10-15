@@ -2712,7 +2712,9 @@ bool JPCell::belowSafeZone(const std::string& axisId, double value) const {
         if (!a || !raw) return false;
         value = *raw;
     }
-    return a->safeZoneLowEnabled && value < a->safeZoneLow - kInterlockTolerance;
+    // Within a step of it is at it: the axis stops on its nearest step (Z on bench steps 0.015 mm, and a move to safe
+    // Z 0 stopped at -0.006, read as below it: Backlash Off Below Safe Z then left the compensation off for every move).
+    return a->safeZoneLowEnabled && value < a->safeZoneLow - std::max(kInterlockTolerance, a->resolution);
 }
 
 bool JPCell::headBelowSafeZ(const std::string& headId) const {

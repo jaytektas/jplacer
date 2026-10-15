@@ -147,6 +147,17 @@ int main() {
     assert(!cell.headBelowSafeZ("H"));
     assert(cell.moveAxesAndWait({ { "Z", -5.0 } }, 1.0, why, false) && cell.headBelowSafeZ("H") && !cell.headBelowSafeZ(""));
     assert(cell.safeZAndWait("H", 1.0, why) && !cell.headBelowSafeZ("H"));
+    // Within a step of safe Z is at it: an axis stops on its nearest step (bench's Z steps 0.015 mm, and safe Z 0
+    // was reached at -0.006); further down is below.
+    {
+        JPCellConfig next = cell.config();
+        for (JPAxisConfig& a : next.axes)
+            if (a.id == "Z") a.resolution = 0.015;
+        assert(cell.reconfigure(next, why));
+        assert(cell.moveAxesAndWait({ { "Z", -0.006 } }, 1.0, why, false) && !cell.headBelowSafeZ("H"));
+        assert(cell.moveAxesAndWait({ { "Z", -0.05 } }, 1.0, why, false) && cell.headBelowSafeZ("H"));
+        assert(cell.safeZAndWait("H", 1.0, why) && !cell.headBelowSafeZ("H"));
+    }
 
     std::puts("test_tip_changer: ok");
     return 0;
