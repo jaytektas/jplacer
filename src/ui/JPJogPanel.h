@@ -17,6 +17,7 @@
 #include <j/core/MenuSystem.h>
 
 #include <functional>
+#include <map>
 #include <optional>
 #include <array>
 #include <memory>
@@ -213,6 +214,15 @@ private:
     JPVerticalSlider*       m_speed = nullptr;
     int                     m_distanceIndex = kDistanceFirst;
     double                  m_speedShare = kSpeedFirst;
+    // Where Position Nozzle last put each nozzle with its part's centre at the camera instead of its own: the
+    // nozzle's centre there (at height z) and the part's centre off it. Position Camera to that nozzle, still there,
+    // goes to the part's centre, back where the camera was (the part held or put down there since).
+    struct PartPut {
+        double x = 0, y = 0;
+        std::optional<double> z;
+        double dx = 0, dy = 0;
+    };
+    std::map<std::string, PartPut> m_partPut;
     float                   m_builtW = 0, m_builtH = 0;   // the room the pages were made for
     std::shared_ptr<bool>   m_alive = std::make_shared<bool>(true);   // for a remake posted to the next frame
     JLabel*                 m_note  = nullptr;

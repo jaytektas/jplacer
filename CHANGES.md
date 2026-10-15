@@ -13,6 +13,9 @@ notes.
 - Jog's Position Nozzle with a part aligned on it (Test Alignment) puts the part's centre where the camera looks,
   not the nozzle's, as a job's place does. Before, the part landed off by its offset on the nozzle (0.4 mm on the
   bench), on the board and back over the bottom camera alike.
+- After that, Jog's Position Camera brings the camera back over the part's centre, where it was, whether the part
+  is still held or has been put down. Before, it went over the nozzle's centre instead, and came back off the place
+  by the part's offset on the nozzle (0.31 mm on the bench).
 - Every change made in Machine Setup is put in use and saved at once, as OpenPnP's Apply does. Before, one
   problem anywhere (an axis's controller set to none, say) held every later change back without a word but a
   line under the settings: a test object thickness and a backlash offset typed in were neither used nor saved

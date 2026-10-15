@@ -712,7 +712,10 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     // after a place landed beside the part by the lean over that height (0.9 mm on bench's LEFT).
     // (A part held: its bottom at that height, the tip its height above, as a nozzle goes there.)
     std::optional<double> reachZ;
-    if (tool.camera && over.nozzle) {
+    // A nozzle Position Nozzle put with its part's centre at the camera: taken at the height it went to there.
+    const auto put = tool.camera && over.nozzle ? m_partPut.find(over.id) : m_partPut.end();
+    if (put != m_partPut.end()) reachZ = put->second.z;
+    else if (tool.camera && over.nozzle) {
         reachZ = cameraZ(*tool.mount);
         if (reachZ && partHeightOn) *reachZ += partHeightOn(over.id);
     }
@@ -725,13 +728,27 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     // A part held: its bottom at that height, the tip its height above.
     if (z && partHeightOn) *z += partHeightOn(tool.id);
     double x = px->second + ox, y = py->second + oy;
+    // The nozzle still where Position Nozzle put it with its part's centre at the camera: the camera back to the
+    // part's centre (where it was), not the nozzle's; the part held or put down there since. Without it the camera
+    // came back off the place by the part's offset on the nozzle (0.31 mm on bench).
+    if (put != m_partPut.end()) {
+        constexpr double kStill = 0.001;   // mm: the same place, as worked out again
+        if (std::abs(x - put->second.x) <= kStill && std::abs(y - put->second.y) <= kStill) {
+            x += put->second.dx;
+            y += put->second.dy;
+        }
+    }
     // A part aligned on it (Test Alignment): the part's centre there, not the nozzle's (it sits off the nozzle by what
     // bottom vision found, which a job's place takes out too).
-    if (tool.nozzle && over.camera && partCentredAt)
-        if (const auto at = partCentredAt(tool.id, x, y)) {
-            x = (*at)[0];
-            y = (*at)[1];
-        }
+    if (tool.nozzle && over.camera) {
+        m_partPut.erase(tool.id);
+        if (partCentredAt)
+            if (const auto at = partCentredAt(tool.id, x, y)) {
+                m_partPut[tool.id] = PartPut { (*at)[0], (*at)[1], z, x - (*at)[0], y - (*at)[1] };
+                x = (*at)[0];
+                y = (*at)[1];
+            }
+    }
     m_cell.moveTool(*tool.mount, { x, y, z, std::nullopt }, 1.0);
 }
 
