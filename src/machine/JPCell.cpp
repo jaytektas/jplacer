@@ -565,6 +565,18 @@ std::pair<double, double> JPCell::offsetsAt(const JPMountConfig& mount, std::opt
     return { mount.offsetXAt(at), mount.offsetYAt(at) };
 }
 
+std::pair<double, double> JPCell::offsetsNow(const JPMountConfig& mount, std::optional<double> z) const {
+    auto [ox, oy] = offsetsAt(mount, z);
+    const JPRunout* r = runoutFor(mount);
+    if (!r || mount.axisRotation.empty()) return { ox, oy };
+    const auto now = jogBase();
+    const auto at = now.find(mount.axisRotation);
+    if (at == now.end()) return { ox, oy };
+    double sx = 0, sy = 0;
+    r->offset(at->second, sx, sy);
+    return { ox + sx, oy + sy };
+}
+
 double JPCell::zOffsetOf(const JPMountConfig& mount) const {
     // A nozzle's tip Z calibration (OpenPnP's toHeadLocation): the tip met lower than it should,
     // the nozzle goes that much lower everywhere.
@@ -1361,13 +1373,17 @@ void JPCell::VacuumRecord::begin(double level, bool switchingOn) {
 bool JPCell::doStoreBefore(const JPNozzleConfig& n, bool pick, std::string& why) {
     const JPNozzleTipConfig* tip = tipOf(n);
     if (!tip) return true;
-    const bool graph = graphed(pick ? tip->partOn : tip->partOff);
+    const JPNozzleTipConfig::Sensing& s = pick ? tip->partOn : tip->partOff;
+    const bool graph = graphed(s);
+    // Ratio: the pump's level before the pick's valve opens, which part on's level is taken as a share of.
+    const bool pumpWanted = pick && s.method == "Ratio";
     double level = 0;
-    if (graph && !readVacuum(n, level, why)) return false;
+    if ((graph || pumpWanted) && !readVacuum(n, level, why)) return false;
     std::lock_guard lk(m_mutex);
     VacuumRecord& r = pick ? m_vacuum[tip->id].on : m_vacuum[tip->id].off;
     if (graph) r.begin(level, pick);
     else r.graphing = false;
+    if (pick) r.pump = pumpWanted ? std::optional<double>(level) : std::nullopt;
     return true;
 }
 
@@ -1393,8 +1409,15 @@ bool JPCell::doEstablish(const JPNozzleConfig& n, bool pick, int ms, std::string
             VacuumRecord& r = pick ? m_vacuum[tip->id].on : m_vacuum[tip->id].off;
             r.vacuum.push_back({ r.t(), level });
         }
-        // Within range: done.
-        if (s->establish && level >= s->low && level <= s->high) break;
+        // Within range: done. By ratio, the level as a share of the pump's before the pick (none at place: the
+        // sensor then reads the pump coming back, not the nozzle).
+        std::optional<double> value = level;
+        if (s->method == "Ratio") {
+            std::lock_guard lk(m_mutex);
+            const auto& pump = m_vacuum[tip->id].on.pump;
+            value = pick && pump && *pump != 0 ? std::optional<double>(level / *pump) : std::nullopt;
+        }
+        if (s->establish && value && *value >= s->low && *value <= s->high) break;
     } while (std::chrono::steady_clock::now() < until);
     {
         std::lock_guard lk(m_mutex);
@@ -1452,6 +1475,21 @@ bool JPCell::doPartOn(const JPNozzleConfig& n, bool& on, std::string& why) {
                                                            << " outside PartOn range " << s.diffLow << " .. " << s.diffHigh;
                 on = false;
             }
+        } else if (s.method == "Ratio") {
+            // The level as a share of the pump's before the pick: the pump's own swings taken out.
+            if (!r.pump || *r.pump == 0) {
+                why = "Nozzle tip " + tip->name + " checks by ratio, but no vacuum was read before the pick to take it from.";
+                return false;
+            }
+            const double ratio = level / *r.pump;
+            r.reading = ratio;
+            r.difference.reset();
+            if (outside(ratio, s.low, s.high)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " vacuum ratio " << ratio << " (" << level
+                                                           << " of " << *r.pump << ") outside PartOn range " << s.low << " .. "
+                                                           << s.high;
+                on = false;
+            }
         } else {
             r.reading = level;
             r.difference.reset();
@@ -1487,14 +1525,19 @@ bool JPCell::doPartOff(const JPNozzleConfig& n, bool& off, std::string& why) {
         }
         record([&](VacuumRecord& r) { r.valve.push_back({ r.t(), 0.0 }); });
     }
-    // A difference's baseline: the level now, before the pulse.
-    if (s.method == "Difference") {
-        double level = 0;
-        if (!readVacuum(n, level, why)) return false;
+    // A difference's baseline, a ratio's pump: the level now, before the pulse.
+    double before = 0;
+    if (s.method == "Difference" || s.method == "Ratio") {
+        if (!readVacuum(n, before, why)) return false;
         record([&](VacuumRecord& r) {
-            if (r.graphing) r.vacuum.push_back({ r.t(), level });
-            r.reading = level;
+            if (r.graphing) r.vacuum.push_back({ r.t(), before });
+            r.reading = before;
         });
+        if (s.method == "Ratio" && before == 0) {
+            why = "Nozzle tip " + tip->name + " checks by ratio, but the vacuum before the pulse read " + format(before, 0)
+                + ": no vacuum to take it from.";
+            return false;
+        }
     }
     // The pulse: the valve open for the probing time, the level read through it; then closed for the dwell.
     double level = 0;
@@ -1545,6 +1588,17 @@ bool JPCell::doPartOff(const JPNozzleConfig& n, bool& off, std::string& why) {
             } else if (outside(difference, s.diffLow, s.diffHigh)) {
                 JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " vacuum level difference " << difference
                                                            << " outside PartOff range " << s.diffLow << " .. " << s.diffHigh;
+                off = false;
+            }
+        } else if (s.method == "Ratio") {
+            // The level through the pulse as a share of the pump's just before it: the pump's own swings taken out.
+            const double ratio = level / before;
+            r.reading = ratio;
+            r.difference.reset();
+            if (outside(ratio, s.low, s.high)) {
+                JLOGC(JPlacerLog::kCell, JLogLevel::Debug) << "Nozzle tip " << tip->name << " vacuum ratio " << ratio << " (" << level
+                                                           << " of " << before << ") outside PartOff range " << s.low << " .. "
+                                                           << s.high;
                 off = false;
             }
         } else {
@@ -1638,7 +1692,11 @@ bool JPCell::doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, JPVa
         }
         return true;
     }
-    // Part on: as a pick, the vacuum on and the pick's dwell; then held.
+    // Part on: as a pick, the pump's level first (what Ratio takes each level as a share of), the vacuum on and the
+    // pick's dwell; then held.
+    double pump = 0;
+    if (!readVacuum(n, pump, why)) return false;
+    readings.pump.push_back(pump);
     if (!doVacuumOn(n, why)) return false;
     wait(n.pickDwellMs + tip->pickDwellMs);
     double baseline = 0;
@@ -2139,6 +2197,12 @@ void JPCell::jog(const std::string& toolId, double dx, double dy, double dz, dou
         const auto p = now.find(axis);
         if (p != now.end()) targets[axis] = p->second + delta;
     };
+    // Up or down, a leaning nozzle's tip held over the same place (as a turn holds its centre against the runout):
+    // its X and Y moved the other way by its lean over the distance.
+    if (dz != 0 && mount->leans() && !mount->axisZ.empty()) {
+        dx -= mount->leanX * dz;
+        dy -= mount->leanY * dz;
+    }
     add(mount->axisX, dx);
     add(mount->axisY, dy);
     add(mount->axisZ, dz);

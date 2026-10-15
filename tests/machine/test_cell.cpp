@@ -334,6 +334,26 @@ int main() {
             assert(readOn.lastReading && *readOn.lastReading == -31000 && readOn.lastDifference && *readOn.lastDifference == 0);
             assert(!readOn.vacuumGraph.empty() && !readOn.valveGraph.empty());
             assert(cell.placeAtAndWait("N", { std::nullopt, std::nullopt, std::nullopt, std::nullopt }, 1.0, why));
+            // Ratio: the level as a share of the one read before the pick's valve opened (the simulated sensor's
+            // -31000 both times: 1); part off, of the one before the pulse.
+            next.nozzleTips[0].partOn = {};
+            next.nozzleTips[0].partOn.method = "Ratio";
+            next.nozzleTips[0].partOn.low = 0.9;
+            next.nozzleTips[0].partOn.high = 1.1;
+            next.nozzleTips[0].partOff.method = "Ratio";
+            next.nozzleTips[0].partOff.low = 0;
+            next.nozzleTips[0].partOff.high = 0.8;
+            assert(cell.reconfigure(next, why));
+            assert(cell.pickAndWait("N", why));
+            assert(cell.partOnAndWait("N", on, why) && on);
+            cell.vacuumReadings("T", readOn, readOff);
+            assert(readOn.lastReading && *readOn.lastReading == 1.0);
+            assert(cell.placeAtAndWait("N", { std::nullopt, std::nullopt, std::nullopt, std::nullopt }, 1.0, why));
+            bool off = true;
+            assert(cell.partOffAndWait("N", off, why) && !off);   // 1: still as blocked as before the pulse
+            cell.vacuumReadings("T", readOn, readOff);
+            assert(readOff.lastReading && *readOff.lastReading == 1.0);
+            next.nozzleTips[0].partOff = {};
             next.nozzles[0].vacuumSenseActuatorId.clear();
             next.nozzleTips[0].partOn = {};
             next.nozzleTips[0].partOn.method = "Absolute";

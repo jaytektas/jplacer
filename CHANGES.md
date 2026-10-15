@@ -10,6 +10,16 @@ notes.
 
 ## Unreleased
 
+- Part detection's Ratio method, for a vacuum sensor on the pump's side of the valve: each level taken as a
+  share of the pump's just before, so a pump cycling on and off does not count. Measure sets it where the
+  sensor reads the pump.
+- Jog's Position Camera goes over where the nozzle's tip really is: its runout at its angle, and its lean at
+  the camera's height. Before, Position Nozzle and Position Camera there and back walked the head by the
+  runout each time (a part over the bottom camera crept to its corner), and the camera sent to a nozzle up
+  at safe Z after a place landed about 1 mm beside the part. The position readout and places captured from
+  a nozzle take its runout in too.
+- Jogging a nozzle with a lean up or down keeps its tip over the same place, as turning it already did against
+  its runout.
 - A nozzle tip can be Z-calibrated at the head's primary fiducial (Tool Changer tab, Touch At: Primary
   Fiducial) instead of a touch location of its own: one place for every tip, which moves with the
   calibration rig.

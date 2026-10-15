@@ -83,10 +83,23 @@ void JPVacuumMeasure::take(const Readings& r, bool partOn, bool withPart) {
         for (size_t i = 0; i < v.size(); ++i) out.push_back(v[i] - base[std::min(i, base.size() - 1)]);
         return out;
     };
+    // Each as a share of `base` (one value or one each); none without a level to take it from.
+    auto share = [](const std::vector<double>& v, const std::vector<double>& base) -> std::optional<Stats> {
+        std::vector<double> out;
+        for (size_t i = 0; i < v.size() && !base.empty(); ++i) {
+            const double b = base[std::min(i, base.size() - 1)];
+            if (b == 0) return std::nullopt;   // (a sensor may read vacuum as negative: a share all the same)
+            out.push_back(v[i] / b);
+        }
+        if (out.empty()) return std::nullopt;
+        return Stats::of(out);
+    };
     if (partOn && !withPart) {
         open = Stats::of(r.during);
+        openRatio = share(r.during, r.pump);
         return;
     }
+    ratio = share(r.during, partOn ? r.pump : r.before);
     baseline = Stats::of(r.before);
     level = Stats::of(r.during);
     difference = Stats::of(r.before.empty() ? std::vector<double>() : from(r.during, r.before));
@@ -142,20 +155,40 @@ JPVacuumMeasure::Stats less(const JPVacuumMeasure::Stats& a, const JPVacuumMeasu
 
 } // namespace
 
+bool JPVacuumMeasure::pumpSide() const {
+    auto under = [](const std::optional<Stats>& r) { return r && r->count > 0 && r->mean > 0 && r->mean < 1; };
+    return under(ratio) || under(openRatio);
+}
+
 JPVacuumMeasure::Ranges JPVacuumMeasure::ranges(bool partOn, const std::string& method, int dwellMs,
                                                 const JPVacuumMeasure* partner) const {
-    Ranges out = rangesBy(partOn, method, dwellMs, partner);
+    const std::string asked = method == "None" || method.empty() ? (pumpSide() ? "Ratio" : "Absolute") : method;
+    // On the pump's side of the valve, Ratio first: the pump's swings do not count.
+    if (pumpSide() && asked != "Ratio") {
+        Ranges byRatio = rangesBy(partOn, "Ratio", dwellMs, partner);
+        if (byRatio.vacuum && !byRatio.tooClose) {
+            byRatio.notes.insert(byRatio.notes.begin(),
+                                 "The sensor reads the pump's side of the valve: Measurement Method set to Ratio, each level "
+                                 "taken as a share of the pump's just before, so the pump's own swings do not count.");
+            return byRatio;
+        }
+    }
+    Ranges out = rangesBy(partOn, asked, dwellMs, partner);
     if (!out.tooClose) return out;
-    // The other method, where it tells them apart.
-    Ranges other = rangesBy(partOn, out.method == "Difference" ? "Absolute" : "Difference", dwellMs, partner);
-    if (other.tooClose || !other.vacuum) return out;
-    std::vector<std::string> notes;
-    for (const std::string& n : out.notes) notes.push_back(n == out.notes.back() ? n.substr(0, n.rfind(", and the ranges")) + "." : n);
-    notes.push_back("Measured as " + other.method + ", they are told apart: Measurement Method set to " + other.method + ".");
-    for (const std::string& n : other.notes)
-        if (std::find(notes.begin(), notes.end(), n) == notes.end()) notes.push_back(n);
-    other.notes = notes;
-    return other;
+    // Another method, where it tells them apart.
+    for (const char* other : { "Ratio", "Absolute", "Difference" }) {
+        if (other == out.method || (std::string(other) == "Ratio" && !pumpSide())) continue;
+        Ranges by = rangesBy(partOn, other, dwellMs, partner);
+        if (by.tooClose || !by.vacuum) continue;
+        std::vector<std::string> notes;
+        for (const std::string& n : out.notes) notes.push_back(n == out.notes.back() ? n.substr(0, n.rfind(", and the ranges")) + "." : n);
+        notes.push_back("Measured as " + by.method + ", they are told apart: Measurement Method set to " + by.method + ".");
+        for (const std::string& n : by.notes)
+            if (std::find(notes.begin(), notes.end(), n) == notes.end()) notes.push_back(n);
+        by.notes = notes;
+        return by;
+    }
+    return out;
 }
 
 JPVacuumMeasure::Ranges JPVacuumMeasure::rangesBy(bool partOn, const std::string& method, int dwellMs,
@@ -163,6 +196,7 @@ JPVacuumMeasure::Ranges JPVacuumMeasure::rangesBy(bool partOn, const std::string
     Ranges out;
     out.method = method == "None" || method.empty() ? "Absolute" : method;
     const bool byDifference = out.method == "Difference";
+    if (out.method == "Ratio") return rangesByRatio(partOn, dwellMs, partner);
     if (!partOn) {
         if (!held()) return out;
         if (dwellMs > 0 && !settled) {
@@ -172,8 +206,10 @@ JPVacuumMeasure::Ranges JPVacuumMeasure::rangesBy(bool partOn, const std::string
         bool afterClose = dwellMs > 0;
         if (afterClose) {
             // Back most of the way to the baseline as the valve closed: the sensor reads the pump, not the nozzle.
+            // Only on the pump's side (the level before the pulse the higher): on the nozzle's, the line going back to
+            // the air as the valve closes is what the wait is there to see.
             const double dip = baseline.mean - level.mean;
-            const double back = dip == 0 ? 1 : (settled->mean - level.mean) / dip;
+            const double back = dip <= 0 ? 0 : (settled->mean - level.mean) / dip;
             if (back > kRecovered) {
                 out.dwellMs = 0;
                 afterClose = false;
@@ -239,12 +275,54 @@ JPVacuumMeasure::Ranges JPVacuumMeasure::rangesBy(bool partOn, const std::string
     return out;
 }
 
+JPVacuumMeasure::Ranges JPVacuumMeasure::rangesByRatio(bool partOn, int dwellMs, const JPVacuumMeasure* partner) const {
+    Ranges out;
+    out.method = "Ratio";
+    if (!partOn) {
+        if (!held()) return out;
+        if (!ratio || !pumpSide()) {
+            out.notes.push_back("The level before the pulse is not the pump's (the sensor reads the nozzle's side of the "
+                                "valve): Ratio cannot be used.");
+            out.tooClose = false;
+            return out;
+        }
+        // Read as the valve closes: a Valve close wait would read the pump coming back, whatever is on the nozzle.
+        if (dwellMs > 0) out.dwellMs = 0;
+        std::optional<Stats> blocked = partner && partner->ratio ? partner->ratio : std::nullopt;
+        if (!blocked)
+            out.notes.push_back("Measure Part On With Part too: a held part's share is a blocked nozzle's, which Part Off's "
+                                "range is told from. Until then it is only these readings' spread.");
+        out.vacuum = around(*ratio, blocked);
+        if (!out.vacuum) {
+            out.tooClose = true;
+            out.notes.push_back(tooClose("With nothing on the nozzle the pulse's share", *ratio, "with it blocked", *blocked));
+        }
+        return out;
+    }
+    if (!held() || !ratio) {
+        out.notes.push_back("Measure With Part to set the ranges: so far only the level without a part is known.");
+        return out;
+    }
+    out.vacuum = around(*ratio, openRatio);
+    if (!openRatio) {
+        out.notes.push_back("Not measured without a part: the range is not told from an empty nozzle's share, only these "
+                            "readings' spread. Measure Without Part too.");
+    } else if (!out.vacuum) {
+        out.tooClose = true;
+        out.notes.push_back(tooClose("With a part the share", *ratio, "without", *openRatio)
+                            + " A tip that seals better on the part, or more vacuum, sets them further apart.");
+    }
+    return out;
+}
+
 JPVacuumMeasure JPVacuumMeasure::fromJson(const JJson& j) {
     JPVacuumMeasure m;
     m.when = j["when"].str();
     if (const auto s = statsIn(j["baseline"])) m.baseline = *s;
     if (const auto s = statsIn(j["level"])) m.level = *s;
     if (const auto s = statsIn(j["difference"])) m.difference = *s;
+    m.ratio = statsIn(j["ratio"]);
+    m.openRatio = statsIn(j["openRatio"]);
     m.settled = statsIn(j["settled"]);
     m.settledDifference = statsIn(j["settledDifference"]);
     m.open = statsIn(j["open"]);
@@ -257,6 +335,8 @@ JJson JPVacuumMeasure::toJson() const {
     if (baseline.count) j["baseline"] = baseline.toJson();
     if (level.count) j["level"] = level.toJson();
     if (difference.count) j["difference"] = difference.toJson();
+    if (ratio) j["ratio"] = ratio->toJson();
+    if (openRatio) j["openRatio"] = openRatio->toJson();
     if (settled) j["settled"] = settled->toJson();
     if (settledDifference) j["settledDifference"] = settledDifference->toJson();
     if (open) j["open"] = open->toJson();

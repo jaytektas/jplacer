@@ -1569,8 +1569,12 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
         auto sensing = [t, on = on]() -> JPNozzleTipConfig::Sensing& { return on ? t().partOn : t().partOff; };
         const std::string key = on ? "partOn" : "partOff";
         add.row("Measurement Method");
-        add.choice(key + "Method", "Measurement Method", { "None", "Absolute", "Difference" },
+        add.choice(key + "Method", "Measurement Method", { "None", "Absolute", "Difference", "Ratio" },
                    [sensing] { return sensing().method; }, [sensing](const std::string& v) { sensing().method = v; });
+        add.tip("None: not checked.\nAbsolute: the level read within the Vacuum Range.\nDifference: the level before within "
+                "the Vacuum Range, its change since within the Difference Range.\nRatio: the level as a share of the pump's, "
+                "read just before (part on: before the pick's valve opened; part off: before the pulse), within the Vacuum "
+                "Range: for a vacuum sensor on the pump's side of the valve, so the pump's own swings do not count.");
         f.reshaping.push_back(key + "Method");
         if (sensing().method != "None") {
             add.flag(key + "Establish", "Establish Level?", [sensing]() -> bool& { return sensing().establish; });
@@ -1614,15 +1618,23 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                 std::snprintf(text, sizeof text, "%.1f (deviation %.1f, %.1f to %.1f)", st.mean, st.sd, st.lowest, st.highest);
                 return std::string(text);
             };
+            auto share = [](const JPVacuumMeasure::Stats& st) {
+                char text[96];
+                std::snprintf(text, sizeof text, "%.3f (deviation %.3f, %.3f to %.3f)", st.mean, st.sd, st.lowest, st.highest);
+                return std::string(text);
+            };
             std::string said = m.when + ": ";
-            if (!on) said += "level " + level(m.level) + ", change " + level(m.difference);
-            else {
-                if (m.held()) said += "with a part " + level(m.level);
+            if (!on) {
+                said += "level " + level(m.level) + ", change " + level(m.difference);
+                if (m.ratio) said += ", share of the pump " + share(*m.ratio);
+            } else {
+                if (m.held()) said += "with a part " + level(m.level) + (m.ratio ? ", share " + share(*m.ratio) : "");
                 if (m.held() && m.open) said += "; ";
-                if (m.open) said += "without " + level(*m.open);
+                if (m.open) said += "without " + level(*m.open) + (m.openRatio ? ", share " + share(*m.openRatio) : "");
             }
             add.end();
-            add.note("Measured " + said + ": the readings' mean, their standard deviation, the lowest and the highest.");
+            add.note("Measured " + said + ": the readings' mean, their standard deviation, the lowest and the highest; a "
+                     "share is a level taken as a share of the pump's just before.");
         } else {
             add.end();
         }
@@ -1638,15 +1650,17 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             add.flag("partOffCheckBeforePick", "Before Pick", [t]() -> bool& { return t().partOffCheckBeforePick; });
         }
         add.end();
-        auto reading = [](const std::optional<double>& v) {
+        auto reading = [ratio = now.method == "Ratio"](const std::optional<double>& v) {
             char text[32] = "";
-            if (v) std::snprintf(text, sizeof text, "%.1f", *v);
+            if (v) std::snprintf(text, sizeof text, ratio ? "%.3f" : "%.1f", *v);
             return std::string(text);
         };
         add.header({ "Low Value", "High Value", "Last Reading" });
         add.row("Vacuum Range");
-        add.number(key + "Low", "Vacuum Low", [sensing]() -> double& { return sensing().low; }, 1);
-        add.number(key + "High", "Vacuum High", [sensing]() -> double& { return sensing().high; }, 1);
+        // By ratio, shares of the pump's level (to the thousandth).
+        const int places = now.method == "Ratio" ? 3 : 1;
+        add.number(key + "Low", "Vacuum Low", [sensing]() -> double& { return sensing().low; }, places);
+        add.number(key + "High", "Vacuum High", [sensing]() -> double& { return sensing().high; }, places);
         add.words(reading(now.lastReading));
         add.end();
         if (now.method == "Difference") {

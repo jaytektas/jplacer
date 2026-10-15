@@ -74,12 +74,18 @@ struct JPVacuumMeasure {
     // the levels held), after the Valve close wait (part off with one).
     struct Readings {
         std::vector<double> before, during, after;
+        std::vector<double> pump;   // part on: the level before the valve opened
     };
 
     std::string          when;
     Stats                baseline, level, difference;
     std::optional<Stats> settled, settledDifference;
     std::optional<Stats> open;
+    // Each level as a share of the pump's just before (part off: before the
+    // pulse; part on: before the valve opened): with a part held, and (part
+    // on) without one. Under 1 when the sensor reads the pump's side of the
+    // valve, where the Ratio method takes the pump's swings out.
+    std::optional<Stats> ratio, openRatio;
 
     // How it is measured.
     static constexpr int    kPulses = 20;
@@ -92,6 +98,8 @@ struct JPVacuumMeasure {
     static constexpr double kRecovered = 0.5;
 
     bool held() const { return level.count > 0; }
+    // The sensor reads the pump's side of the valve: the shares measured are under 1.
+    bool pumpSide() const;
 
     // A part off measuring of `r`, or a part on one with (`withPart`) or
     // without a part, taken into this one (the other half of a part on
@@ -102,16 +110,18 @@ struct JPVacuumMeasure {
     // How far apart two levels are, in their summed deviations.
     static double separation(const Stats& a, const Stats& b);
     // The ranges for part on (`partOn`) or part off, with `method` as the tip
-    // has it ("None", "Absolute" or "Difference") and, part off, its Valve
+    // has it ("None", "Absolute", "Difference" or "Ratio") and, part off, its Valve
     // close wait and the tip's part on measuring (`partner`: its level with
     // a part is a blocked nozzle's, its level without one the pump pulled
-    // down by an open nozzle). A method that cannot tell the two apart where
-    // the other can is changed to the other, and said.
+    // down by an open nozzle). Read on the pump's side of the valve, Ratio is
+    // set (the pump's swings taken out) when it tells the two apart; a method
+    // that cannot tell them apart where another can is changed to it; said.
     Ranges ranges(bool partOn, const std::string& method, int dwellMs, const JPVacuumMeasure* partner) const;
 
     static JPVacuumMeasure fromJson(const JJson& j);
 private:
     Ranges rangesBy(bool partOn, const std::string& method, int dwellMs, const JPVacuumMeasure* partner) const;
+    Ranges rangesByRatio(bool partOn, int dwellMs, const JPVacuumMeasure* partner) const;
 public:
     JJson toJson() const;
 };

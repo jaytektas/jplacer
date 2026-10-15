@@ -359,7 +359,7 @@ the camera on the head, and anything else on the head that moves on axes.
 **Jog** tab:
 
 - **X/Y**: the arrows move the tool by the distance; the park sign in the middle parks the head.
-- **Z**: up and down by the distance; the park sign between takes the tool's Z to its safe Z (the low end
+- **Z**: up and down by the distance (a nozzle with a lean has its X and Y moved with it, so its tip stays over the same place, as a turn keeps the tip's centre against its runout); the park sign between takes the tool's Z to its safe Z (the low end
   of its Z axis's safe zone; a camera's virtual Z, its home coordinate, as when it is left below it and
   jogged away), and first every Z on the head into its safe zone, unless the machine's
   **Park all at Safe Z?** is unticked in [Machine Setup](machine-setup.md#settings).
@@ -369,7 +369,10 @@ the camera on the head, and anything else on the head that moves on axes.
   down to the camera's height (the board's or a feeder's, as the camera's Z is set), its tip's centre on
   the point the camera looks at there, its lean (if it has one) taken in, as a feeder's Position Nozzle
   goes to the pick. With a part on it (one jplacer picked, so its part is known), the part's bottom goes to
-  that height and the tip that part's height above it.
+  that height and the tip that part's height above it. The camera goes over the place the nozzle's tip comes down to
+  at that height (with a part, the part's bottom): its tip's centre, the runout at the angle it is turned
+  to taken in, and its lean at that height, wherever the nozzle hangs now. So there and back again the head
+  ends where it began, and after a place the camera lands on the part, though the nozzle is up at safe Z.
 - **Distance** [mm, or degrees turning]: a slider of steps (0.01 to 100 a press, unless set otherwise in
   [Preferences, Jog](preferences.md#jog)).
 - **Speed**: the machine's speed, as in OpenPnP: every move goes at this share of its own speed (a jog,
@@ -400,7 +403,7 @@ the hold is complete, and the reset); Grbl and grblHAL have one.
 A controller whose profile has no hold is reset for Stop as well; one with no reset cannot be stopped
 from jplacer, and the status bar says so.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost, parkZ, doParkZ); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (moveTo) (act, refreshNames); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
+<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost, parkZ, doParkZ, offsetsNow, jog); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (moveTo) (act, refreshNames); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
 
 #### Nozzle tips
 

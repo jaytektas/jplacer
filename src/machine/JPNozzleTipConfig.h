@@ -111,7 +111,12 @@ struct JPNozzleTipConfig {
     // dwell (that level within low..high, the change within
     // diffLow..diffHigh). Part off: the valve opened for `probingMs` and
     // closed for `dwellMs`, then the level read checked the same way, its
-    // change from the level just before. "None": not checked. Establish
+    // change from the level just before. "Ratio", for a sensor on the pump's
+    // side of the valve (it reads the pump while the valve is closed): the
+    // level as a share of the pump's, read just before (part on: before the
+    // pick's valve opened; part off: before the pulse), within low..high, so
+    // the pump's own swings (a reservoir switched between two pressures) do
+    // not count. "None": not checked. Establish
     // Level: the pick's (place's) dwell ends as soon as the level is within
     // low..high. Each check is made at the steps ticked.
     struct Sensing {

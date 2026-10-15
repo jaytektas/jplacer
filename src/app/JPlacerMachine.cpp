@@ -1375,7 +1375,7 @@ JPlacerMachine::Where JPlacerMachine::whereIsMount(const JPMountConfig* m) const
         if (axis.empty() || i == p.end()) return std::nullopt;
         return i->second + offset;
     };
-    const auto [ox, oy] = m_cell->offsetsAt(*m);   // a nozzle's lean at its Z now
+    const auto [ox, oy] = m_cell->offsetsNow(*m);   // a nozzle's lean at its Z now, its tip's runout at its angle
     return { take(m->axisX, ox), take(m->axisY, oy), take(m->axisZ, m->offsetZ), take(m->axisRotation, 0) };
 }
 
@@ -2183,11 +2183,11 @@ void JPlacerMachine::nozzleMarkOffsets(const std::string& nozzleId, bool storeMa
         return;
     }
     const auto p = m_cell->positions();
-    // Where a tool is now: its axes plus its offset on the head.
+    // Where a tool is now: its axes plus its offset on the head (a nozzle's tip's runout at its angle in it).
     auto where = [this, &p](const JPMountConfig& m, double& x, double& y) {
         const auto px = p.find(m.axisX), py = p.find(m.axisY);
         if (px == p.end() || py == p.end()) return false;
-        const auto [ox, oy] = m_cell->offsetsAt(m);
+        const auto [ox, oy] = m_cell->offsetsNow(m);
         x = px->second + ox;
         y = py->second + oy;
         return true;
@@ -2504,13 +2504,21 @@ void JPlacerMachine::measureVacuum(const std::string& nozzleId, const std::strin
                               st.lowest, st.highest, st.count);
                 return std::string(text);
             };
+            auto shares = [](const char* what, const std::optional<JPVacuumMeasure::Stats>& st) {
+                if (!st) return std::string();
+                char text[160];
+                std::snprintf(text, sizeof text, "%s: %.3f, deviation %.3f, %.3f to %.3f\n", what, st->mean, st->sd, st->lowest,
+                              st->highest);
+                return std::string(text);
+            };
             auto set = [](const char* sensing, const JPVacuumMeasure::Ranges& r) {
                 if (!r.vacuum) return std::string();
                 char text[320];
-                std::snprintf(text, sizeof text, "\n%s: Measurement Method %s; Vacuum Range %.1f to %.1f", sensing,
-                              r.method.c_str(), r.vacuum->low, r.vacuum->high);
+                std::snprintf(text, sizeof text, r.method == "Ratio" ? "\n%s: Measurement Method %s; Vacuum Range %.3f to %.3f"
+                                                                     : "\n%s: Measurement Method %s; Vacuum Range %.1f to %.1f",
+                              sensing, r.method.c_str(), r.vacuum->low, r.vacuum->high);
                 std::string out = text;
-                if (r.difference) {
+                if (r.difference && r.method == "Difference") {
                     std::snprintf(text, sizeof text, "; Difference Range %.1f to %.1f", r.difference->low, r.difference->high);
                     out += text;
                 }
@@ -2523,10 +2531,13 @@ void JPlacerMachine::measureVacuum(const std::string& nozzleId, const std::strin
             if (!partOn) {
                 text += stats("Before the pulse", m.baseline) + stats("As the valve closed", m.level)
                       + stats("Change", m.difference);
+                text += shares("As a share of the pump's before it", m.ratio);
                 if (m.settled) text += stats("After the Valve close wait", *m.settled) + stats("Change", *m.settledDifference);
             } else {
-                if (m.held()) text += stats("With a part", m.level) + stats("Change while held", m.difference);
-                if (m.open) text += stats("Without a part", *m.open);
+                if (m.held())
+                    text += stats("With a part", m.level) + shares("As a share of the pump's before", m.ratio)
+                          + stats("Change while held", m.difference);
+                if (m.open) text += stats("Without a part", *m.open) + shares("As a share of the pump's before", m.openRatio);
             }
             text += set("Part On", onRanges) + set("Part Off", offRanges) + valve;
             for (const auto* r : { &onRanges, &offRanges })

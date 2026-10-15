@@ -703,12 +703,25 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
         return;
     }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << tool.label << " to where " << over.label << " is";
-    const auto [ox, oy] = m_cell.offsetsAt(m);
-    // A nozzle to the camera: its tip's centre to where the camera looks, at the camera's height (the board's or
-    // a feeder's, as the camera is set), by way of safe Z and down, as a feeder's Position Nozzle goes; its X and Y
-    // worked out for that height (a lean taken in). Not a place in X and Y to be lowered to by hand.
+    // The camera's height: where a nozzle going to the camera comes down to (the board's or a feeder's, as the camera
+    // is set), and where a nozzle the camera goes to is taken to reach.
+    auto cameraZ = [this](const JPMountConfig& c) { return c.axisZ.empty() ? std::optional(c.offsetZ) : m_cell.toolZ(c); };
+    // Where `over` is: a nozzle's tip's centre (its runout at its angle now), and, for the camera, where it comes down
+    // to at the camera's height (its lean taken in), not where it hangs now. Without either, each Position Nozzle
+    // and Position Camera there and back moved the head by the runout, and a camera sent to a nozzle up at safe Z
+    // after a place landed beside the part by the lean over that height (0.9 mm on bench's LEFT).
+    // (A part held: its bottom at that height, the tip its height above, as a nozzle goes there.)
+    std::optional<double> reachZ;
+    if (tool.camera && over.nozzle) {
+        reachZ = cameraZ(*tool.mount);
+        if (reachZ && partHeightOn) *reachZ += partHeightOn(over.id);
+    }
+    const auto [ox, oy] = m_cell.offsetsNow(m, reachZ);
+    // A nozzle to the camera: its tip's centre to where the camera looks, at the camera's height, by way of safe Z
+    // and down, as a feeder's Position Nozzle goes; its X and Y worked out for that height (a lean taken in). Not a
+    // place in X and Y to be lowered to by hand.
     std::optional<double> z;
-    if (tool.nozzle && over.camera) z = m.axisZ.empty() ? std::optional(m.offsetZ) : m_cell.toolZ(m);
+    if (tool.nozzle && over.camera) z = cameraZ(m);
     // A part held: its bottom at that height, the tip its height above.
     if (z && partHeightOn) *z += partHeightOn(tool.id);
     m_cell.moveTool(*tool.mount, { px->second + ox, py->second + oy, z, std::nullopt }, 1.0);
@@ -800,7 +813,7 @@ std::vector<std::pair<std::string, double>> JPJogPanel::where() const {
     const JPMountConfig& m = *m_tools[m_tool].mount;
     const auto positions = m_cell.positions();
     // A nozzle holding a part reads the part's angle (its rotation mode offset), as OpenPnP's DRO.
-    const auto [ox, oy] = m_cell.offsetsAt(m);   // a nozzle's lean at its Z now
+    const auto [ox, oy] = m_cell.offsetsNow(m);   // a nozzle's lean at its Z now, its tip's runout at its angle
     const std::tuple<const char*, const std::string*, double> axes[] = {
         { "X", &m.axisX, ox }, { "Y", &m.axisY, oy }, { "Z", &m.axisZ, m.offsetZ },
         { "C", &m.axisRotation, m_cell.rotationModeOffsetOf(m) } };

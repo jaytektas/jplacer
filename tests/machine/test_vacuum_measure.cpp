@@ -7,7 +7,9 @@
 // itself (to 0, or twice it), so the pump's drift stays in it; two too close to tell apart set none. Part off: a level that comes back
 // most of the way as the valve closes means the Valve close wait goes (0) and the check reads the level as the
 // valve closes; a held part's level (part on, with a part) is a blocked nozzle's. Without the other state,
-// kSigmas deviations either side, and said. A tip without a method is given Absolute. What was measured is kept
+// kSigmas deviations either side, and said. Read on the pump's side of the valve, each level is also taken as a
+// share of the pump's just before: Ratio, set there, takes the pump's swings out. A tip without a method is given
+// Absolute (Ratio on the pump's side). What was measured is kept
 // in the tip's file.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
@@ -83,9 +85,13 @@ int main() {
 
     // Part off on the bench: before each pulse about 86900, as the valve closes about 65000 (an open nozzle), after
     // a 250 ms wait back to 86700: the wait reads the pump, so it goes, and the check reads as the valve closes.
+    // (Its shares of the pump left out here: Absolute and Difference first; Ratio below.)
     M off;
     off.take({ about(86900, 300), about(65000, 150), about(86700, 300) }, false, false);
     assert(off.settled && off.settledDifference && near(off.difference.mean, -21900, 1));
+    assert(off.ratio && off.pumpSide() && near(off.ratio->mean, 65000.0 / 86900, 1e-3));
+    const M withShares = off;
+    off.ratio.reset();
     const M::Ranges alone = off.ranges(false, "Absolute", 250, nullptr);
     assert(alone.dwellMs && *alone.dwellMs == 0 && alone.vacuum && !alone.vacuum->bounded && alone.notes.size() == 2);
     // Told from a blocked nozzle's level (Part On with a part): from the boundary down; a nozzle against the object
@@ -103,6 +109,7 @@ int main() {
     // cannot tell them apart, Absolute can, and is set; the wait goes either way.
     M left;
     left.take({ about(87992, 900), about(65303, 293), about(87778, 887) }, false, false);
+    left.ratio.reset();
     const M::Ranges switched = left.ranges(false, "Difference", 250, &on);
     assert(switched.method == "Absolute" && switched.vacuum && switched.vacuum->bounded && !switched.tooClose);
     assert(switched.dwellMs && *switched.dwellMs == 0);
@@ -117,13 +124,43 @@ int main() {
     assert(none.tooClose && !none.vacuum && none.dwellMs && *none.dwellMs == 0);
     // A sensor on the nozzle's side: the level stays low through the wait, which is kept and read.
     M nozzleSide;
-    nozzleSide.take({ about(86900, 300), about(65000, 150), about(20000, 300) }, false, false);
+    nozzleSide.take({ about(1000, 100), about(65000, 150), about(20000, 300) }, false, false);
+    assert(nozzleSide.ratio && !nozzleSide.pumpSide());
     const M::Ranges keep = nozzleSide.ranges(false, "Absolute", 250, &on);
     assert(!keep.dwellMs && keep.vacuum && !keep.vacuum->bounded && near((keep.vacuum->low + keep.vacuum->high) / 2, 20000, 1));
     // Measured with no wait, the wait since set: measure again.
     M noWait;
     noWait.take({ about(86900, 300), about(65000, 150), {} }, false, false);
+    noWait.ratio.reset();
     assert(!noWait.ranges(false, "Absolute", 250, &on).vacuum && noWait.ranges(false, "Absolute", 0, &on).vacuum);
+
+    // RATIO, on the pump's side of the valve: each level a share of the pump's just before. Part on, with the pump
+    // read at 80000 before the valve opened: a held part keeps 0.8975 of it, an open nozzle 0.7625; the range from
+    // halfway up, Ratio set though Absolute was asked (the pump's swings do not count), said.
+    M shares;
+    shares.take({ {}, about(61000, 300), {}, { 80000 } }, true, false);
+    shares.take({ { 72000 }, about(71800, 300), {}, { 80000 } }, true, true);
+    assert(shares.openRatio && shares.ratio && shares.pumpSide() && near(shares.ratio->mean, 0.8975, 1e-6));
+    const M::Ranges onByRatio = shares.ranges(true, "Absolute", 0, nullptr);
+    assert(onByRatio.method == "Ratio" && onByRatio.vacuum && near(onByRatio.vacuum->low, 0.83, 1e-6)
+           && onByRatio.vacuum->high > 1 && !onByRatio.difference);
+    assert(!onByRatio.notes.empty() && onByRatio.notes[0].find("Measurement Method set to Ratio") != std::string::npos);
+    // Part off: an open nozzle keeps 0.748 of the pump through the pulse, a blocked one a held part's 0.8975: the
+    // range up to halfway; read as the valve closes.
+    const M::Ranges offByRatio = withShares.ranges(false, "Difference", 250, &shares);
+    assert(offByRatio.method == "Ratio" && offByRatio.vacuum && offByRatio.vacuum->bounded && offByRatio.dwellMs
+           && *offByRatio.dwellMs == 0);
+    assert(near(offByRatio.vacuum->high, (withShares.ratio->mean + 0.8975) / 2, 1e-9) && near(offByRatio.vacuum->low, 0, 1e-9));
+    // The pump swinging from 75000 to 95000 between pulses (a reservoir's switch): the levels swing with it, their
+    // shares do not; Absolute's spread is some 7000, Ratio's nothing.
+    std::vector<double> pump, through;
+    for (int i = 0; i < 20; ++i) {
+        pump.push_back(75000 + 1000.0 * i);
+        through.push_back(pump.back() * 0.75);
+    }
+    M swinging;
+    swinging.take({ pump, through, {} }, false, false);
+    assert(swinging.level.highest - swinging.level.lowest > 14000 && swinging.ratio->sd < 1e-9);
 
     // Kept in the tip's file, and read back.
     JPNozzleTipConfig t;
@@ -135,5 +172,9 @@ int main() {
     assert(back.partOn.measured && back.partOn.measured->when == "2026-10-15 19:00" && back.partOn.measured->open
            && near(back.partOn.measured->level.mean, on.level.mean) && back.partOn.measured->level.count == 20);
     assert(back.partOff.measured && back.partOff.measured->settled && near(back.partOff.measured->settled->mean, 86700, 1e-6));
+    t.partOn.measured = shares;
+    const JPNozzleTipConfig backShares = JPNozzleTipConfig::fromJson(t.toJson());
+    assert(backShares.partOn.measured->ratio && backShares.partOn.measured->openRatio
+           && near(backShares.partOn.measured->openRatio->mean, 0.7625, 1e-9));
     return 0;
 }

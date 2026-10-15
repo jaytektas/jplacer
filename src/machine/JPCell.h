@@ -266,6 +266,11 @@ public:
     // A tool's X, Y offsets on its head at Z `z` (a nozzle's lean, JPMountConfig::offsetXAt); none: at its Z now.
     // Going to a place, its axes are the place less these at the place's Z; where it is, its axes plus these.
     std::pair<double, double> offsetsAt(const JPMountConfig& mount, std::optional<double> z = std::nullopt) const;
+    // Where a tool's centre is now from its axes: offsetsAt its Z now (or `z`: where a nozzle's tip comes down to at
+    // that height, its lean taken in) and, a nozzle's, its tip's runout at the angle it is at (its axes carry the
+    // compensation: a move puts the tip's centre on the place). Where it is, its axes plus these: what a tool is
+    // taken to be at when another goes to it, or its place is captured.
+    std::pair<double, double> offsetsNow(const JPMountConfig& mount, std::optional<double> z = std::nullopt) const;
     // The offset of the nozzle `mount` is (0 for another tool).
     double rotationModeOffsetOf(const JPMountConfig& mount) const;
     // Simulation Mode's Pick & Place Checking (OpenPnP's): a nozzle holding
@@ -545,6 +550,7 @@ private:
     // time is ms from its start; graphed with a difference, or establishing.
     struct VacuumRecord {
         std::optional<double>                  reading, difference;
+        std::optional<double>                  pump;   // part on by ratio: the level before the pick's valve opened
         std::vector<std::pair<double, double>> vacuum, valve;
         std::chrono::steady_clock::time_point  start;
         bool                                   graphing = false;
