@@ -329,7 +329,7 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
     top->add(pad(size, "Y+", &I::arrowUp, tip("Y+", "y+"), "y+"));
     top->add(gap(size));
     top->add(pad(size, "Z+", &I::arrowUp, tip("Z+", "z+"), "z+"));
-    top->add(pad(size, "Position Nozzle", &I::moveNozzle, "Put the nozzle where the camera is looking", "positionNozzle"));
+    top->add(pad(size, "Position Nozzle", &I::moveNozzle, "Put the nozzle's tip where the camera is looking, down at the camera's height", "positionNozzle"));
     padColumn->add(std::move(top));
     auto middle = row(size);
     middle->add(pad(size, "X-", &I::arrowLeft, tip("X-", "x-"), "x-"));
@@ -704,7 +704,12 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     }
     JLOGC(JPlacerLog::kUi, JLogLevel::Info) << "Jog: " << tool.label << " to where " << over.label << " is";
     const auto [ox, oy] = m_cell.offsetsAt(m);
-    m_cell.moveTool(*tool.mount, { px->second + ox, py->second + oy, std::nullopt, std::nullopt }, 1.0);
+    // A nozzle to the camera: its tip's centre to where the camera looks, at the camera's height (the board's or
+    // a feeder's, as the camera is set), by way of safe Z and down, as a feeder's Position Nozzle goes; its X and Y
+    // worked out for that height (a lean taken in). Not a place in X and Y to be lowered to by hand.
+    std::optional<double> z;
+    if (tool.nozzle && over.camera) z = m.axisZ.empty() ? std::optional(m.offsetZ) : m_cell.toolZ(m);
+    m_cell.moveTool(*tool.mount, { px->second + ox, py->second + oy, z, std::nullopt }, 1.0);
 }
 
 void JPJogPanel::selectTool(const std::string& id) {
