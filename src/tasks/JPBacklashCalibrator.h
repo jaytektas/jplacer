@@ -23,14 +23,13 @@ inline namespace jf {
 //     must sneak up.
 //  3. The play against speed, coming in from far at each speed: a drive that
 //     overshoots at speed shows less play there.
-//  4. A method chosen as OpenPnP chooses it: none when the play is within
-//     the tolerance; when it does not level off within a short sneak-up (it
-//     keeps growing with how far the axis came in), OneSided and
-//     DistanceAware (the lag measured for each distance, sent each move) are
-//     both tried and the one that lands closer kept; else Directional when it
-//     is the same at every speed, DirectionalSneakUp, sneaking up the distance
-//     found, when it is not.
-//  5. Each method tried: moves in from random distances either way (and from
+//  4. A method chosen by OpenPnP's rules (its CalibrationSolutions): the
+//     largest play coming in from up to kMaxSneakUpMm and the shortest
+//     distance still showing it give the sneak-up; longer than
+//     mostSneakUpMm, OneSided past the place by that play; shorter than the
+//     play needs, DirectionalSneakUp; the same at every speed, Directional
+//     (None within the tolerance); else DirectionalSneakUp.
+//  5. The method tried: moves in from random distances either way (and from
 //     afar on each side), each measured against the mean of them all.
 //
 // Runs on a thread of its own: it waits on moves and pictures. The axis's
@@ -43,7 +42,6 @@ public:
         double speed = 1.0;              // share of the axes' rates for moves between measurements
         double reachMm = 10;             // the furthest a move comes in from in the tests
         double mostSneakUpMm = 0.8;      // longer than this, sneaking up costs too much: one-sided
-        double longestLastMm = 2.0;      // one-sided's last stretch at most this long (each move makes it slowly)
         int    still = 6;                // measurements without moving, for the tolerance
         int    frames = 8;               // pictures averaged for each measurement: a single one wanders
                                          // (on bench, 6 µm; 8 together, 2 µm)
@@ -54,14 +52,14 @@ public:
         std::string            why;
         JPAxisConfig::Backlash method = JPAxisConfig::Backlash::None;
         double                 offset = 0, sneakUpMm = 0, speedFactor = 1;
-        std::vector<std::pair<double, double>> table;   // DistanceAware
-        double                 approachMm = 0;          // DistanceAware
         double                 worstAfterMm = 0;   // the furthest a tried move landed from their mean
         JPBacklashCalibration  data;
     };
     using Progress = std::function<void(const std::string&)>;
 
     static constexpr double kSpeeds[] = { 0.25, 0.33, 0.5, 0.75, 1.0 };
+    // OpenPnP's maxSneakUpOffsetMm: the furthest come-in the largest play is looked for within.
+    static constexpr double kMaxSneakUpMm = 2.5;
 
     static Result run(JPCell& cell, JPCameraFeed& feed, const std::string& axisId, const Options& options,
                       const Progress& progress = nullptr);

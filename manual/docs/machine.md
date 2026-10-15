@@ -333,21 +333,23 @@ measures:
 2. The play against how far the axis comes in from the other side, at a quarter speed: a short way in
    takes up only part of it; where it levels off is how far a move must sneak up.
 3. The play against speed (25, 33, 50, 75 and 100%), coming in from 10 mm.
-4. The method: None when the play is within the tolerance. When the play does not level off within 0.8 mm
-   (it keeps growing with how far the axis came in, as a stretching belt does), two are tried on the same
-   moves and the one that lands them closer together kept: OneSidedPositioning, its offset as far as the
-   play takes to level off, at most 2 mm, and at least twice the play; and DistanceAware, its lag half the
-   play measured for each distance (made never to fall as the distance grows), its least approach the
-   first distance whose lag is no longer behind. Otherwise DirectionalCompensation when the play is the
-   same at every speed, DirectionalSneakUp, sneaking up the distance found, when it is not.
-5. Each method tried: moves in to the mark from random places either side, and from 10 mm on each side,
+4. The method, by OpenPnP's rules: the largest play coming in from up to 2.5 mm, and the shortest of
+   those distances still showing it (to within twice the tolerance), give the sneak-up distance (the larger
+   of the two). Longer than 0.8 mm (the play keeps growing with how far the axis came in, as a stretching
+   belt does): OneSidedPositioning, its offset that largest play. Otherwise, when the play from far is less
+   than the sneak-up distance needs: DirectionalSneakUp, its offset halfway between the least and largest
+   play, sneaking up that distance. When the play is the same at every speed: DirectionalCompensation, its
+   offset that play (None, within the tolerance). Else DirectionalSneakUp at the fastest speed that agrees.
+   A play that shows less at the slowest speed than it should (an overshoot) cannot be compensated, and
+   says so.
+5. The method tried: moves in to the mark from random places either side, and from 10 mm on each side,
    each measured against the mean of them all: how well moves agree with each other, whatever the machine
    slowly drifts by over the run.
 
 What it found is in use at once, kept through Machine Setup (a step to undo), and shown on the tab with
 three graphs: the play against how far it came in, against speed, and the errors once compensated.
 
-<!-- src: src/tasks/JPBacklashCalibrator.cpp (run, kLeastToleranceMm, kToleranceSpreads); src/tasks/JPBacklashCalibrator.h (Options, kSpeeds); src/app/JPlacerCameraTasks.cpp (calibrateBacklash); src/app/JPlacerMachine.cpp (setupAction); src/setup/JPSetupProperties.cpp (backlashResults) -->
+<!-- src: src/tasks/JPBacklashCalibrator.cpp (run, kLeastToleranceMm, kToleranceSpreads); src/tasks/JPBacklashCalibrator.h (Options, kSpeeds, kMaxSneakUpMm); src/app/JPlacerCameraTasks.cpp (calibrateBacklash); src/app/JPlacerMachine.cpp (setupAction); src/setup/JPSetupProperties.cpp (backlashResults) -->
 
 
 ### Jog

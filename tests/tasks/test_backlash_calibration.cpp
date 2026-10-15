@@ -4,9 +4,11 @@
 // Measuring an axis's play with the head camera, with no hardware: the
 // simulated camera rides an X axis with 0.08 mm of play (where the drive is
 // sent and where the camera is differ by up to the play, depending on which
-// way it last moved). The calibrator must find the play, choose Directional
-// compensation (the play is the same at every speed), and, so compensated,
-// come in to the mark from anywhere to within the tolerance.
+// way it last moved). The calibrator chooses as OpenPnP does: it must find
+// the play, choose Directional compensation (the play is the same at every
+// speed; sneaking up when it takes coming in further than the play to show
+// it all), and, so compensated, come in to the mark from anywhere to within
+// the tolerance.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -158,7 +160,10 @@ int main() {
     // The play, found to within the calibration pipeline's step either way (it
     // finds the mark's centre to an eighth of a pixel; each side one find, so
     // two steps), the same at every speed.
-    assert(r.method == JPAxisConfig::Backlash::Directional);
+    // Directional, as OpenPnP chooses for a play the same at every speed; sneaking up when the shortest come-in
+    // that shows all of it is longer than the play (it is here, on the distances measured), as its X on bench did.
+    assert(r.method == JPAxisConfig::Backlash::Directional
+           || (r.method == JPAxisConfig::Backlash::DirectionalSneakUp && r.sneakUpMm >= r.offset && r.sneakUpMm <= o.mostSneakUpMm));
     assert(std::abs(r.offset - kPlay) <= std::max(2 * r.data.toleranceMm, kPipelineStepMm));
     assert(!r.data.byDistance.empty() && r.data.bySpeed.size() == std::size(JPBacklashCalibrator::kSpeeds));
     // A short way in from the other side takes up only that much of the play.
@@ -166,10 +171,10 @@ int main() {
     // Compensated, every move comes in to the same place: the 4 tried, and one
     // from afar on each side.
     assert(r.data.after.size() == 6 && r.worstAfterMm <= 2 * r.data.toleranceMm);
-    // A drive that stretches: its play keeps growing with how far it came in,
-    // never levelling off within a short sneak-up. Directional cannot make
-    // that the same every time; one-sided and distance-aware are both tried,
-    // and the better kept, landing moves together.
+    // A drive that stretches: its play keeps growing with how far it came in, never levelling off within a short
+    // sneak-up. As OpenPnP chooses: one-sided, past the place by the largest play measured coming in from up to
+    // kMaxSneakUpMm (a few hundredths here), not by how far it takes to level off (2 mm: an overshoot that hits a
+    // tip changer's slots).
     {
         JPCellConfig plain = cell.config();
         plain.axes[0].backlash = JPAxisConfig::Backlash::None;
@@ -182,16 +187,13 @@ int main() {
     o.tries = 6;
     const JPBacklashCalibrator::Result s = JPBacklashCalibrator::run(cell, feed, "X", o);
     if (!s.ok) std::fprintf(stderr, "why: %s\n", s.why.c_str());
-    std::fprintf(stderr, "stretching: method %s, offset %.4f, approach %.3f, tolerance %.4f, worst after %.4f\n",
-                 JPAxisConfig::backlashWord(s.method), s.offset, s.approachMm, s.data.toleranceMm, s.worstAfterMm);
-    assert(s.ok);
-    assert(s.method == JPAxisConfig::Backlash::OneSided || s.method == JPAxisConfig::Backlash::DistanceAware);
-    if (s.method == JPAxisConfig::Backlash::DistanceAware) {
-        assert(!s.table.empty() && s.approachMm > 0);
-        for (size_t i = 1; i < s.table.size(); ++i) assert(s.table[i].second >= s.table[i - 1].second);
-        assert(std::abs(s.table.back().second - kWound) < 0.006);
-    }
-    assert(s.worstAfterMm <= 3 * s.data.toleranceMm);
+    std::fprintf(stderr, "stretching: method %s, offset %.4f, tolerance %.4f, worst after %.4f\n",
+                 JPAxisConfig::backlashWord(s.method), s.offset, s.data.toleranceMm, s.worstAfterMm);
+    assert(s.ok && s.method == JPAxisConfig::Backlash::OneSided);
+    double largest = 0;
+    for (const auto& [d, e] : s.data.byDistance)
+        if (d <= JPBacklashCalibrator::kMaxSneakUpMm) largest = std::max(largest, e);
+    assert(std::abs(s.offset - largest) < 1e-9 && s.offset < 2 * kWound + 2 * s.data.toleranceMm);
 
     // The axis it was measured on: not one the camera rides.
     const JPBacklashCalibrator::Result wrong = JPBacklashCalibrator::run(cell, feed, "Z", o);

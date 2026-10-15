@@ -2794,8 +2794,8 @@ void JPlacerMachine::calibrateBacklash(const std::string& axisId, std::function<
                     a.backlashOffset = r.offset;
                     a.sneakUpMm = r.sneakUpMm;
                     a.backlashSpeedFactor = r.speedFactor;
-                    a.backlashTable = r.table;
-                    a.approachMm = r.approachMm;
+                    a.backlashTable.clear();
+                    a.approachMm = 0;
                     a.backlashCalibration = r.data;
                 }
         });
