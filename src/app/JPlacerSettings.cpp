@@ -84,6 +84,10 @@ bool JPlacerSettings::tearOffMenus() {
     return JSettings::instance().get<bool>(kTearOffMenus, false);
 }
 
+bool JPlacerSettings::jobCheckAtStart() {
+    return JSettings::instance().get<bool>(kJobCheckAtStart, true);
+}
+
 int JPlacerSettings::theme() {
     return JSettings::instance().get<int>(kTheme, 0);
 }

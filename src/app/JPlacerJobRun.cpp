@@ -5,6 +5,7 @@
 
 #include "JPlacerJobCheckDialog.h"
 #include "JPlacerLoadDialog.h"
+#include "JPlacerSettings.h"
 
 #include "common/JPlacerLog.h"
 #include "model/JPBoardLocation.h"
@@ -342,15 +343,15 @@ void JPlacerJobRun::start(RunState as) {
         run();
     };
     // The job's data checked first: with anything to put right or check, the list, and Start Anyway when
-    // nothing stops it.
+    // nothing stops it. With Preferences' Check the job before each run off, only what stops the run is listed.
     auto checked = [this, alive, go] {
         if (const auto a = alive.lock(); !a || !*a) return;
         std::vector<JPJobCheck::Item> items = JPJobCheck::of(m_job.configuration(), m_job.job(), machineTipIds());
-        if (!JPJobCheck::asks(items)) {
+        const bool stops = JPJobCheck::stops(items);
+        if (!JPJobCheck::asks(items) || (!stops && !JPlacerSettings::jobCheckAtStart())) {
             go();
             return;
         }
-        const bool stops = JPJobCheck::stops(items);
         m_window.openModal<JPlacerJobCheckDialog>(std::move(items), stops ? std::function<void()>() : std::function<void()>(go));
     };
     // As OpenPnP: a job placed already is offered to be placed again.

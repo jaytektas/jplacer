@@ -228,12 +228,13 @@ at: enabled, not placed, their side up on an enabled board.
 - **Note**: parts **No feeder holds yet** (the run asks for them, see [Load as you go](#load-as-you-go));
   parts **Short of stock**, of those whose stock is kept (a part with no lots at all is not).
 
-**Start** with nothing to stop or check runs at once. Otherwise **Check Job** shows the list: with anything
+**Start** with nothing to stop or check runs at once, and so does Start with only things to check or note when
+Preferences' **Check the job before each run** is unticked. Otherwise **Check Job** shows the list: with anything
 that stops the run it is not started (**Close**); with only things to check or note, **Start Anyway** runs
 it as it is and **Cancel** does not. Choose a row to see under the list all it is about (the first 60). The
 counts at the top say how many are to put right, to check and to note.
 
-<!-- src: src/model/JPJobCheck.cpp; src/app/JPlacerJobCheckDialog.cpp; src/app/JPlacerJobRun.cpp (start, checkJob, machineTipIds); src/app/JPlacerMenuBuilder.cpp (job.check) -->
+<!-- src: src/model/JPJobCheck.cpp; src/app/JPlacerJobCheckDialog.cpp; src/app/JPlacerJobRun.cpp (start, checkJob, machineTipIds); src/app/JPlacerMenuBuilder.cpp (job.check); src/app/JPlacerSettings.cpp (jobCheckAtStart) -->
 
 A job goes as OpenPnP's does:
 

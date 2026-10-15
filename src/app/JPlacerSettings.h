@@ -21,6 +21,9 @@ public:
     // Help > Check for Updates still does.
     static constexpr const char* kUpdatesAtStartup = "updates.checkAtStartup";
 
+    // Turned off: Start runs the job without first listing what its check found
+    // (JPlacerJobCheckDialog), unless something stops the run. On by default.
+    static constexpr const char* kJobCheckAtStart  = "job.checkAtStart";
     // Turned on: a menu can be dragged off into a window of its own. Off by
     // default.
     static constexpr const char* kTearOffMenus     = "ui.tearOffMenus";
@@ -137,6 +140,7 @@ public:
     static int  visionDebugLimitMb();
     static bool updatesAtStartup();
     static bool tearOffMenus();
+    static bool jobCheckAtStart();
     static bool launcher();
     static int theme();
     static double uiScale();

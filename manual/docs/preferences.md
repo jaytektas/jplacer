@@ -38,6 +38,16 @@ done. The window can be made bigger by dragging its edge.
 
 <!-- src: src/app/JPlacerSettings.cpp (tearOffMenus defaults to false, launcher to true); src/app/JPlacerPreferencesDialog.cpp (the General rows); src/app/JPlacerLauncher.cpp (supported) -->
 
+### Jobs
+
+**Check the job before each run**
+:   When ticked, **Start** first lists what the job's check found (things to put right, check or note), with
+    **Start Anyway** (see [Checking the job](jobs.md)). Unticked, Start runs the job at once; something that
+    would stop the run is still listed, as the run cannot start. **Job ▸ Check Job…** lists everything at any
+    time. On when jplacer is first installed.
+
+<!-- src: src/app/JPlacerSettings.cpp (jobCheckAtStart defaults to true); src/app/JPlacerPreferencesDialog.cpp (the Jobs row); src/app/JPlacerJobRun.cpp (start) -->
+
 ### Backups
 
 **Backups kept**

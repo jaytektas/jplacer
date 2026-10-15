@@ -156,6 +156,15 @@ std::unique_ptr<JContainer> JPlacerPreferencesDialog::generalPage(std::function<
         body->addChildWidget(std::move(launcher));
     }
 
+    body->addChildWidget(heading(g, "Jobs"));
+    auto checkAtStart = std::make_unique<JCheckBox>(g, "Check the job before each run", 0.f);
+    checkAtStart->setChecked(JPlacerSettings::jobCheckAtStart());
+    checkAtStart->onStateChanged.connect([](bool on) { store(JPlacerSettings::kJobCheckAtStart, on); });
+    body->addChildWidget(std::move(checkAtStart));
+    body->addChildWidget(note("Start lists what the job's check found (things to check or note) before the run, with Start "
+                   "Anyway. Turned off, it runs at once; something that stops the run is still listed. Job > Check Job... "
+                   "lists it any time."));
+
     body->addChildWidget(heading(g, "Backups"));
     // A rolling set: as jplacer starts, its settings and cells are copied, the oldest let go past this many.
     auto kept = std::make_unique<JSpinBox>(g, 0, kMostBackups, 0.f);

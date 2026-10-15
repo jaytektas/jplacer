@@ -22,6 +22,7 @@ notes.
 - After homing, the bottom camera's light stays on while the tip's runout is measured. Before, it could be switched off as the measuring began, so the runout pictures were taken in the dark.
 - Moving a nozzle to the head's Primary Fiducial (or another of the head's places) no longer turns it to the fiducial's diameter in degrees, and capturing with the nozzle no longer writes its angle into the Diameter.
 - Changing a head's settings (the test object's size or place, the calibration rig, park) no longer restarts the cameras. Before, the cameras flashed "Starting…", and a precise calibration straight after Detect then failed to find the test object, because the restarted camera had lost the exposure Detect had just tuned.
+- Preferences > Jobs > Check the job before each run: unticked, Start runs the job at once instead of first listing what the job's check found. Anything that would stop the run is still shown. On by default.
 ## 0.1.72
 
 - A nozzle's Offset Wizard tab in Machine Setup is now its Calibration tab. It runs the precise offsets calibration with the test object (the one Issues & Solutions offers) as well as the rough one by a mark. It keeps the nozzle's last 10 calibrations: when and how each ran, the offsets before and the ones found, and the change. A graph shows each angle's estimate around the correction, so an outlier (a bad find, or the test object slipping) stands out; a second graph shows how closely precise runs repeat.
