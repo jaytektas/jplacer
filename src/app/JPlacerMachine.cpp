@@ -2452,9 +2452,9 @@ void JPlacerMachine::measureVacuum(const std::string& nozzleId, const std::strin
     JPCell* cell = m_cell.get();
     std::weak_ptr<bool> alive = m_alive;
     std::thread([this, cell, alive, nozzleId, tipId, what, partOn, title, nozzleName, tipName] {
-        std::vector<double> baselines, levels;
+        JPVacuumMeasure::Readings readings;
         std::string why;
-        const bool ok = cell->measureVacuumAndWait(nozzleId, what, baselines, levels, why);
+        const bool ok = cell->measureVacuumAndWait(nozzleId, what, readings, why);
         JMainThreadDispatcher::instance().post([=, this] {
             if (const auto a = alive.lock(); !a || !*a) return;
             if (!ok) {
@@ -2467,34 +2467,33 @@ void JPlacerMachine::measureVacuum(const std::string& nozzleId, const std::strin
             for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
                 if (t.id == tipId) tip = &t;
             if (!tip || !m_setup) return;
-            const JPNozzleTipConfig::Sensing& was = partOn ? tip->partOn : tip->partOff;
             // The other half of a part on measuring kept (without a part, with one).
+            const JPNozzleTipConfig::Sensing& was = partOn ? tip->partOn : tip->partOff;
             JPVacuumMeasure m = was.measured.value_or(JPVacuumMeasure());
             m.when = JPWhen::now();
-            if (what == JPCell::VacuumMeasuring::PartOnWithout) {
-                m.open = JPVacuumMeasure::Stats::of(levels);
-            } else {
-                std::vector<double> differences;
-                for (size_t i = 0; i < levels.size(); ++i)
-                    differences.push_back(levels[i] - baselines[partOn ? 0 : i]);
-                m.baseline = JPVacuumMeasure::Stats::of(baselines);
-                m.level = JPVacuumMeasure::Stats::of(levels);
-                m.difference = JPVacuumMeasure::Stats::of(differences);
-            }
-            const JPVacuumMeasure::Ranges r = m.ranges(partOn, was.method);
-            m_setup->change(title + " measured: " + tipName, [tipId, partOn, m, r](JPCellConfig& c) {
+            m.take(readings, partOn, what == JPCell::VacuumMeasuring::PartOnWith);
+            // Part on's measuring tells part off's ranges too (a held part's level is a blocked nozzle's): both made again.
+            const std::optional<JPVacuumMeasure> on = partOn ? std::optional<JPVacuumMeasure>(m) : tip->partOn.measured;
+            const std::optional<JPVacuumMeasure> off = partOn ? tip->partOff.measured : std::optional<JPVacuumMeasure>(m);
+            const JPVacuumMeasure::Ranges onRanges = on ? on->ranges(true, tip->partOn.method, 0, nullptr) : JPVacuumMeasure::Ranges();
+            const JPVacuumMeasure::Ranges offRanges =
+                off ? off->ranges(false, tip->partOff.method, tip->partOffDwellMs, on ? &*on : nullptr) : JPVacuumMeasure::Ranges();
+            m_setup->change(title + " measured: " + tipName, [tipId, on, off, onRanges, offRanges](JPCellConfig& c) {
                 for (JPNozzleTipConfig& t : c.nozzleTips) {
                     if (t.id != tipId) continue;
-                    JPNozzleTipConfig::Sensing& s = partOn ? t.partOn : t.partOff;
-                    s.measured = m;
-                    if (!r.vacuum) continue;
-                    s.method = r.method;
-                    s.low = r.vacuum->low;
-                    s.high = r.vacuum->high;
-                    if (r.difference) {
-                        s.diffLow = r.difference->low;
-                        s.diffHigh = r.difference->high;
+                    t.partOn.measured = on;
+                    t.partOff.measured = off;
+                    for (auto [s, r] : { std::pair { &t.partOn, &onRanges }, std::pair { &t.partOff, &offRanges } }) {
+                        if (!r->vacuum) continue;
+                        s->method = r->method;
+                        s->low = r->vacuum->low;
+                        s->high = r->vacuum->high;
+                        if (r->difference) {
+                            s->diffLow = r->difference->low;
+                            s->diffHigh = r->difference->high;
+                        }
                     }
+                    if (offRanges.dwellMs) t.partOffDwellMs = *offRanges.dwellMs;
                 }
             });
             m_setup->remakeForm();
@@ -2504,24 +2503,33 @@ void JPlacerMachine::measureVacuum(const std::string& nozzleId, const std::strin
                               st.lowest, st.highest, st.count);
                 return std::string(text);
             };
-            auto range = [](const char* what, const JPVacuumMeasure::Range& g) {
-                char text[160];
-                std::snprintf(text, sizeof text, "%s %.1f to %.1f%s\n", what, g.low, g.high,
-                              g.stopped ? " (stopped short of the level without a part)" : "");
-                return std::string(text);
+            auto set = [](const char* sensing, const JPVacuumMeasure::Ranges& r) {
+                if (!r.vacuum) return std::string();
+                char text[320];
+                std::snprintf(text, sizeof text, "\n%s: Measurement Method %s; Vacuum Range %.1f to %.1f", sensing,
+                              r.method.c_str(), r.vacuum->low, r.vacuum->high);
+                std::string out = text;
+                if (r.difference) {
+                    std::snprintf(text, sizeof text, "; Difference Range %.1f to %.1f", r.difference->low, r.difference->high);
+                    out += text;
+                }
+                if (r.dwellMs) out += "; Valve close " + std::to_string(*r.dwellMs) + " ms";
+                return out + "\n";
             };
+            const std::string valve = !offRanges.vacuum && offRanges.dwellMs
+                                          ? "\nPart Off: Valve close " + std::to_string(*offRanges.dwellMs) + " ms\n" : "";
             std::string text = tipName + " on " + nozzleName + ".\n\n";
             if (!partOn) {
-                text += stats("Before the pulse", m.baseline) + stats("After it", m.level) + stats("Change", m.difference);
+                text += stats("Before the pulse", m.baseline) + stats("As the valve closed", m.level)
+                      + stats("Change", m.difference);
+                if (m.settled) text += stats("After the Valve close wait", *m.settled) + stats("Change", *m.settledDifference);
             } else {
                 if (m.held()) text += stats("With a part", m.level) + stats("Change while held", m.difference);
                 if (m.open) text += stats("Without a part", *m.open);
             }
-            if (r.vacuum) {
-                text += "\nMeasurement Method " + r.method + "; set:\n" + range("Vacuum Range", *r.vacuum);
-                if (r.difference) text += range("Difference Range", *r.difference);
-            }
-            for (const std::string& note : r.notes) text += "\n" + note + "\n";
+            text += set("Part On", onRanges) + set("Part Off", offRanges) + valve;
+            for (const auto* r : { &onRanges, &offRanges })
+                for (const std::string& note : r->notes) text += "\n" + note + "\n";
             JLOGC(JPlacerLog::kCell, JLogLevel::Info) << title << " measured: " << text;
             JDialog::message(title + " measured", text);
         });

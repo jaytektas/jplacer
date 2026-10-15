@@ -740,9 +740,10 @@ int main() {
         assert(!connection.take().first && !cell.isHomed() && pumpOff);
         watchPump();
     }
-    // Part detection measured (JPVacuumMeasure): part off, the check's pulse kPulses times at safe Z; part on
-    // without a part, the vacuum on and kSamples read, then off again (and the pump with it); with a part, the
-    // vacuum off again after it too. The simulated sensor reads -31000 throughout.
+    // Part detection measured (JPVacuumMeasure): part off, the check's pulse kPulses times at safe Z, read before,
+    // as the valve closes and after its wait; part on without a part, the vacuum on and kSamples read, then off
+    // again (and the pump with it); with a part, the vacuum off again after it too. The simulated sensor reads
+    // -31000 throughout.
     {
         std::string why;
         JPCellConfig next = cellConfig();
@@ -767,18 +768,20 @@ int main() {
             std::lock_guard lk(switchedMutex);
             return switched[id];
         };
-        std::vector<double> baselines, levels;
-        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOff, baselines, levels, why));
-        assert(int(baselines.size()) == JPVacuumMeasure::kPulses && int(levels.size()) == JPVacuumMeasure::kPulses
-               && levels.front() == -31000 && baselines.back() == -31000);
-        baselines.clear();
-        levels.clear();
-        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOnWith, baselines, levels, why));
-        assert(int(levels.size()) == JPVacuumMeasure::kSamples && last("V") == "off" && last("P") == "off");
+        JPVacuumMeasure::Readings r;
+        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOff, r, why));
+        assert(int(r.before.size()) == JPVacuumMeasure::kPulses && int(r.during.size()) == JPVacuumMeasure::kPulses
+               && int(r.after.size()) == JPVacuumMeasure::kPulses && r.during.front() == -31000 && r.after.back() == -31000);
+        r = {};
+        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOnWithout, r, why));
+        assert(r.before.size() == 1 && int(r.during.size()) == JPVacuumMeasure::kSamples && r.after.empty());
+        assert(last("V") == "off" && last("P") == "off");
+        r = {};
+        assert(cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOnWith, r, why));
+        assert(int(r.during.size()) == JPVacuumMeasure::kSamples && last("V") == "off" && last("P") == "off");
         // A nozzle that holds a part (its vacuum on) is not measured without one.
         assert(cell.vacuumOnAndWait("N", why));
-        assert(!cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOff, baselines, levels, why)
-               && why.find("discard") != std::string::npos);
+        assert(!cell.measureVacuumAndWait("N", JPCell::VacuumMeasuring::PartOff, r, why) && why.find("discard") != std::string::npos);
         assert(cell.placeAtAndWait("N", { std::nullopt, std::nullopt, std::nullopt, std::nullopt }, 1.0, why));
         watch();
     }

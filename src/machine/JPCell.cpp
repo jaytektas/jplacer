@@ -1575,18 +1575,18 @@ bool JPCell::partOnAndWait(const std::string& nozzleId, bool& on, std::string& w
     }, why);
 }
 
-bool JPCell::measureVacuumAndWait(const std::string& nozzleId, VacuumMeasuring what, std::vector<double>& baselines,
-                                  std::vector<double>& levels, std::string& why) {
+bool JPCell::measureVacuumAndWait(const std::string& nozzleId, VacuumMeasuring what, JPVacuumMeasure::Readings& readings,
+                                  std::string& why) {
     return onThreadAndWait([&](std::string& w) {
         for (const JPNozzleConfig& n : m_config.nozzles)
-            if (n.id == nozzleId) return doMeasureVacuum(n, what, baselines, levels, w);
+            if (n.id == nozzleId) return doMeasureVacuum(n, what, readings, w);
         w = "no nozzle " + nozzleId;
         return false;
     }, why);
 }
 
-bool JPCell::doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, std::vector<double>& baselines,
-                             std::vector<double>& levels, std::string& why) {
+bool JPCell::doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, JPVacuumMeasure::Readings& readings,
+                             std::string& why) {
     if (!m_connected) { why = "not connected"; return false; }
     const JPNozzleTipConfig* tip = tipOf(n);
     if (!tip) { why = "Nozzle " + n.name + " has no nozzle tip loaded."; return false; }
@@ -1602,27 +1602,27 @@ bool JPCell::doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, std:
     auto wait = [](int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(std::max(0, ms))); };
     double level = 0;
     if (what == VacuumMeasuring::PartOff) {
-        // The part-off check's pulse (doPartOff): the level before it, the valve open for its time, closed for its
-        // dwell, the level read as the check reads it.
+        // The part-off check's pulse (doPartOff): the level before it, the valve open for its time, the level as it
+        // closes (what the check reads with no Valve close wait) and after the wait (what it reads with one).
         for (int i = 0; i < JPVacuumMeasure::kPulses; ++i) {
             if (i) wait(JPVacuumMeasure::kRestMs);
             double baseline = 0;
             if (!readVacuum(n, baseline, why) || !switchTelling(n.vacuumActuatorId, true, why)) return false;
             wait(tip->partOffProbingMs);
-            bool read = true;
-            if (tip->partOffDwellMs <= 0) read = readVacuum(n, level, why);
+            const bool read = readVacuum(n, level, why);
             std::string closing;
             if (!switchTelling(n.vacuumActuatorId, false, closing) && read) {
                 why = closing;
                 return false;
             }
             if (!read) return false;
+            readings.before.push_back(baseline);
+            readings.during.push_back(level);
             if (tip->partOffDwellMs > 0) {
                 wait(tip->partOffDwellMs);
                 if (!readVacuum(n, level, why)) return false;
+                readings.after.push_back(level);
             }
-            baselines.push_back(baseline);
-            levels.push_back(level);
         }
         return true;
     }
@@ -1631,10 +1631,10 @@ bool JPCell::doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, std:
     wait(n.pickDwellMs + tip->pickDwellMs);
     double baseline = 0;
     bool ok = readVacuum(n, baseline, why);
-    if (ok) baselines.push_back(baseline);
+    if (ok) readings.before.push_back(baseline);
     for (int i = 0; ok && i < JPVacuumMeasure::kSamples; ++i) {
         wait(JPVacuumMeasure::kHoldMs / JPVacuumMeasure::kSamples);
-        if ((ok = readVacuum(n, level, why))) levels.push_back(level);
+        if ((ok = readVacuum(n, level, why))) readings.during.push_back(level);
     }
     // The vacuum off again either way (a part held is let go where it is), the pump as a place leaves it.
     std::string closing;
