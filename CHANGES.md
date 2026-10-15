@@ -10,8 +10,6 @@ notes.
 
 ## Unreleased
 
-## Unreleased
-
 - jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
   Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
   cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
