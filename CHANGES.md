@@ -14,11 +14,6 @@ notes.
   panel's Pick and Place, Detect Firmware, a controller's unasked error, a lost connection. Before, these
   were said to no one: Calibrate now went down to the touch location and stopped there without a word (a tip
   probing by vacuum needs a Part Off sensing method).
-- jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
-  Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
-  cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
-  (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
-  cameras work as on Linux.
 - The calibration test object is given by its thickness (Test Object Thickness, with Capture: the nozzle tip touching it) and lies on the primary fiducial; a test object Z kept before is read as its thickness. The precise offsets calibration looks for it there. Before, it looked wherever the feature was last sized or the camera happened to be.
 - Nozzle offsets can be calibrated at two heights (Two Heights?, on the head's Calibration Rig and a nozzle's Calibration tab): the nozzle carries the test object from the primary fiducial to the secondary, calibrates there too and carries it back, which gives how far its tip moves in X and Y as it goes up and down (its lean). Every move of the nozzle then takes that into account, so a part lands where it is sent at board height as well as at the height calibrated at. The Calibration tab shows the lean and each height's angles.
 
