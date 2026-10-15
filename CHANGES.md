@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+## 0.1.72
+
 - A nozzle's Offset Wizard tab in Machine Setup is now its Calibration tab. It runs the precise offsets calibration with the test object (the one Issues & Solutions offers) as well as the rough one by a mark. It keeps the nozzle's last 10 calibrations: when and how each ran, the offsets before and the ones found, and the change. A graph shows each angle's estimate around the correction, so an outlier (a bad find, or the test object slipping) stands out; a second graph shows how closely precise runs repeat.
 - The runout graph on a nozzle tip's Calibration tab names its circle "runout"; before, it was mislabelled "outlier limit".
 
