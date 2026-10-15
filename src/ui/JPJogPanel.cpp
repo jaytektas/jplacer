@@ -724,7 +724,15 @@ void JPJogPanel::moveTo(const Tool& tool, const Tool& over) {
     if (tool.nozzle && over.camera) z = cameraZ(m);
     // A part held: its bottom at that height, the tip its height above.
     if (z && partHeightOn) *z += partHeightOn(tool.id);
-    m_cell.moveTool(*tool.mount, { px->second + ox, py->second + oy, z, std::nullopt }, 1.0);
+    double x = px->second + ox, y = py->second + oy;
+    // A part aligned on it (Test Alignment): the part's centre there, not the nozzle's (it sits off the nozzle by what
+    // bottom vision found, which a job's place takes out too).
+    if (tool.nozzle && over.camera && partCentredAt)
+        if (const auto at = partCentredAt(tool.id, x, y)) {
+            x = (*at)[0];
+            y = (*at)[1];
+        }
+    m_cell.moveTool(*tool.mount, { x, y, z, std::nullopt }, 1.0);
 }
 
 void JPJogPanel::selectTool(const std::string& id) {

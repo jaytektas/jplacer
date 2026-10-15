@@ -201,6 +201,9 @@ public:
         if (m_jog) m_jog->refreshRecycle();
     }
     void        setNozzlePart(const std::string& nozzleId, const std::string& partId);
+    // How bottom vision aligned the part nozzle `nozzleId` holds: Position Nozzle puts that part's centre where the
+    // camera looks, until the part goes.
+    void        aligned(const std::string& nozzleId, const JPJobMachine::AlignResult& r) { m_aligned[nozzleId] = r; }
     // The parts' and vision settings' configuration (Machine Setup's Vision
     // nodes choose its vision settings).
     void setConfiguration(JPConfiguration* config);
@@ -507,6 +510,8 @@ private:
     std::string                         m_failure;   // the last camera task's failure, shown until the next begins
     bool                                m_homeFailed = false;
     bool                                m_homeAsked = false;   // home() asked: its end not yet told
+    // By nozzle: how bottom vision last aligned the part it holds (Test Alignment), until the part goes.
+    std::map<std::string, JPJobMachine::AlignResult> m_aligned;
     std::string                         m_setupSelected;   // Machine Setup's node, kept while the cell reopens
     struct NozzleMark {
         std::string nozzleId;

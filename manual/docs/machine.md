@@ -379,7 +379,9 @@ the camera on the head, and anything else on the head that moves on axes.
   down to the camera's height (the board's or a feeder's, as the camera's Z is set), its tip's centre on
   the point the camera looks at there, its lean (if it has one) taken in, as a feeder's Position Nozzle
   goes to the pick. With a part on it (one jplacer picked, so its part is known), the part's bottom goes to
-  that height and the tip that part's height above it. The camera goes over the place the nozzle's tip comes down to
+  that height and the tip that part's height above it. A part bottom vision has aligned on it (Test Alignment) goes with
+  its centre, not the nozzle's, where the camera looks, turned as it is: the nozzle goes off by the part's
+  offset on it, as a job's place does, until the part goes (placed, discarded, or picked again). The camera goes over the place the nozzle's tip comes down to
   at that height (with a part, the part's bottom): its tip's centre, the runout at the angle it is turned
   to taken in, and its lean at that height, wherever the nozzle hangs now. So there and back again the head
   ends where it began, and after a place the camera lands on the part, though the nozzle is up at safe Z.
@@ -413,7 +415,7 @@ the hold is complete, and the reset); Grbl and grblHAL have one.
 A controller whose profile has no hold is reset for Stop as well; one with no reset cannot be stopped
 from jplacer, and the status bar says so.
 
-<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost, parkZ, doParkZ, offsetsNow, jog); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (moveTo) (act, refreshNames); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
+<!-- src: src/machine/JPGcodeDriver.cpp (halt, ioLoop, onPlaceLost); src/machine/JPCell.cpp (stop, onPlaceLost, parkZ, doParkZ, offsetsNow, jog); src/app/JPlacerMachine.cpp (stop); src/ui/JPJogPanel.cpp (moveTo, partCentredAt) (act, refreshNames); src/app/JPlacerMenuBuilder.cpp (Stop, Emergency Stop); src/machine/JPFirmwareProfile.cpp (stop); profiles/grblhal.json; profiles/grbl.json -->
 
 #### Nozzle tips
 

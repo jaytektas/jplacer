@@ -17,6 +17,8 @@
 #include <j/core/MenuSystem.h>
 
 #include <functional>
+#include <optional>
+#include <array>
 #include <memory>
 #include <string>
 #include <utility>
@@ -109,6 +111,9 @@ public:
     // How tall the part a nozzle holds is (mm; 0: none, or not known): Position Nozzle puts its bottom, not the tip, at
     // the camera's height.
     std::function<double(const std::string& nozzleId)> partHeightOn;
+    // Where nozzle `nozzleId` goes for the part it holds, as bottom vision last aligned it, to have its centre at
+    // (x, y), the nozzle turned as it is now; none when its part has not been aligned (the nozzle's own centre goes).
+    std::function<std::optional<std::array<double, 2>>(const std::string& nozzleId, double x, double y)> partCentredAt;
     void refreshNames();
     // Which tip is on which nozzle, or a tip's calibration, changed (set in the cell where it is, the panel not
     // made again): the nozzles' names and the tip button shown again.

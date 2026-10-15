@@ -146,6 +146,8 @@ void JPlacerVisionTests::align(const std::string& settingsId, const JPVisionForm
             if (!taken) machine.setRotationModeOffset(nozzleId, modeOffset + (r.partAngle - r.nozzleAngle));
             r.nozzleAngle = r.partAngle;
         }
+        // Kept for Position Nozzle: the part's centre, not the nozzle's, where the camera looks.
+        onMain([&] { m_machine.aligned(nozzleId, r); });
         // As found: its offsets on the nozzle, and its turn from the angle wanted.
         const double turn = angle - r.partAngle;
         char text[160];

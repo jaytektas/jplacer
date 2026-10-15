@@ -484,6 +484,22 @@ void JPlacerMachine::buildPanels(Keep keep) {
         const std::string id = nozzlePart(nozzleId);
         return id.empty() || !m_configuration ? id : m_configuration->partName(id);
     };
+    jog->partCentredAt = [this](const std::string& nozzleId, double x, double y) -> std::optional<std::array<double, 2>> {
+        const auto a = m_aligned.find(nozzleId);
+        if (a == m_aligned.end() || !m_cell) return std::nullopt;
+        const JPNozzleConfig* n = nullptr;
+        for (const JPNozzleConfig& z : m_cell->config().nozzles)
+            if (z.id == nozzleId) n = &z;
+        if (!n || n->mount.axisRotation.empty()) return std::nullopt;
+        const auto base = m_cell->jogBase();
+        const auto c = base.find(n->mount.axisRotation);
+        if (c == base.end()) return std::nullopt;
+        // The part kept turned as it is now: its offset on the nozzle turned with it (AlignResult::placeFor).
+        const double now = c->second + m_cell->rotationModeOffsetOf(n->mount);
+        const JPJobMachine::AlignResult& r = a->second;
+        const JPLocation to = r.placeFor(JPLocation(JPLengthUnit::Millimeters, x, y, 0, r.partAngle + (now - r.nozzleAngle)));
+        return std::array<double, 2> { to.x(), to.y() };
+    };
     jog->partHeightOn = [this](const std::string& nozzleId) {
         const std::string id = nozzlePart(nozzleId);
         const JPPart* part = id.empty() || !m_configuration ? nullptr : m_configuration->part(id);
@@ -1308,6 +1324,7 @@ std::string JPlacerMachine::nozzlePart(const std::string& nozzleId) const {
 }
 
 void JPlacerMachine::setNozzlePart(const std::string& nozzleId, const std::string& partId) {
+    m_aligned.erase(nozzleId);   // another part (or none): not aligned
     if (partId.empty()) m_nozzleParts.erase(nozzleId);
     else m_nozzleParts[nozzleId] = partId;
     // Its height (the nozzle's Dynamic Safe Z), and its package's pick vacuum and place blow-off levels; its
