@@ -530,6 +530,8 @@ private:
     // for a difference); `on` / `off` what was sensed.
     bool doPartOn(const JPNozzleConfig& n, bool& on, std::string& why);
     bool doPartOff(const JPNozzleConfig& n, bool& off, std::string& why);
+    // Where nozzle `n` probes tip `t` (JPNozzleTipConfig::touchPlace, its head's primary fiducial).
+    std::optional<JPMachineLocation> touchOf(const JPNozzleConfig& n, const JPNozzleTipConfig& t) const;
     bool doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, JPVacuumMeasure::Readings& readings, std::string& why);
     // The pump off as a place leaves it: with the last part on its head, when it runs for parts (or a task).
     bool doPumpAfterRelease(const JPNozzleConfig& n, std::string& why);

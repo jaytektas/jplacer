@@ -1642,7 +1642,8 @@ void JPlacerMachine::referenceAllTouchLocationsZ() {
     std::vector<Touch> touches;
     for (const JPNozzleTipConfig& t : c.nozzleTips) {
         const std::string name = t.name.empty() ? t.id : t.name;
-        if (t.id == templ->id || !t.touchLocation || name.rfind("unloaded", 0) == 0) continue;
+        // A tip probed at the primary fiducial has no place of its own to set.
+        if (t.id == templ->id || !t.touchLocation || t.touchAtPrimaryFiducial || name.rfind("unloaded", 0) == 0) continue;
         const JPMachineLocation& l = *t.touchLocation;
         if (l.x == 0 && l.y == 0 && l.z == 0) continue;
         touches.push_back({ t.id, name, l });

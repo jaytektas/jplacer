@@ -48,6 +48,10 @@ struct JPNozzleTipConfig {
     // "NozzleTipChange" (once homed and on each load); with Fail Homing, a
     // calibration failing once homed fails the homing.
     std::optional<JPMachineLocation> touchLocation;
+    // Probed at the head's primary fiducial instead (the calibration rig's,
+    // JPHeadConfig::rigPrimary, its surface, nothing on it): one place for
+    // every tip, moving with the rig.
+    bool                       touchAtPrimaryFiducial = false;
     std::string                zCalibrationTrigger = "Manual";
     bool                       zCalibrationFailHoming = true;
     // OpenPnP's changer slot Vision Calibration: the head camera over one of
@@ -222,6 +226,14 @@ struct JPNozzleTipConfig {
     // What is wrong with its steps (a list that does not start with a move
     // giving X, Y and Z), in words; empty when sound.
     std::vector<std::string> problems() const;
+
+    // Where the tip is probed: the primary fiducial `primary` (the head's
+    // rigPrimary, none: not set) when touchAtPrimaryFiducial, else its touch location.
+    std::optional<JPMachineLocation> touchPlace(const std::optional<JPMachineLocation>& primary) const {
+        if (!touchAtPrimaryFiducial) return touchLocation;
+        if (!primary) return std::nullopt;
+        return JPMachineLocation { primary->x, primary->y, primary->z, 0 };
+    }
 
     static JPNozzleTipConfig fromJson(const JJson& j);
     JJson toJson() const;

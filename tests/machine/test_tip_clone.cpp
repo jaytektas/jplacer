@@ -52,6 +52,7 @@ int main() {
     // The touch location moved alike, and the Z calibration settings taken;
     // or, as chosen, only one or the other.
     templ.touchLocation = JPMachineLocation { 90, 40, -7, 0 };
+    templ.touchAtPrimaryFiducial = true;
     templ.zCalibrationTrigger = "MachineHome";
     templ.zCalibrationFailHoming = false;
     templ.visionCalibration.location = "LastLocation";
@@ -60,7 +61,8 @@ int main() {
         JPNozzleTipConfig both;
         both.loadSteps = { moveTo(120, 50, -6) };
         assert(both.cloneChangerFrom(templ));
-        assert(both.touchLocation && both.touchLocation->x == 110 && both.touchLocation->y == 40 && both.touchLocation->z == -8);
+        assert(both.touchLocation && both.touchLocation->x == 110 && both.touchLocation->y == 40 && both.touchLocation->z == -8
+               && both.touchAtPrimaryFiducial);
         assert(both.zCalibrationTrigger == "MachineHome" && !both.zCalibrationFailHoming);
         assert(both.visionCalibration.location == "LastLocation" && both.visionCalibration.templateEmpty == "e.png");
         JPNozzleTipConfig zOnly;

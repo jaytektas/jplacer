@@ -1855,26 +1855,59 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
     // OpenPnP's Z calibration by touch: shown where a nozzle probes by contact.
     if (zProbing) {
         add.group("Z Calibration");
-        add.header({ "X", "Y", "Z", "Rotation", "Set?" });
-        auto touch = [t]() -> std::optional<JPMachineLocation>& { return t().touchLocation; };
-        add.row("Touch Location", touch() ? Place::Location : Place::None);
-        add.contactProbe();
-        if (touch()) {
-            add.length("touchX", "Touch X", [touch]() -> double& { return touch()->x; });
-            add.length("touchY", "Touch Y", [touch]() -> double& { return touch()->y; });
-            add.length("touchZ", "Touch Z", [touch]() -> double& { return touch()->z; });
-            add.number("touchRotation", "Touch Rotation", [touch]() -> double& { return touch()->rotation; });
-        } else {
-            for (int i = 0; i < 4; ++i) add.skip();
-        }
-        add.flag("touchSet", "Set?", [touch] { return touch().has_value(); },
-                 [touch](bool on) {
-                     if (!on) touch().reset();
-                     else if (!touch()) touch() = JPMachineLocation();
-                 });
+        // Probed at a place of its own, or at the head's primary fiducial (one place for every tip, with the rig).
+        add.row("Touch At");
+        add.choice("touchAt", "Touch At", { "Touch Location", "Primary Fiducial" },
+                   [t] { return std::string(t().touchAtPrimaryFiducial ? "Primary Fiducial" : "Touch Location"); },
+                   [t](const std::string& v) { t().touchAtPrimaryFiducial = v == "Primary Fiducial"; });
+        add.tip("Touch Location: the tip is probed at the place set below.\n"
+                "Primary Fiducial: the tip is probed at the head's primary fiducial (its Calibration Rig), on the "
+                "fiducial's surface, so nothing may lie on it then; every tip set so touches at the same place, which "
+                "moves with the rig.");
         add.end();
-        f.reshaping.push_back("touchSet");
-        add.endColumns();
+        f.reshaping.push_back("touchAt");
+        if (t().touchAtPrimaryFiducial) {
+            // The head of the nozzle the tip is on, else the first with a primary fiducial.
+            const JPHeadConfig* head = nullptr;
+            for (const JPNozzleConfig& n : cell.nozzles)
+                if (n.tipId == t().id)
+                    for (const JPHeadConfig& h : cell.heads)
+                        if (h.id == n.mount.headId) head = &h;
+            if (!head || !head->rigPrimary)
+                for (const JPHeadConfig& h : cell.heads)
+                    if (!head && h.rigPrimary) head = &h;
+            add.row("Touch Location");
+            if (head && head->rigPrimary) {
+                char text[160];
+                std::snprintf(text, sizeof text, "X %.3f, Y %.3f, Z %.3f: %s's primary fiducial", head->rigPrimary->x,
+                              head->rigPrimary->y, head->rigPrimary->z, head->name.c_str());
+                add.words(text);
+            } else {
+                add.words("None: the head's Calibration Rig has no primary fiducial set");
+            }
+            add.end();
+        } else {
+            add.header({ "X", "Y", "Z", "Rotation", "Set?" });
+            auto touch = [t]() -> std::optional<JPMachineLocation>& { return t().touchLocation; };
+            add.row("Touch Location", touch() ? Place::Location : Place::None);
+            add.contactProbe();
+            if (touch()) {
+                add.length("touchX", "Touch X", [touch]() -> double& { return touch()->x; });
+                add.length("touchY", "Touch Y", [touch]() -> double& { return touch()->y; });
+                add.length("touchZ", "Touch Z", [touch]() -> double& { return touch()->z; });
+                add.number("touchRotation", "Touch Rotation", [touch]() -> double& { return touch()->rotation; });
+            } else {
+                for (int i = 0; i < 4; ++i) add.skip();
+            }
+            add.flag("touchSet", "Set?", [touch] { return touch().has_value(); },
+                     [touch](bool on) {
+                         if (!on) touch().reset();
+                         else if (!touch()) touch() = JPMachineLocation();
+                     });
+            add.end();
+            f.reshaping.push_back("touchSet");
+            add.endColumns();
+        }
         add.row("Auto Z Calibration");
         add.choice("zCalibrationTrigger", "Auto Z Calibration", { "Manual", "MachineHome", "NozzleTipChange" },
                    [t] { return t().zCalibrationTrigger; }, [t](const std::string& v) { t().zCalibrationTrigger = v; });
@@ -1900,7 +1933,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
             add.flag("zCalibrationFailHoming", "Fail Homing?", [t]() -> bool& { return t().zCalibrationFailHoming; });
             add.tip("When the Z calibration fails during homing, also fail the homing cycle.");
         }
-        add.note("The nozzle the tip is on probes the Touch Location from its Start Offset (Contact Probe tab); how far "
+        add.note("The nozzle the tip is on probes the Touch Location (or the primary fiducial) from its Start Offset (Contact Probe tab); how far "
                  "it met it from Z, up to the nozzle's largest Z offset, moves every Z of that nozzle, while the tip "
                  "stays on it.");
     }

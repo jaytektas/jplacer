@@ -207,7 +207,7 @@ std::vector<std::string> JPCell::tipsChanged(const std::map<std::string, std::st
         if (was != tipBefore.end() && was->second == n.tipId) continue;
         m_zCalibration.erase(n.id);
         for (const JPNozzleTipConfig& t : m_config.nozzleTips)
-            if (t.id == n.tipId && n.contactProbe.on() && t.zCalibrationTrigger == "NozzleTipChange" && t.touchLocation && m_homed)
+            if (t.id == n.tipId && n.contactProbe.on() && t.zCalibrationTrigger == "NozzleTipChange" && touchOf(n, t) && m_homed)
                 recalibrate.push_back(n.id);
     }
     return recalibrate;
@@ -615,13 +615,19 @@ bool JPCell::doCalibrateZ(const JPNozzleConfig& n, std::string& why) {
     const JPNozzleTipConfig* tip = nullptr;
     for (const JPNozzleTipConfig& t : m_config.nozzleTips) if (t.id == n.tipId) tip = &t;
     if (!tip) { why = "Nozzle " + n.name + " has no nozzle tip loaded."; return false; }
-    if (!tip->touchLocation) { why = "Nozzle tip " + tip->name + " has no touch location configured."; return false; }
+    const std::optional<JPMachineLocation> touch = touchOf(n, *tip);
+    if (!touch) {
+        why = tip->touchAtPrimaryFiducial ? "Nozzle tip " + tip->name + " touches at the primary fiducial, but nozzle " + n.name
+                                                + "'s head has none set (its Calibration Rig)."
+                                          : "Nozzle tip " + tip->name + " has no touch location configured.";
+        return false;
+    }
     if (!n.contactProbe.on()) { why = "Nozzle " + n.name + " has contact probing disabled."; return false; }
     {
         std::lock_guard lk(m_mutex);
         m_zCalibration.erase(n.id);
     }
-    const JPMachineLocation& at = *tip->touchLocation;
+    const JPMachineLocation& at = *touch;
     const JPNozzleConfig::ContactProbe& p = n.contactProbe;
     double probed = 0;
     if (!doContactProbeCycle(n, at, probed, why)) return false;
@@ -635,6 +641,12 @@ bool JPCell::doCalibrateZ(const JPNozzleConfig& n, std::string& why) {
     std::lock_guard lk(m_mutex);
     m_zCalibration[n.id] = { tip->id, offset };
     return true;
+}
+
+std::optional<JPMachineLocation> JPCell::touchOf(const JPNozzleConfig& n, const JPNozzleTipConfig& t) const {
+    for (const JPHeadConfig& h : m_config.heads)
+        if (h.id == n.mount.headId) return t.touchPlace(h.rigPrimary);
+    return t.touchPlace(std::nullopt);
 }
 
 bool JPCell::doContactProbeCycle(const JPNozzleConfig& n, const JPMachineLocation& at, double& probedZ, std::string& why) {

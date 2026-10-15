@@ -169,6 +169,7 @@ JPNozzleTipConfig JPNozzleTipConfig::fromJson(const JJson& j) {
     t.templateTip = j["templateTip"].boolean(false);
     t.templateLocked = j["templateLocked"].boolean(false);
     t.touchLocation = JPMachineLocation::fromJson(j["touchLocation"]);
+    t.touchAtPrimaryFiducial = j["touchAtPrimaryFiducial"].boolean(false);
     if (!j["zCalibrationTrigger"].str().empty()) t.zCalibrationTrigger = j["zCalibrationTrigger"].str();
     t.zCalibrationFailHoming = j["zCalibrationFailHoming"].boolean(true);
     if (const JJson& v = j["visionCalibration"]; v.isObject()) {
@@ -256,6 +257,7 @@ JJson JPNozzleTipConfig::toJson() const {
     if (templateTip) j["templateTip"] = true;
     if (templateLocked) j["templateLocked"] = true;
     if (touchLocation) j["touchLocation"] = touchLocation->toJson();
+    if (touchAtPrimaryFiducial) j["touchAtPrimaryFiducial"] = true;
     j["zCalibrationTrigger"] = zCalibrationTrigger;
     j["zCalibrationFailHoming"] = zCalibrationFailHoming;
     if (visionCalibration.on() || !visionCalibration.templateEmpty.empty() || !visionCalibration.templateOccupied.empty()) {
@@ -388,6 +390,7 @@ bool JPNozzleTipConfig::cloneChangerFrom(const JPNozzleTipConfig& from, ClonedPa
         unloadReversesLoad = from.unloadReversesLoad;
         unloadSteps = moved(from.unloadSteps);
         touchLocation = from.touchLocation;
+        touchAtPrimaryFiducial = from.touchAtPrimaryFiducial;
         if (touchLocation) {
             touchLocation->x += dx.value_or(0);
             touchLocation->y += dy.value_or(0);

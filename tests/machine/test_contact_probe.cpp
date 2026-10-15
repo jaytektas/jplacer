@@ -4,9 +4,9 @@
 // OpenPnP's ContactProbeNozzle, as the cell runs it: the contact sense
 // actuator's probe meets the surface, the nozzle is where the controller
 // says it stopped, plus the final adjustment; its retract. A nozzle tip's Z
-// calibration at its touch location: the offset (where it was met, from
-// where it should) moves every Z of the nozzle; one too large is refused; a
-// probe meeting nothing fails.
+// calibration at its touch location (or the head's primary fiducial): the
+// offset (where it was met, from where it should) moves every Z of the
+// nozzle; one too large is refused; a probe meeting nothing fails.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -130,6 +130,25 @@ int main() {
         cell.calibrateZ("N", false);
         waitFor([&] { return !alarm.empty(); });
         assert(alarm.find("unexpectedly large") != std::string::npos && !cell.zCalibration("N"));
+        cell.disconnect();
+    }
+    {
+        // Touched at the head's primary fiducial (X 40, Y 40, Z -6.2), not the tip's own touch location: probed there,
+        // met at -6.5 (-6.7 adjusted), so every Z 0.5 lower. Without a primary fiducial on the head: refused, said.
+        JPCellConfig config = cellConfig(R"(, "probeSurface": { "Z": -6.5 })");
+        config.nozzleTips[0].touchAtPrimaryFiducial = true;
+        JPCell cell(config, profiles());
+        start(cell);
+        std::string why;
+        assert(!cell.calibrateZAndWait("N", why) && why.find("primary fiducial") != std::string::npos);
+        config.heads[0].rigPrimary = JPMachineLocation { 40, 40, -6.2, 0 };
+        assert(cell.reconfigure(config, why));
+        assert(cell.calibrateZAndWait("N", why) && near(*cell.zCalibration("N"), 0.5));
+        assert(near(cell.jogBase().at("X"), 40) && near(cell.jogBase().at("Y"), 40));
+        // Kept in the tip's file; its own touch location kept too.
+        const JPNozzleTipConfig back = JPNozzleTipConfig::fromJson(config.nozzleTips[0].toJson());
+        assert(back.touchAtPrimaryFiducial && back.touchLocation && back.touchPlace(config.heads[0].rigPrimary)->x == 40
+               && !back.touchPlace(std::nullopt));
         cell.disconnect();
     }
     {

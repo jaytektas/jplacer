@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A nozzle tip can be Z-calibrated at the head's primary fiducial (Tool Changer tab, Touch At: Primary
+  Fiducial) instead of a touch location of its own: one place for every tip, which moves with the
+  calibration rig.
 - A nozzle tip's part detection ranges can be measured instead of guessed (Part Detection tab: Part Off's
   Measure, Part On's Without Part and With Part, each switching the vacuum off again after): the machine
   reads its own vacuum, as each check does, and sets each range from where a part and no part (an open and a
