@@ -297,6 +297,15 @@ int main() {
                && std::abs(plot->series[1].points[0].x - (0.12 - 0.221 / 6)) < 1e-9);
         assert(group(t, "Calibrations, Run by Run"));
     }
+    // Its lean, to see and to set (0 and 0: none).
+    {
+        JPCellConfig leaning = c;
+        leaning.nozzles[0].mount.leanX = 0.04;
+        leaning.nozzles[0].mount.leanZ = -23.8;
+        JPSetupProperties::Form f = JPSetupProperties::forNode(leaning, "nozzle:N", {});
+        assert(f.model.get("leanX").toDouble() == 0.04 && f.model.get("leanZ").toDouble() == -23.8);
+        assert(f.model.set("leanX", JVariant(0.0)) && !leaning.nozzles[0].mount.leans());
+    }
     // A ContactProbeNozzle has OpenPnP's Contact Probe tab too.
     {
         JPCellConfig probing = c;

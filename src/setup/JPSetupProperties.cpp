@@ -1327,6 +1327,15 @@ void nozzleForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Fo
     add.tip("A ContactProbeNozzle finds heights by touch (Contact Probe tab): by a contact sense actuator, or by "
             "vacuum sensing, stepping down until its tip's part-off check finds the nozzle blocked.");
     coordinateSystem<JPNozzleConfig>(add, cell, n, "(none)", false, f);
+    // The lean (calibrated at two heights), to see and to set: 0 and 0, none.
+    add.row("Lean (per mm of Z)");
+    add.number("leanX", "Lean X", [n]() -> double& { return n().mount.leanX; }, 5);
+    add.number("leanY", "Lean Y", [n]() -> double& { return n().mount.leanY; }, 5);
+    add.length("leanZ", "Lean From Z", [n]() -> double& { return n().mount.leanZ; });
+    add.end();
+    add.tip("How far the tip moves in X and Y for each mm its Z goes up, from the Z its offsets were calibrated at "
+            "(calibrated at two heights, on the Calibration tab). A move to a Z takes it in; a move with no Z, the Z the "
+            "nozzle is at. 0 and 0: none.");
     // When its offsets were last calibrated: a crash since, and they want doing again.
     {
         const std::string when = n().offsetsWhen.empty() ? std::string("never, in jplacer")
