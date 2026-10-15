@@ -12,11 +12,6 @@ notes.
 
 - A nozzle's Offset Wizard tab in Machine Setup is now its Calibration tab. It runs the precise offsets calibration with the test object (the one Issues & Solutions offers) as well as the rough one by a mark. It keeps the nozzle's last 10 calibrations: when and how each ran, the offsets before and the ones found, and the change. A graph shows each angle's estimate around the correction, so an outlier (a bad find, or the test object slipping) stands out; a second graph shows how closely precise runs repeat.
 - The runout graph on a nozzle tip's Calibration tab names its circle "runout"; before, it was mislabelled "outlier limit".
-- jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
-  Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
-  cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
-  (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
-  cameras work as on Linux.
 
 ## 0.1.71
 
