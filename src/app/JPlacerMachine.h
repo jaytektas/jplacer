@@ -239,7 +239,7 @@ public:
     // not calibrated); and the last result for each nozzle (its offsets before and after).
     void previewFeature(int px);
     void autoDetectFeature(int fromPx, std::function<void(std::optional<int>)> done);
-    void calibratePreciseNozzleOffsets(const std::string& nozzleId, int px, std::function<void(bool ok)> finished);
+    void calibratePreciseNozzleOffsets(const std::string& nozzleId, std::function<void(bool ok)> finished);
     std::optional<double> headCameraPixelsPerMm() const;
     // The open cell's file.
     const std::string& cellPath() const { return m_cellPath; }
@@ -407,8 +407,7 @@ private:
     // difference (a step in Machine Setup, to undo).
     void nozzleMarkOffsets(const std::string& nozzleId, bool storeMark);
     // The nozzle Calibration tab's precise offsets: detect the test object (the next feature the head camera
-    // sees, its diameter kept), capture its X, Y (the head camera's) or its Z (the nozzle's), or calibrate
-    // (calibratePreciseNozzleOffsets).
+    // sees, its diameter kept) or calibrate (calibratePreciseNozzleOffsets).
     void nozzleTestObject(const std::string& nozzleId, const std::string& action);
 
     struct Dock {

@@ -126,6 +126,8 @@ public:
     void actuator(std::function<std::string()> name) { rows().back().actuator = std::move(name); }
     // The place row begun has its X, Y, Z and rotation from the next cell added on (Row::placeFrom).
     void placeStartsHere() { rows().back().placeFrom = rows().back().cells.size(); }
+    // The place row begun has X, Y and Z only, no rotation (Row::placeCount).
+    void placeWithoutRotation() { rows().back().placeCount = 3; }
     // The place row begun also has OpenPnP's Position Tool (Without Safe Z) button.
     void positionNoSafeZ() { rows().back().positionNoSafeZ = true; }
     // The place row begun moves a nozzle as a tip change's move does (Row::bySafeZ, Row::compensated).

@@ -999,6 +999,7 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     auto place = [&add, &f](const std::string& key, const std::string& what, std::function<std::optional<JPMachineLocation>&()> at,
                             bool withZ, const std::string& tip = "", std::function<double&()> diameter = {}) {
         add.row(what, at() ? Place::Location : Place::None);
+        add.placeWithoutRotation();   // a head's places have no rotation (after Z: a fiducial's diameter)
         if (at()) {
             add.length(key + "X", what + " X", [at]() -> double& { return at()->x; });
             add.length(key + "Y", what + " Y", [at]() -> double& { return at()->y; });
@@ -1063,7 +1064,8 @@ void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
     place("rigSecondary", "Secondary Fiducial", [h]() -> std::optional<JPMachineLocation>& { return h().rigSecondary; }, true,
           "Calibration secondary fiducial location. Must be placed at different Z height than the primary fiducial.",
           [h]() -> double& { return h().rigSecondaryDiameter; });
-    add.row("Test Object");
+    add.row("Test Object", Place::Location);
+    add.placeWithoutRotation();
     add.length("rigTestObjectX", "Test Object X", [h] { return h().rigTestObjectX.value_or(h().rigPrimary ? h().rigPrimary->x : 0.0); },
                [h](double v) { h().rigTestObjectX = v; });
     add.tip("Where the test object is, where the precise offsets calibration goes to look for it. Not set: on the "
@@ -1155,24 +1157,21 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
         add.button("detectTestObject", "Detect", "Find the test object where the camera looks now and measure its diameter "
                    "(again: the next one the camera sees).");
         add.end();
-        add.row("Test Object X");
+        add.header({ "X", "Y", "Z" });
+        // Where the test object lies and its top, captured with the camera (X, Y) or the nozzle tip touching it (Z).
+        add.row("Test Object", Place::Location);
+        add.placeWithoutRotation();
         add.length("testObjectX", "Test Object X", [head] { return head()->rigTestObjectX.value_or(head()->rigPrimary->x); },
                    [head](double v) { head()->rigTestObjectX = v; });
-        add.tip("Where the test object is: where Calibrate takes the camera to look for it. Until it is set, on the "
-                "primary fiducial.");
-        add.bare();
-        add.length("testObjectY", "Y", [head] { return head()->rigTestObjectY.value_or(head()->rigPrimary->y); },
+        add.length("testObjectY", "Test Object Y", [head] { return head()->rigTestObjectY.value_or(head()->rigPrimary->y); },
                    [head](double v) { head()->rigTestObjectY = v; });
-        add.button("captureTestObjectXY", "Capture", "Where the head camera is now, centred over the test object.");
-        add.end();
-        add.row("Test Object Z");
         add.length("testObjectZ", "Test Object Z", [head] { return head()->rigTestObjectZ.value_or(head()->rigPrimary->z); },
                    [head](double v) { head()->rigTestObjectZ = v; });
-        add.bare();
-        add.tip("The test object's top, where the nozzle picks and places it: typed in, or captured with the nozzle's tip "
-                "touching it. Until it is set, the primary fiducial's Z.");
-        add.button("captureTestObjectZ", "Capture", "This nozzle's Z now, its tip touching the test object.");
+        add.tip("Where the test object is, where Calibrate looks for it (X, Y), and its top, where the nozzle picks and "
+                "places it (Z): capture X, Y with the camera centred over it and Z with the nozzle's tip touching it. "
+                "Until they are set, the primary fiducial's.");
         add.end();
+        add.endColumns();
     } else {
         add.note("The head needs its primary calibration fiducial first (Issues & Solutions, Calibration).");
     }
@@ -1180,7 +1179,8 @@ void nozzleCalibration(JPFormBuilder& add, JPCellConfig& cell, std::function<JPN
                "correction found. CAUTION: the nozzle goes down to the test object; load the right tip and ready the vacuum.",
                rig && head()->rigTestObjectDiameter > 0);
     add.note("Put the test object down (on the primary fiducial, or anywhere the nozzle can reach), centre the camera "
-             "over it, Capture its X, Y and Detect it, set its Z, then Calibrate. "
+             "over it, Detect it and capture its X, Y with the camera, capture its Z with the nozzle's tip touching it, then "
+             "Calibrate. "
              "The offsets change by the correction found (Undo takes them back), and the run is kept below.");
 
     const std::vector<JPOffsetsRun> runs = n().offsetsRuns;

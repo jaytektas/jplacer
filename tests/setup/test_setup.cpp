@@ -261,7 +261,15 @@ int main() {
         assert(p && button(*p, "calibratePreciseOffsets")->enabled);
         // Not set: the primary fiducial's X, Y, Z; typed, each its own (and kept in the file).
         assert(f.model.get("testObjectZ").toDouble() == -5 && f.model.get("testObjectX").toDouble() == 10
-               && f.model.get("testObjectY").toDouble() == 20 && button(*p, "captureTestObjectXY"));
+               && f.model.get("testObjectY").toDouble() == 20);
+        // A place row with the capture and move buttons, as the head's places: X, Y, Z, no rotation.
+        {
+            const JPSetupProperties::Row* place = nullptr;
+            for (const JPSetupProperties::Row& r : p->rows)
+                if (r.label == "Test Object") place = &r;
+            assert(place && place->place == JPSetupProperties::Place::Location && place->placeCell(0) == "testObjectX"
+                   && place->placeCell(2) == "testObjectZ" && place->placeCell(3).empty());
+        }
         {
             JPCellConfig typed = cal;
             JPSetupProperties::Form g = JPSetupProperties::forNode(typed, "nozzle:N", {});
@@ -271,6 +279,11 @@ int main() {
             assert(back.rigTestObjectX == 42.5 && !back.rigTestObjectY && !back.rigTestObjectZ);
             // The head's Calibration Rig: Test Object Set? on sets each from the primary fiducial; off, none.
             JPSetupProperties::Form hf = JPSetupProperties::forNode(typed, "head:" + typed.heads[0].id, {});
+            // The head's places have no rotation: the Primary Fiducial's Diameter is not a coordinate to capture or go to.
+            for (const JPSetupProperties::Group& g : hf.tabs[0].groups)
+                for (const JPSetupProperties::Row& r : g.rows)
+                    if (r.label == "Primary Fiducial" || r.label == "Test Object")
+                        assert(r.place == JPSetupProperties::Place::Location && !r.placeCell(2).empty() && r.placeCell(3).empty());
             assert(hf.model.get("rigTestObjectX").toDouble() == 42.5 && hf.model.get("rigTestObjectY").toDouble() == 20);
             assert(hf.model.get("rigTestObjectSet").toBool());
             assert(hf.model.set("rigTestObjectSet", JVariant(false)) && !typed.heads[0].rigTestObjectX);

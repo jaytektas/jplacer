@@ -15,9 +15,12 @@ notes.
   cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
   (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
   cameras work as on Linux.
-- The calibration test object has an X and Y (on the head's Calibration Rig, and on a nozzle's Calibration tab with a Capture button that takes where the camera is). The precise offsets calibration goes there to look for it; until they are set, it looks on the primary fiducial, as before. Before, it looked wherever the feature was last sized or the camera happened to be.
+- The calibration test object has an X and Y (on the head's Calibration Rig, and on a nozzle's Calibration tab, with the capture and move buttons the head's other places have). The precise offsets calibration goes there to look for it; until they are set, it looks on the primary fiducial, as before. Before, it looked wherever the feature was last sized or the camera happened to be.
 
 - Issues & Solutions' precise nozzle offsets calibration takes the test object's size in mm (Test Object Diameter), the same value as the nozzle's Calibration tab. Before, it was a Feature diameter in pixels.
+- The precise nozzle offsets calibration uses the test object's size as set or detected. Before, it measured the object again where the camera happened to be, overwrote the size, and failed when it was not found there.
+- After homing, the bottom camera's light stays on while the tip's runout is measured. Before, it could be switched off as the measuring began, so the runout pictures were taken in the dark.
+- Moving a nozzle to the head's Primary Fiducial (or another of the head's places) no longer turns it to the fiducial's diameter in degrees, and capturing with the nozzle no longer writes its angle into the Diameter.
 - Changing a head's settings (the test object's size or place, the calibration rig, park) no longer restarts the cameras. Before, the cameras flashed "Starting…", and a precise calibration straight after Detect then failed to find the test object, because the restarted camera had lost the exposure Detect had just tuned.
 ## 0.1.72
 

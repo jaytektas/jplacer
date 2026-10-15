@@ -662,7 +662,6 @@ std::optional<std::pair<double, double>> JPlacerCameraTasks::cameraAt(const JPCa
 
 void JPlacerCameraTasks::previewFeature(JPCameraPanel& camera, int px) {
     if (m_busy) return;   // another task's pictures are not to be taken from under it
-    if (const auto at = cameraAt(camera)) m_featureAt = at;
     JPCameraPanel* panel = &camera;
     run(camera, "Feature diameter", [this, panel, px](std::string& words, const auto& progress) {
         if (!tuneForCalibration(panel->feed(), progress, words)) return false;
@@ -686,7 +685,6 @@ void JPlacerCameraTasks::autoDetectFeature(JPCameraPanel& camera, int fromPx, st
         if (done) done(std::nullopt);
         return;
     }
-    if (const auto at = cameraAt(camera)) m_featureAt = at;
     JPCameraPanel* panel = &camera;
     auto result = std::make_shared<std::optional<int>>();
     run(camera, "Auto-Detect Next", [this, panel, fromPx, result](std::string& words, const auto& progress) {
@@ -712,40 +710,6 @@ void JPlacerCameraTasks::autoDetectFeature(JPCameraPanel& camera, int fromPx, st
         return true;
     }, [result, done](bool) {
         if (done) done(*result);
-    });
-}
-
-void JPlacerCameraTasks::measureFeature(JPCameraPanel& camera, int px, std::function<void(std::optional<double>)> done) {
-    if (const std::string why = m_busy ? std::string("a camera task is already under way") : notReady(&camera, true, false); !why.empty()) {
-        m_window.showStatus("Feature: " + why, kResultMs);
-        if (done) done(std::nullopt);
-        return;
-    }
-    JPCameraPanel* panel = &camera;
-    auto mm = std::make_shared<std::optional<double>>();
-    const auto at = m_featureAt;
-    run(camera, "Measuring the feature", [this, panel, px, mm, at](std::string& words, const auto& progress) {
-        // Measured where it was sized (the camera taken back there, if it was moved since).
-        if (at && !m_cell.moveToolAndWait(panel->camera().mount, { at->first, at->second, std::nullopt, std::nullopt }, kTaskSpeed, words))
-            return false;
-        if (!tuneForCalibration(panel->feed(), progress, words)) return false;
-        JPCameraCalibration cal;
-        if (!JPCameraLook::calibration(m_cell, panel->feed(), cal, words)) return false;
-        cv::Mat bgr;
-        if (!settledColour(panel->feed(), bgr, words)) return false;
-        double score = 0;
-        const auto found = JPVisionFeature::detect(bgr, px, 0, false, false, score);
-        if (!found) {
-            words = "Subject not found.";
-            return false;
-        }
-        *mm = found->diameter / cal.scale();
-        char text[96];
-        std::snprintf(text, sizeof text, "the feature is %.3f mm (%.1f px) across", **mm, found->diameter);
-        words = text;
-        return true;
-    }, [mm, done](bool) {
-        if (done) done(*mm);
     });
 }
 

@@ -1970,8 +1970,8 @@ void nozzleOffsets(JPSolutions& s, const JPIssueChecks::Context& c) {
                 i.activate = [c, cameraId] {
                     if (c.showCamera) c.showCamera(cameraId);
                 };
-                solvedByWork(s, i, [c, nozzleId, toPx, shownMm](std::function<void(bool)> finished) {
-                    c.calibratePreciseNozzleOffsets(nozzleId, toPx(*shownMm), std::move(finished));
+                solvedByWork(s, i, [c, nozzleId](std::function<void(bool)> finished) {
+                    c.calibratePreciseNozzleOffsets(nozzleId, std::move(finished));
                 });
                 s.add(std::move(i));
             }

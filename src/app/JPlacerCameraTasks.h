@@ -86,11 +86,10 @@ public:
                                 std::function<void(bool ok, double, double, std::vector<JPOffsetsRun::Angle>)> done);
     // OpenPnP's VisionFeatureIssue, on `camera`'s settled picture where it looks now (JPVisionFeature): the feature
     // of about `px` found and shown on its view (the circle and its cross-hairs, "Diameter N px - Score S", as the
-    // issue's Feature diameter shows it); Auto-Detect Next from `fromPx` (`done`, main thread: the diameter, none
-    // when there is none); and measured (`done`: its diameter in mm by the camera's calibration, none when not found).
+    // issue's Test Object Diameter shows it); and Auto-Detect Next from `fromPx` (`done`, main thread: the diameter,
+    // none when there is none).
     void previewFeature(JPCameraPanel& camera, int px);
     void autoDetectFeature(JPCameraPanel& camera, int fromPx, std::function<void(std::optional<int>)> done);
-    void measureFeature(JPCameraPanel& camera, int px, std::function<void(std::optional<double> mm)> done);
     // OpenPnP's Auto Focus Test: the nozzle (with its tip) over the fixed
     // camera, from its tip's largest part height above the camera's Z down
     // to it, found in focus (JPAutoFocus). `done` (main thread): how far above
@@ -225,9 +224,6 @@ private:
     // Where a camera was last tuned for a calibration (tasks' thread: one task at a time).
     std::string                              m_tunedId;
     std::optional<std::pair<double, double>> m_tunedAt;
-    // Where the camera on the head was (X, Y, its offsets in) when a feature was last sized there (Feature
-    // diameter, Auto-Detect Next): where it is measured.
-    std::optional<std::pair<double, double>> m_featureAt;
     std::optional<std::pair<double, double>> cameraAt(const JPCameraPanel& camera) const;
     std::shared_ptr<bool>               m_alive = std::make_shared<bool>(true);
 };

@@ -111,8 +111,8 @@ int main() {
     c.previewFeature = [&previewed](int px) { previewed = px; };
     c.autoDetectFeature = [](int, std::function<void(std::optional<int>)> done) { done(244); };
     c.headCameraPixelsPerMm = [] { return std::optional(30.0); };
-    c.calibratePreciseNozzleOffsets = [&](const std::string&, int px, std::function<void(bool)> finished) {
-        calibratedAt = px;
+    c.calibratePreciseNozzleOffsets = [&](const std::string&, std::function<void(bool)> finished) {
+        calibratedAt = int(std::lround(cell.heads[0].rigTestObjectDiameter * 30));   // the size as set, not measured again
         JPOffsetsRun run;
         run.when = "2026-10-15 10:00";
         run.how = JPOffsetsRun::kPrecise;

@@ -74,9 +74,12 @@ public:
         // Place::Location: the cell its X is in, Y, Z and rotation in the three after it (a changer step's row
         // has its Kind before them).
         size_t      placeFrom = 0;
+        // How many of X, Y, Z and rotation its place has (3: no rotation; the cell after Z is something else, a
+        // fiducial's diameter, neither captured into nor moved by).
+        size_t      placeCount = 4;
         // The property of its place's coordinate `i` (0 X, 1 Y, 2 Z, 3 rotation); empty when it has none.
         std::string placeCell(size_t i) const {
-            return placeFrom + i < cells.size() ? cells[placeFrom + i].property : std::string();
+            return i < placeCount && placeFrom + i < cells.size() ? cells[placeFrom + i].property : std::string();
         }
         std::string text;                // a note
         std::string tooltip;             // what its label says when pointed at

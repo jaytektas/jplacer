@@ -81,8 +81,8 @@ public:
         std::function<void(int px)> previewFeature;
         std::function<void(int fromPx, std::function<void(std::optional<int>)> done)> autoDetectFeature;
         std::function<std::optional<double>()> headCameraPixelsPerMm;
-        // OpenPnP's precise nozzle offsets: the test object measured at `px` and kept, then picked, turned and placed.
-        std::function<void(const std::string& nozzleId, int px, std::function<void(bool ok)> finished)> calibratePreciseNozzleOffsets;
+        // OpenPnP's precise nozzle offsets: the test object, at its size as set, picked, turned and placed.
+        std::function<void(const std::string& nozzleId, std::function<void(bool ok)> finished)> calibratePreciseNozzleOffsets;
         // Where a nozzle's Z is now, as a pick at a Z takes it (none: not known).
         std::function<std::optional<double>(const std::string& nozzleId)> nozzleZ;
         // A change to the cell's settings, a Machine Setup step (undone as one).

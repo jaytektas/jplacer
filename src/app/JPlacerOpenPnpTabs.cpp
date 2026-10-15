@@ -823,8 +823,8 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
             m_machine.autoDetectFeature(fromPx, std::move(done));
         };
         context.headCameraPixelsPerMm = [this] { return m_machine.headCameraPixelsPerMm(); };
-        context.calibratePreciseNozzleOffsets = [this](const std::string& id, int px, std::function<void(bool)> finished) {
-            m_machine.calibratePreciseNozzleOffsets(id, px, std::move(finished));
+        context.calibratePreciseNozzleOffsets = [this](const std::string& id, std::function<void(bool)> finished) {
+            m_machine.calibratePreciseNozzleOffsets(id, std::move(finished));
         };
         context.nozzleZ = [this](const std::string& id) -> std::optional<double> {
             const JPCell* cell = m_machine.cell();
