@@ -327,29 +327,37 @@ is off, why: unticked on the Jog panel, the head below safe Z, or backlash being
 it, over the head's homing fiducial (the machine homed, the camera calibrated), compensation off while it
 measures:
 
-1. The mark measured several times standing still: three times how far those measurements wander (and at
-   least 2 µm) is the **tolerance**. Each measurement, here and after, is the mean of 8 pictures: one
-   picture alone wanders three times as much.
-2. The play against how far the axis comes in from the other side, at a quarter speed: a short way in
-   takes up only part of it; where it levels off is how far a move must sneak up.
-3. The play against speed (25, 33, 50, 75 and 100%), coming in from 10 mm.
-4. The method, by OpenPnP's rules: the largest play coming in from up to 2.5 mm, and the shortest of
-   those distances still showing it (to within twice the tolerance), give the sneak-up distance (the larger
-   of the two). Longer than 0.8 mm (the play keeps growing with how far the axis came in, as a stretching
-   belt does): OneSidedPositioning, its offset that largest play. Otherwise, when the play from far is less
-   than the sneak-up distance needs: DirectionalSneakUp, its offset halfway between the least and largest
-   play, sneaking up that distance. When the play is the same at every speed: DirectionalCompensation, its
-   offset that play (None, within the tolerance). Else DirectionalSneakUp at the fastest speed that agrees.
-   A play that shows less at the slowest speed than it should (an overshoot) cannot be compensated, and
-   says so.
-5. The method tried: moves in to the mark from random places either side, and from 10 mm on each side,
+It does as OpenPnP's backlash calibration does, with its figures. The **tolerance** is the axis's resolution
+taken to at least 0.01 mm, or a quarter of a pixel when that is coarser. Each measurement is the mean of 8
+pictures.
+
+1. Speed control: the axis timed over 10 mm at each speed factor (25, 33, 50, 75 and 100%); one that moves
+   no slower at 25% (the controller ignoring the feed rate) stops the calibration, saying so.
+2. A step test over a millimetre: each step, from a millimetre before it, must land where it was sent, else
+   it stops (the camera's scale, or the mark's height, is wrong).
+3. The backlash coming in from distances, each the last times the square root of 2, up to 10 mm, and the
+   full range (to the soft limit): from each side, from where it stands and wound from 90 mm that side first,
+   the last of it at the slowest speed. The largest backlash coming in from up to 2.5 mm, and the shortest
+   of those distances still showing it (to within twice the tolerance), give the sneak-up distance (the
+   larger of the two).
+4. The offset at each speed factor: compensated, in to the mark from 90 mm either side, the offset corrected
+   by 90% of what is left, up to 4 times or until the two agree within the tolerance.
+5. The method, by OpenPnP's rules: a sneak-up distance longer than 0.8 mm (the play keeps growing with how
+   far the axis came in, as a stretching belt does): OneSidedPositioning, its offset that largest backlash.
+   Otherwise, when the offset found is less than the sneak-up distance needs: DirectionalSneakUp, its offset
+   halfway between the least and largest backlash, sneaking up that distance. When the offset is the same at
+   every speed: DirectionalCompensation (None, within the tolerance). Else DirectionalSneakUp at the fastest
+   speed that agrees. An offset that goes the other way at the slowest speed (an overshoot) cannot be
+   compensated, and it says so.
+6. The method tried: moves in to the mark from random places either side, and from 90 mm on each side,
    each measured against the mean of them all: how well moves agree with each other, whatever the machine
    slowly drifts by over the run.
 
 What it found is in use at once, kept through Machine Setup (a step to undo), and shown on the tab with
-three graphs: the play against how far it came in, against speed, and the errors once compensated.
+three graphs: the backlash at each sneak-up distance, the offset at each speed, and the errors once
+compensated.
 
-<!-- src: src/tasks/JPBacklashCalibrator.cpp (run, kLeastToleranceMm, kToleranceSpreads); src/tasks/JPBacklashCalibrator.h (Options, kSpeeds, kMaxSneakUpMm); src/app/JPlacerCameraTasks.cpp (calibrateBacklash); src/app/JPlacerMachine.cpp (setupAction); src/setup/JPSetupProperties.cpp (backlashResults) -->
+<!-- src: src/tasks/JPBacklashCalibrator.cpp (run, kTestMoveMm, kLargeMoveMm, kStepTestMm, kPasses, kDampening, kFinestMm); src/tasks/JPBacklashCalibrator.h (Options, kSpeeds, kMaxSneakUpMm); src/app/JPlacerCameraTasks.cpp (calibrateBacklash); src/app/JPlacerMachine.cpp (setupAction); src/setup/JPSetupProperties.cpp (backlashResults) -->
 
 
 ### Jog

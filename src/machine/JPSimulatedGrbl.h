@@ -59,6 +59,9 @@ private:
     std::map<std::string, double> m_machine;   // machine coordinates, by letter
     std::map<std::string, double> m_offset;    // work = machine - offset
     std::map<std::string, double> m_probeSurface;   // work coordinates, by letter
+    // Moves take their time (their length at their feed rate) times this: 0, at once ("timeScale").
+    double                        m_timeScale = 0;
+    double                        m_feed = 0;       // the last F (mm/min)
     bool                          m_relative = false;
     bool                          m_silent   = false;
     bool                          m_garble   = false;

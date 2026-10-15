@@ -6,9 +6,12 @@
 #include <j/config/Json.h>
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
 
 inline namespace jf {
 
@@ -60,6 +63,7 @@ void JPSimulatedGrbl::configure(const JJson& config) {
     m_stallDwell = config["stallDwell"].boolean();
     m_holdNeverStill = config["holdNeverStill"].boolean();
     m_alarm          = config["alarm"].boolean();
+    m_timeScale = config["timeScale"].number(0.0);
     m_probeSurface.clear();
     if (config["probeSurface"].isObject())
         for (const auto& [letter, at] : config["probeSurface"].obj()) m_probeSurface[letter] = at.number();
@@ -252,15 +256,22 @@ void JPSimulatedGrbl::gcode(const std::string& line) {
         m_out.push_back("ok");
         return;
     }
+    double travelled = 0;   // the move's length
     for (const auto& [letter, value] : words) {
+        if (letter == 'F') m_feed = value;
         const std::string l(1, letter);
         const auto it = m_machine.find(l);
         if (it == m_machine.end()) continue;
+        const double was = it->second;
         if (setPosition)      m_offset[l] = it->second - value;      // G92: here is now `value`
         else if (!motion)     continue;
         else if (m_relative)  it->second += value;
         else                  it->second = value + m_offset[l];
+        travelled += (it->second - was) * (it->second - was);
     }
+    // Timed: the move takes its length at its feed rate (mm/min), times the scale.
+    if (motion && m_timeScale > 0 && m_feed > 0 && travelled > 0)
+        std::this_thread::sleep_for(std::chrono::duration<double>(std::sqrt(travelled) / (m_feed / 60) * m_timeScale));
     m_out.push_back("ok");
 }
 

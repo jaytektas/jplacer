@@ -12,6 +12,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <chrono>
 #include <limits>
 #include <cstdio>
 #include <ctime>
@@ -21,12 +23,16 @@ inline namespace jf {
 
 namespace {
 
-// The least tolerance, however still the measuring is (mm).
-constexpr double kLeastToleranceMm = 0.002;
-// The tolerance is this many times the measuring's own spread.
-constexpr double kToleranceSpreads = 3.0;
-// Each distance tested is this many times the last.
-constexpr double kDistanceStep = 1.6;
+// OpenPnP's CalibrationSolutions constants: the test moves, the step test, the distances' factor, the passes
+// finding the offset at a speed and their dampening, the finest tolerance, and vision's super-sampling.
+constexpr double kTestMoveMm = 10;
+constexpr double kLargeMoveMm = 90;
+constexpr double kStepTestMm = 1;
+const double     kDistanceFactor = std::sqrt(2.0);
+constexpr int    kPasses = 4;
+constexpr double kDampening = 0.9;
+constexpr double kFinestMm = 0.01;
+constexpr double kSuperSampling = 4;
 // How far from where it is expected the mark is looked for (mm): the play
 // and the camera's offset error together are far less.
 constexpr double kSearchMm = 1.0;
@@ -102,6 +108,9 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
         double offset = 0, sneakUpMm = 0, speedFactor = 1;
     };
     Choice chosen;
+    double maxBacklash = -std::numeric_limits<double>::infinity(), maxBacklashDistance = 0;
+    double minBacklash = std::numeric_limits<double>::infinity();
+    bool open = true;
 
     // The axis's place with the camera over the mark, and the other axis's.
     const double target = alongX ? o.markX - mount.offsetX : o.markY - mount.offsetY;
@@ -134,87 +143,147 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
         along = alongX ? mx : my;
         return true;
     };
-    // In to the place from `from` (signed, mm), having come to `from` from
-    // the far other side, so the last stretch reverses: the last at `last`.
-    auto approach = [&](double from, double last, double& along) {
-        const double side = from > 0 ? 1 : -1;
-        return go(target - side * o.reachMm, o.speed) && go(target + from, o.speed) && go(target, last)
-            && measure(target, along);
+    // OpenPnP's displacedAxisLocation: `d` along the axis from the mark, within its soft limits; full range: the
+    // limit itself, that side.
+    auto displaced = [&](double d, bool fullRange) {
+        const double low = axis->softLimitLowEnabled ? axis->softLimitLow : -std::numeric_limits<double>::infinity();
+        const double high = axis->softLimitHighEnabled ? axis->softLimitHigh : std::numeric_limits<double>::infinity();
+        if (fullRange && std::isfinite(d < 0 ? low : high)) return d < 0 ? low : high;
+        return std::max(low, std::min(high, target + d));
     };
-    // The play coming in over `distance` at `last`: from below less from above.
-    auto play = [&](double distance, double last, double& p) {
-        double below, above;
-        if (!approach(-distance, last, below) || !approach(distance, last, above)) return false;
-        p = below - above;
-        return true;
+    // OpenPnP's backlash calibration (CalibrationSolutions), its constants and steps.
+    const double minimumSpeed = kSpeeds[0];
+    // Its tolerance and step: the axis's resolution taken to at least 0.01 mm, else a quarter of a pixel.
+    double resolution = axis->resolution > 0 ? axis->resolution * std::ceil(kFinestMm / axis->resolution) : kFinestMm;
+    const double subPixel = cal.scale() > 0 ? 1.0 / cal.scale() / kSuperSampling : 0;
+    if (resolution < subPixel) resolution = subPixel;
+    const double tol = resolution, stepMm = resolution;
+    r.data.toleranceMm = tol;
+    // In to the mark from `sign` (+1 above, -1 below) by `distance`, first `wound` from the far side that way
+    // (kLargeMoveMm, or the soft limit when `fullRange`), the last of it at the minimum speed: where it is found.
+    auto from = [&](double sign, double distance, bool wound, bool fullRange, double& along) {
+        if (wound && !go(displaced(sign * kLargeMoveMm, fullRange), o.speed)) return false;
+        return go(displaced(sign * distance, fullRange), o.speed) && go(target, minimumSpeed) && measure(target, along);
     };
 
     {
         CompensationOff off(cell);
-        // 1. Still.
-        if (progress) progress("measuring the mark standing still");
+        // 1. Speed control: a slower speed factor must move slower (timed both ways over kTestMoveMm).
+        if (progress) progress("checking speed control");
         if (!go(target, o.speed)) return r;
-        std::vector<double> still;
-        for (int i = 0; i < std::max(2, o.still); ++i) {
-            double a;
-            if (!measure(target, a)) return r;
-            still.push_back(a);
-        }
-        double mean = 0, var = 0;
-        for (double a : still) mean += a;
-        mean /= double(still.size());
-        for (double a : still) var += (a - mean) * (a - mean);
-        const double spread = std::sqrt(var / double(still.size() - 1));
-        const double tol = std::max({ kLeastToleranceMm, kToleranceSpreads * spread, axis->resolution });
-        r.data.toleranceMm = tol;
-
-        // 2. Against distance, at the slowest speed.
-        const double slowest = kSpeeds[0];
-        std::vector<double> distances;
-        for (double d = std::max(2 * tol, 0.01); d < o.reachMm; d *= kDistanceStep) distances.push_back(d);
-        distances.push_back(o.reachMm);
-        for (size_t i = 0; i < distances.size(); ++i) {
-            char said[80];
-            std::snprintf(said, sizeof said, "the play coming in %.3f mm (%zu of %zu)", distances[i], i + 1, distances.size());
-            if (progress) progress(said);
-            double p;
-            if (!play(distances[i], slowest, p)) return r;
-            r.data.byDistance.push_back({ distances[i], p });
-        }
-        // 3. Against speed, from far.
-        for (double s : kSpeeds) {
-            char said[64];
-            std::snprintf(said, sizeof said, "the play at %.0f%% speed", s * 100);
-            if (progress) progress(said);
-            double p;
-            if (!play(o.reachMm, s, p)) return r;
-            r.data.bySpeed.push_back({ s, p });
-        }
-
-        // 4. The method, by OpenPnP's rules (CalibrationSolutions' backlash calibration), from what was measured.
-        //    The largest play coming in from up to kMaxSneakUpMm, and the shortest distance still showing it (to
-        //    within twice the tolerance), going down the distances; the least of those it showed.
-        double maxBacklash = -std::numeric_limits<double>::infinity(), maxBacklashDistance = 0;
-        double minBacklash = std::numeric_limits<double>::infinity();
-        bool open = true;
-        for (auto it = r.data.byDistance.rbegin(); it != r.data.byDistance.rend(); ++it) {
-            const auto [d, e] = *it;
-            if (!(d > maxBacklash && d <= kMaxSneakUpMm)) continue;
-            if (open && e >= maxBacklash - 2 * tol) {
-                maxBacklash = std::max(maxBacklash, e);
-                maxBacklashDistance = d;
-                minBacklash = std::min(minBacklash, e);
-            } else {
-                open = false;
+        auto timed = [&](double to, double speed, double& seconds) {
+            const auto t0 = std::chrono::steady_clock::now();
+            if (!go(to, speed)) return false;
+            seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            return true;
+        };
+        double out = 0, back = 0;
+        if (!timed(displaced(-kTestMoveMm, false), 1.0, out) || !timed(target, 1.0, back)) return r;
+        const double baseline = (out + back) / 2;
+        for (double sp : kSpeeds) {
+            double t = 0;
+            if (!timed(displaced(-kTestMoveMm, false), sp, t) || !timed(target, sp, t)) return r;
+            const double effective = t > 0 ? baseline / t : 1;
+            if (sp == minimumSpeed && effective > std::sqrt(sp)) {
+                char said[200];
+                std::snprintf(said, sizeof said, "speed factor control seems not to be effective: should move at %d%%, but moved at "
+                              "%d%%. Check the controller's motion control and the axis's configuration (it must use "
+                              "acceleration control)", int(sp * 100), int(effective * 100));
+                r.why = said;
+                return r;
             }
         }
-        if (std::isinf(maxBacklash)) {   // nothing measured that close
-            maxBacklash = minBacklash = r.data.bySpeed.front().second;
-            maxBacklashDistance = o.reachMm;
+        // 2. A step test over a millimetre: each step, from a millimetre before it, at the minimum speed, must land
+        //    where sent (else the camera's scale or the mark's height is wrong).
+        if (progress) progress("step test");
+        if (!go(displaced(-kLargeMoveMm, false), o.speed)) return r;
+        std::optional<double> reference;
+        double absoluteErr = 0;
+        for (double stepPos = -kStepTestMm / 2; stepPos < kStepTestMm / 2; stepPos += stepMm) {
+            double found = 0;
+            if (!go(displaced(stepPos - kStepTestMm, false), o.speed) || !go(target + stepPos, minimumSpeed)
+                || !measure(target + stepPos, found))
+                return r;
+            if (!reference) reference = found;
+            else absoluteErr = found - *reference;
         }
-        const double sneakUp = std::max(maxBacklash, maxBacklashDistance);
-        //    The play from afar at each speed (what a directional offset must be there), consistent while each is
-        //    within the tolerance of the slowest's and none goes the other way.
+        if (std::abs(absoluteErr) > 2 * tol) {
+            char said[240];
+            std::snprintf(said, sizeof said, "large absolute error: the steps moved %.4f mm too far over %.1f mm. Check the camera's "
+                          "calibration (its scale) and the mark's height", absoluteErr, kStepTestMm);
+            r.why = said;
+            return r;
+        }
+        // 3. The backlash over distances (a geometric series, longest first, ending at the full range): coming in
+        //    from each side, first from where it stands, then wound from the far side; the largest play and the
+        //    shortest distance still showing it (to within twice the tolerance), up to kMaxSneakUpMm.
+        std::vector<double> distances;
+        double last = -std::numeric_limits<double>::infinity();
+        for (double d = stepMm * 2; d <= kTestMoveMm; d *= kDistanceFactor)
+            if (d - last >= stepMm) {
+                distances.push_back(d);
+                last = d;
+            }
+        distances.push_back(kLargeMoveMm);
+        std::reverse(distances.begin(), distances.end());
+        if (!go(target, o.speed)) return r;
+        for (size_t i = 0; i < distances.size(); ++i) {
+            const double d = distances[i];
+            char said[80];
+            std::snprintf(said, sizeof said, "the backlash at sneak-up distance %.3f mm (%zu of %zu)", d, i + 1, distances.size());
+            if (progress) progress(said);
+            for (int reverse = 1; reverse >= 0; --reverse) {
+                if (reverse == 1 && d > kTestMoveMm) continue;
+                const bool fullRange = d > kTestMoveMm;
+                double below = 0, above = 0;
+                if (!from(-1, d, reverse == 0, fullRange, below) || !from(+1, d, reverse == 0, fullRange, above)) return r;
+                const double e = below - above;
+                if (reverse == 0) r.data.byDistance.push_back({ d, e });
+                if (d > maxBacklash && d <= kMaxSneakUpMm) {
+                    if (open && e >= maxBacklash - 2 * tol) {
+                        maxBacklash = std::max(maxBacklash, e);
+                        maxBacklashDistance = d;
+                        minBacklash = std::min(minBacklash, e);
+                    } else {
+                        open = false;
+                    }
+                }
+            }
+        }
+        std::reverse(r.data.byDistance.begin(), r.data.byDistance.end());
+    }
+    if (std::isinf(maxBacklash)) {
+        r.why = "no backlash measured within " + std::to_string(kMaxSneakUpMm) + " mm";
+        return r;
+    }
+    const double sneakUp = std::max(maxBacklash, maxBacklashDistance);
+    // 4. The offset at each speed: compensated (sneaking up the distance found, below full speed), in to the mark
+    //    from kLargeMoveMm either side, the offset corrected by what is left (damped), up to kPasses times.
+    for (double sp : kSpeeds) {
+        char said[64];
+        std::snprintf(said, sizeof said, "the backlash offset at %.0f%% speed", sp * 100);
+        if (progress) progress(said);
+        cell.setBacklash(axisId, sp < 1 ? JPAxisConfig::Backlash::DirectionalSneakUp : JPAxisConfig::Backlash::Directional, 0,
+                         sp < 1 ? sneakUp : 0, sp);
+        double offset = 0;
+        for (int pass = 0; pass < kPasses; ++pass) {
+            double below = 0, above = 0;
+            if (!go(displaced(-kLargeMoveMm, false), o.speed) || !go(target, 1.0) || !measure(target, below)
+                || !go(displaced(kLargeMoveMm, false), o.speed) || !go(target, 1.0) || !measure(target, above)) {
+                cell.setBacklash(axisId, wasMethod, wasOffset, wasSneak, wasSpeed, wasTable, wasApproach);
+                return r;
+            }
+            const double e = below - above;
+            offset += e * kDampening;
+            if (pass == 0 && e <= -tol) break;   // overshoot: cannot compensate
+            cell.setBacklash(axisId, sp < 1 ? JPAxisConfig::Backlash::DirectionalSneakUp : JPAxisConfig::Backlash::Directional,
+                             offset, sp < 1 ? sneakUp : 0, sp);
+            if (std::abs(e) < tol) break;
+        }
+        r.data.bySpeed.push_back({ sp, offset });
+    }
+    // 5. The method, by OpenPnP's rules.
+    {
         int consistent = 0;
         double sum = 0;
         for (const auto& [sp, e] : r.data.bySpeed) {
@@ -225,9 +294,9 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
         const double average = consistent ? sum / consistent : 0;
         constexpr size_t kAll = std::size(kSpeeds);
         if (sneakUp > o.mostSneakUpMm) {
-            // No sneak-up short enough: one-sided, past the place by the play.
+            // No sneak-up short enough: one-sided, past the place by the largest play.
             chosen = { JPAxisConfig::Backlash::OneSided, maxBacklash, 0, kSpeeds[0] };
-        } else if (consistent && average < sneakUp - tol) {
+        } else if (average < sneakUp - tol) {
             // Even at the slowest, it takes coming in further than the play to show all of it.
             chosen = { JPAxisConfig::Backlash::DirectionalSneakUp, (minBacklash + maxBacklash) / 2, sneakUp, kSpeeds[0] };
         } else if (size_t(consistent) == kAll) {
@@ -237,26 +306,27 @@ JPBacklashCalibrator::Result JPBacklashCalibrator::run(JPCell& cell, JPCameraFee
         } else if (consistent > 0) {
             chosen = { JPAxisConfig::Backlash::DirectionalSneakUp, average, sneakUp, kSpeeds[consistent - 1] };
         } else {
+            cell.setBacklash(axisId, wasMethod, wasOffset, wasSneak, wasSpeed, wasTable, wasApproach);
             r.why = axis->name + " seems to overshoot, even at the lowest speed factor: make sure the controller has "
                     "effective acceleration control. Automatic compensation is not possible.";
             return r;
         }
     }
 
-    // 5. Tried, as OpenPnP tests its result: in from random distances either way (and from each side from afar),
+    // 6. Tried, as OpenPnP tests its result: in from random distances either way (and from each side from afar),
     // each against the mean of them all: how well moves agree with each other, whatever the machine slowly drifts
     // by over the run.
     std::mt19937 rng(std::random_device{}());
-    std::uniform_real_distribution<double> logDistance(std::log(std::max(2 * r.data.toleranceMm, 0.01)), std::log(o.reachMm));
+    std::uniform_real_distribution<double> logDistance(std::log(std::max(2 * r.data.toleranceMm, 0.01)), std::log(kLargeMoveMm));
     std::bernoulli_distribution side(0.5);
-    std::vector<double> distances = { -o.reachMm, o.reachMm };
+    std::vector<double> distances = { -kLargeMoveMm, kLargeMoveMm };
     for (int i = 0; i < o.tries; ++i) distances.push_back(std::exp(logDistance(rng)) * (side(rng) ? 1 : -1));
     cell.setBacklash(axisId, chosen.method, chosen.offset, chosen.sneakUpMm, chosen.speedFactor);
     if (progress) progress(std::string("trying ") + JPAxisConfig::backlashWord(chosen.method));
     std::vector<std::pair<double, double>> tried;
     for (double d : distances) {
         double a;
-        if (!go(target + d, o.speed) || !go(target, o.speed) || !measure(target, a)) {
+        if (!go(displaced(d, false), o.speed) || !go(target, o.speed) || !measure(target, a)) {
             cell.setBacklash(axisId, wasMethod, wasOffset, wasSneak, wasSpeed, wasTable, wasApproach);
             return r;
         }

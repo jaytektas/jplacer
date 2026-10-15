@@ -12,37 +12,37 @@
 inline namespace jf {
 
 // Measures the play in an axis that carries a camera, and how to make up for
-// it: the camera over a round mark, compensation off, the mark found again
-// and again as the axis comes in to the same place from either side.
+// it, as OpenPnP's backlash calibration does (CalibrationSolutions), with its
+// constants: the camera over a round mark, compensation off while measuring.
 //
-//  1. Still: the mark measured several times without moving: how far the
-//     measuring itself wanders sets the tolerance (no guessed figure).
-//  2. The play against how far the axis comes in from the other side: a
-//     short way in, the play is not yet taken up; from far enough, it is all
-//     there. The shortest distance that takes all of it is how far a move
-//     must sneak up.
-//  3. The play against speed, coming in from far at each speed: a drive that
-//     overshoots at speed shows less play there.
-//  4. A method chosen by OpenPnP's rules (its CalibrationSolutions): the
-//     largest play coming in from up to kMaxSneakUpMm and the shortest
-//     distance still showing it give the sneak-up; longer than
-//     mostSneakUpMm, OneSided past the place by that play; shorter than the
-//     play needs, DirectionalSneakUp; the same at every speed, Directional
-//     (None within the tolerance); else DirectionalSneakUp.
-//  5. The method tried: moves in from random distances either way (and from
-//     afar on each side), each measured against the mean of them all.
+//  1. Speed control: moving at a lower speed factor must take longer.
+//  2. A step test over a millimetre: the steps must land where sent.
+//  3. The backlash coming in from a geometric series of distances (each the
+//     last times the square root of 2, up to 10 mm, and the full range),
+//     from where it stands and wound from 90 mm (or the soft limit) that
+//     side first: the largest play within kMaxSneakUpMm, and the shortest
+//     distance still showing it, give the sneak-up distance.
+//  4. The offset at each speed factor: compensated, in to the mark from
+//     90 mm either side, corrected by what is left (damped) up to 4 times.
+//  5. The method: longer than mostSneakUpMm a sneak-up, OneSided past the
+//     place by the largest play; the play from afar less than the sneak-up
+//     needs, DirectionalSneakUp; the same at every speed, Directional (None
+//     within the tolerance); else DirectionalSneakUp; an overshoot at the
+//     slowest refused.
+//  6. The method tried: moves in from random distances either way (and from
+//     90 mm on each side), each measured against the mean of them all.
 //
-// Runs on a thread of its own: it waits on moves and pictures. The axis's
-// compensation is left as found (the owner keeps the result).
+// The tolerance is the axis's resolution taken to at least 0.01 mm, or a
+// quarter of a pixel when that is coarser. Runs on a thread of its own: it
+// waits on moves and pictures. The axis's compensation is left as found (the
+// owner keeps the result).
 class JPBacklashCalibrator {
 public:
     struct Options {
         double markX = 0, markY = 0;     // the mark (machine coordinates)
         double markDiameterMm = 0;
         double speed = 1.0;              // share of the axes' rates for moves between measurements
-        double reachMm = 10;             // the furthest a move comes in from in the tests
-        double mostSneakUpMm = 0.8;      // longer than this, sneaking up costs too much: one-sided
-        int    still = 6;                // measurements without moving, for the tolerance
+        double mostSneakUpMm = 0.8;      // OpenPnP's acceptable sneak-up: longer than this, one-sided
         int    frames = 8;               // pictures averaged for each measurement: a single one wanders
                                          // (on bench, 6 µm; 8 together, 2 µm)
         int    tries = 8;                // random moves to try the result

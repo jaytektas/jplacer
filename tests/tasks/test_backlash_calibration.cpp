@@ -41,7 +41,8 @@ JPCellConfig cellConfig() {
       "name": "Test",
       "drivers": [ { "id": "D", "name": "Gantry", "statusIntervalMs": 10, "commandTimeoutMs": 500, "connectWaitMs": 0,
                      "link": { "type": "simulated", "simulator": {
-                         "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ], "axisLetters": [ "X", "Y" ] } } } ],
+                         "identity": [ "[VER:1.1f.20250101:]", "[FIRMWARE:grblHAL]" ], "axisLetters": [ "X", "Y" ],
+                         "timeScale": 1 } } } ],
       "heads": [ { "id": "H", "name": "Head" } ],
       "axes": [ { "id": "X", "name": "x", "kind": "controller", "type": "x", "driver": "D", "letter": "X",
                   "homeCoordinate": 120, "feedratePerSecond": 2000 },
@@ -149,9 +150,8 @@ int main() {
     o.markX = 100;
     o.markY = 100;
     o.markDiameterMm = 1.0;
-    o.reachMm = 2;
-    o.still = 4;
     o.tries = 4;
+    o.frames = 1;   // the simulated picture does not wander
     const JPBacklashCalibrator::Result r = JPBacklashCalibrator::run(cell, feed, "X", o);
     if (!r.ok) std::fprintf(stderr, "why: %s\n", r.why.c_str());
     std::fprintf(stderr, "method %s, offset %.4f, tolerance %.4f, worst after %.4f\n", JPAxisConfig::backlashWord(r.method),
@@ -166,8 +166,8 @@ int main() {
            || (r.method == JPAxisConfig::Backlash::DirectionalSneakUp && r.sneakUpMm >= r.offset && r.sneakUpMm <= o.mostSneakUpMm));
     assert(std::abs(r.offset - kPlay) <= std::max(2 * r.data.toleranceMm, kPipelineStepMm));
     assert(!r.data.byDistance.empty() && r.data.bySpeed.size() == std::size(JPBacklashCalibrator::kSpeeds));
-    // A short way in from the other side takes up only that much of the play.
-    assert(r.data.byDistance.front().second < kPlay / 2);
+    // Wound from the far side first (as OpenPnP measures it), every distance shows all of the play.
+    for (const auto& [d, e] : r.data.byDistance) assert(std::abs(e - kPlay) <= std::max(2 * r.data.toleranceMm, kPipelineStepMm));
     // Compensated, every move comes in to the same place: the 4 tried, and one
     // from afar on each side.
     assert(r.data.after.size() == 6 && r.worstAfterMm <= 2 * r.data.toleranceMm);

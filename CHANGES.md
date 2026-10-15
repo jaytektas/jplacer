@@ -10,10 +10,12 @@ notes.
 
 ## Unreleased
 
-- Backlash Calibrate chooses as OpenPnP's calibration does. A one-sided offset is now the play measured (a few
-  hundredths of a millimetre), not how far the play takes to level off: on the bench that came to 1.5 and 2 mm,
-  an overshoot that would hit a tip changer's slots. Calibrate the X and Y axes again to replace offsets set the
-  old way.
+- Backlash Calibrate measures and chooses as OpenPnP's calibration does: speed control and a step test first,
+  the backlash wound from 90 mm and coming in from distances, the offset found at each speed by compensated
+  moves, and OpenPnP's rules for the method. A one-sided offset is the backlash measured after a long move, not
+  how far the play takes to level off (which came to 1.5 and 2 mm on the bench, an overshoot that would hit a
+  tip changer's slots), nor the short-reversal play (0.018 mm on the bench's Y, too little for a long move).
+  Calibrate the X and Y axes again.
 - Backlash Off Below Safe Z no longer turns backlash compensation off with the head at safe Z: safe Z is judged
   by where the Z was sent, as OpenPnP does. A Z axis stops on its nearest step, a few thousandths below safe Z,
   which counted as below it, so with the option ticked the compensation was off for nearly every move, picks

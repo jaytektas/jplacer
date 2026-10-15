@@ -706,26 +706,27 @@ void backlashResults(JPFormBuilder& add, const JPBacklashCalibration& k) {
     char b[96];
     std::snprintf(b, sizeof b, "%.4f mm", k.toleranceMm);
     add.text("backlashTolerance", "Tolerance", [v = std::string(b)] { return v; }, nullptr);
-    add.note("Three times how far the measuring wanders standing still.");
+    add.note("The axis's resolution taken to at least 0.01 mm, or a quarter of a pixel when that is coarser.");
     auto distance = std::make_shared<JPPlot>();
     distance->kind = JPPlot::Kind::Lines;
     distance->logX = true;
     distance->xTitle = "mm come in";
-    distance->yTitle = "play mm";
-    distance->series.push_back({ "play", JPPlot::Tone::First, {} });
+    distance->yTitle = "backlash mm";
+    distance->series.push_back({ "backlash", JPPlot::Tone::First, {} });
     for (const auto& [d, p] : k.byDistance) distance->series[0].points.push_back({ d, p });
-    add.plot("Play Against How Far It Came In", distance);
-    add.note("A short way in from the other side takes up only part of the play; from far enough, all of it. "
-             "Where the line levels off is how far a move must sneak up.");
+    add.plot("Backlash at Sneak-up Distance", distance);
+    add.note("Coming in to the mark from each side, wound from 90 mm that side first, the last of it this far at "
+             "the slowest speed: the difference is the backlash. The largest within 2.5 mm, and the shortest distance "
+             "still showing it, give the sneak-up distance.");
     auto speed = std::make_shared<JPPlot>();
     speed->kind = JPPlot::Kind::Lines;
     speed->xTitle = "speed factor";
-    speed->yTitle = "play mm";
-    speed->series.push_back({ "play", JPPlot::Tone::First, {} });
+    speed->yTitle = "offset mm";
+    speed->series.push_back({ "offset", JPPlot::Tone::First, {} });
     for (const auto& [v, p] : k.bySpeed) speed->series[0].points.push_back({ v, p });
-    add.plot("Play Against Speed", speed);
-    add.note("Level: the play is the same at any speed, and Directional compensation is enough. Falling at speed: "
-             "the drive overshoots, and the last of a move must sneak up slowly.");
+    add.plot("Backlash Offset at Speed", speed);
+    add.note("The offset found at each speed factor, compensated moves in from 90 mm either side corrected until "
+             "they agree. Level: Directional compensation is enough. Not level: the last of a move sneaks up.");
     auto after = std::make_shared<JPPlot>();
     after->kind = JPPlot::Kind::Points;
     after->xTitle = "mm come in from";
@@ -979,9 +980,10 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                                 "Make sure the calibration rig is set up and present.\nConsider using this function "
                                 "from Issues & Solutions where you get step by step instructions, for the needed "
                                 "preparatory steps and the calibration in proper sequence." } });
-        add.note("Calibrate measures the play with the head camera over the homing fiducial (the machine homed, the "
-                 "camera calibrated): standing still for the tolerance, then coming in from either side over "
-                 "distances and at speeds, then chooses the method and tries it with moves from random places.");
+        add.note("Calibrate measures the backlash with the head camera over the homing fiducial (the machine homed, the "
+                 "camera calibrated), as OpenPnP's backlash calibration does: speed control, a step test, the backlash "
+                 "coming in from distances, the offset at each speed; then it chooses the method by OpenPnP's rules and "
+                 "tries it with moves from random places.");
     }
     if (const auto& k = a().backlashCalibration) backlashResults(add, *k);
 }
