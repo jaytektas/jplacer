@@ -169,8 +169,8 @@ public:
     // A tip's part detection measured on the nozzle it is on (JPVacuumMeasure): PartOff, the part-off check's
     // pulse kPulses times, up at safe Z with nothing on the nozzle (`baselines` before each, `levels` after);
     // PartOnWithout and PartOnWith, the vacuum on as a pick switches it, the pick's dwell, then the level read
-    // kSamples times over kHoldMs (`baselines` the reading as the dwell ends): without a part at safe Z, the
-    // vacuum off again after; with one where the nozzle is, the part left held. Waited for.
+    // kSamples times over kHoldMs (`baselines` the reading as the dwell ends): without a part at safe Z, and
+    // with one where the nozzle is; the vacuum off again after either (a part let go). Waited for.
     enum class VacuumMeasuring { PartOff, PartOnWithout, PartOnWith };
     bool measureVacuumAndWait(const std::string& nozzleId, VacuumMeasuring what, std::vector<double>& baselines,
                               std::vector<double>& levels, std::string& why);

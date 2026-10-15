@@ -2461,6 +2461,8 @@ void JPlacerMachine::measureVacuum(const std::string& nozzleId, const std::strin
                 JDialog::message("Vacuum not measured", tipName + " on " + nozzleName + ": " + why);
                 return;
             }
+            // Let go with the vacuum off: no part on the nozzle now.
+            if (what == JPCell::VacuumMeasuring::PartOnWith) setNozzlePart(nozzleId, "");
             const JPNozzleTipConfig* tip = nullptr;
             for (const JPNozzleTipConfig& t : m_cell->config().nozzleTips)
                 if (t.id == tipId) tip = &t;

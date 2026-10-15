@@ -11,9 +11,10 @@ notes.
 ## Unreleased
 
 - A nozzle tip's part detection ranges can be measured instead of guessed (Part Detection tab: Part Off's
-  Measure, Part On's Without Part and With Part): the machine reads its own vacuum, as each check does, and
-  sets the ranges from the readings, Part On's kept clear of the level without a part. When a part and no part
-  read too much alike to tell apart, it says so and sets nothing.
+  Measure, Part On's Without Part and With Part, each switching the vacuum off again after): the machine
+  reads its own vacuum, as each check does, and sets the ranges from the readings, Part On's kept clear of
+  the level without a part. When a part and no part read too much alike to tell apart, it says so and sets
+  nothing.
 - jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
   Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
   cameras are read through Windows' own camera support (Media Foundation), with the same camera settings

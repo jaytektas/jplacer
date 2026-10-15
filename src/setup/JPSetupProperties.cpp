@@ -1600,7 +1600,7 @@ void nozzleTipForm(JPCellConfig& cell, const std::string& id, JPSetupProperties:
                        "then the level read for 3 seconds; the vacuum off again.");
             add.button("measurePartOnWith", "With Part",
                        "With a part on the tip (picked, or held to it): the vacuum on as a pick does it, the pick's dwell, "
-                       "then the level read for 3 seconds; the part left held. Sets the ranges, kept off the level without "
+                       "then the level read for 3 seconds; the vacuum off again. Sets the ranges, kept off the level without "
                        "a part.");
         } else {
             add.button("measurePartOff", "Measure",

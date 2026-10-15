@@ -1636,8 +1636,7 @@ bool JPCell::doMeasureVacuum(const JPNozzleConfig& n, VacuumMeasuring what, std:
         wait(JPVacuumMeasure::kHoldMs / JPVacuumMeasure::kSamples);
         if ((ok = readVacuum(n, level, why))) levels.push_back(level);
     }
-    if (with) return ok;
-    // Without a part: the vacuum off again, the pump as a place leaves it.
+    // The vacuum off again either way (a part held is let go where it is), the pump as a place leaves it.
     std::string closing;
     bool closed = switchTelling(n.vacuumActuatorId, false, closing);
     if (closed) {
