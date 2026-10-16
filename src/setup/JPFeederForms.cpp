@@ -228,16 +228,13 @@ void stripForm(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeed
 
     add.group("Locations");
     add.header({ "X", "Y", "Z" });
-    auto hole = [s](const char* key, JPLocation JPStripFeeder::* field) {
-        return Spot { key, [s, field] { return s().*field; }, [s, field](const JPLocation& l) { s().*field = l; } };
-    };
     // The reference hole's Z set by hand (typed, or captured with the nozzle): Auto Setup leaves it from then on.
-    const Spot reference { "reference-hole-location", [s] { return s().referenceHole; }, [s](const JPLocation& l) {
+    const Spot reference { "reference-hole-location", [s] { return s().referenceHole; }, [f, s](const JPLocation& l) {
                               const JPLocation was = s().referenceHole.convertToUnits(l.units());
                               if (std::abs(was.z() - l.z()) > 1e-9) s().autoSetupZ = false;
-                              s().referenceHole = l;
+                              f().setStripHole(1, l);
                           } };
-    const Spot last = hole("last-hole-location", &JPStripFeeder::lastHole);
+    const Spot last { "last-hole-location", [s] { return s().lastHole; }, [f](const JPLocation& l) { f().setStripHole(2, l); } };
     add.row("Reference Hole Location", Place::Location);
     coordinate(add, reference, Axis::X, "X");
     coordinate(add, reference, Axis::Y, "Y");

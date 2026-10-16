@@ -129,6 +129,14 @@ void JPFeeder::setTapeHole(int n, const JPLocation& l) {
     visionOffset.reset();
 }
 
+void JPFeeder::setStripHole(int n, const JPLocation& l) {
+    JPStripFeeder* s = as<JPStripFeeder>();
+    if (!s) return;
+    (n == 1 ? s->referenceHole : s->lastHole) = l;
+    visionLocation.reset();
+    visionLocationReference.reset();
+}
+
 std::string JPFeeder::slotBankId() const {
     if (const JPSlotAutoFeeder* s = as<JPSlotAutoFeeder>()) return s->bankId;
     if (const JPSlotSchultzFeeder* z = as<JPSlotSchultzFeeder>()) return z->bankId;

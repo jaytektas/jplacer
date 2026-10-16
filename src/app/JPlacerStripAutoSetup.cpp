@@ -347,8 +347,8 @@ void JPlacerStripAutoSetup::check(const JPLocation& at) {
                         << " by the last part than by the first, " << apart << " mm on (" << slope
                         << "%); each part is picked that much higher or lower for how far along it is (Z Along Strip %)";
             }
-            s->referenceHole = JPLocation(kMm, ref1.x(), ref1.y(), z, 0);
-            s->lastHole = JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0);
+            f->setStripHole(1, JPLocation(kMm, ref1.x(), ref1.y(), z, 0));
+            f->setStripHole(2, JPLocation(kMm, ref2.x(), ref2.y(), was2.z(), 0));
             s->partPitch = JPLength(kPartPitchStepMm * double(steps), kMm);
             // The click says where the first part is only to the hole: nearer a hole's middle, the part is on
             // it (0 along); nearer halfway between holes, it is a half hole pitch (EIA-481's 2 mm) from it.

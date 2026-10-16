@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A strip feeder's Auto Setup puts the camera over the first part, and the next pick goes there, even after the
+  feeder has fed parts with vision: the holes vision had found were kept and the pick worked out from them
+  until Reset was pressed. Typing or capturing a hole location forgets them too.
 - A part discarded by hand while a job is paused (after bottom vision could not find it, say) is picked again
   when the job goes on: before, the job went back to look for it on the empty nozzle.
 - A job wastes less time between a place and the next pick. The job's state was told to the signalers before

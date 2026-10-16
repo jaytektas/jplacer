@@ -95,6 +95,9 @@ public:
     const JPVisionTape* visionTape() const;
     // Its hole 1 or 2 set (a vision tape's): as OpenPnP's setHole1Location, its calibration forgotten.
     void setTapeHole(int n, const JPLocation& l);
+    // Its reference (1) or last (2) hole set (a strip feeder's): as OpenPnP's setReferenceHoleLocation and
+    // setLastHoleLocation, the holes its vision found forgotten.
+    void setStripHole(int n, const JPLocation& l);
     // Whether its kind is one jplacer knows (else its OpenPnP settings are kept as read).
     bool typed() const { return !std::holds_alternative<JPXmlNode>(m_own); }
 
@@ -227,8 +230,8 @@ public:
     // EIA-481's: 1.5 mm holes, 4 mm apart.
     static JPLength holeDiameter() { return JPLength(JPStripFeeder::kHoleDiameterMm, JPLengthUnit::Millimeters); }
     static JPLength holePitch() { return JPLength(JPStripFeeder::kHolePitchMm, JPLengthUnit::Millimeters); }
-    // A strip's holes as its vision last found them (none: as set), and the
-    // line its parts lie on.
+    // A strip's holes as its vision last found them (none: as set; forgotten when its holes are set,
+    // setStripHole), and the line its parts lie on.
     std::optional<JPLocation> visionLocation, visionLocationReference;
     // While jplacer runs: the head camera's tune for this feeder's looks (its Auto-Tune?), made on its first vision
     // look of a run (or by its Auto Setup); forgotten when a run starts, the machine connects, or its Reset.
