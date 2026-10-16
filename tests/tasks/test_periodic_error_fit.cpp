@@ -5,7 +5,7 @@
 // 45 mm wave (and the twist it makes across), on a board moved, turned and a little shrunk, with a few hundredths of
 // finding noise and two finds on the wrong thing: the wave comes back to within the noise, the board's scale and turn
 // too, the two finds left out, and what is left far smaller than without the wave. Too few finds, or no period: no
-// fit, and why. A driven X: the wave along X.
+// fit, and why; nor spanning less than one turn. A driven X: the wave along X.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -73,6 +73,12 @@ int main() {
     assert(JPPeriodicErrorFit::fit(g, 45, false, scan, why));
     assert(near(scan.alongSin, 0.015, 0.004) && near(scan.alongCos, 0.01, 0.004) && near(scan.acrossCos, -0.008, 0.004));
 
+    // Spanning less than a turn of the drive: no fit, and why.
+    std::vector<JPPeriodicErrorFit::Find> short_;
+    for (const auto& x : f)
+        if (x.at < f.front().at + 30) short_.push_back(x);
+    assert(short_.size() >= JPPeriodicErrorFit::kLeastFinds && !JPPeriodicErrorFit::fit(short_, 45, true, scan, why)
+           && why.find("less than one") != std::string::npos);
     // Too few, or no period.
     const std::vector<JPPeriodicErrorFit::Find> few(f.begin(), f.begin() + 5);
     assert(!JPPeriodicErrorFit::fit(few, 45, true, scan, why) && why.find("at least") != std::string::npos);

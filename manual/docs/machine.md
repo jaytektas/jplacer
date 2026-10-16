@@ -384,8 +384,11 @@ An X or Y axis's **Periodic Error** tab sets and measures it:
   the same artwork as the fiducials, so they are a ruler with a mark every few millimetres. Where each was
   found is fitted against where the board's design puts it: the board as it lies (moved, turned and scaled)
   together with the wave along and across the axis; a find more than 4 times the finds' typical distance off
-  the fit (and more than 0.03 mm) is left out and the fit made again (at least 8 finds are needed). The scan
-  changes nothing.
+  the fit (and more than 0.03 mm) is left out and the fit made again (at least 8 finds are needed, spread
+  over at least one Drive Period along the axis; a wave found bigger than 0.5 mm is no drive's, and none is
+  given). Every look's picture is kept, with both outlines drawn, in a folder for the scan beside the vision
+  debug pictures (`log/vision`, beside the settings), and each footprint's find in the log. The scan changes
+  nothing.
 - **Apply** puts what the last scan found in use, added to the correction in use (a step to undo);
   **Clear** takes the correction out of use. Scan again with it in use: what is left should be the
   finding's own noise. Calibrate the nozzles' offsets and the camera looking up again after applying it.
@@ -393,7 +396,7 @@ An X or Y axis's **Periodic Error** tab sets and measures it:
   footprints were off without and with it (RMS), the board's scale and turn, whether it was applied; and
   two graphs of how far the head was off at each footprint, along and across, with the wave fitted to them.
 
-<!-- src: src/machine/JPPeriodicErrorConfig.h; src/machine/JPCell.cpp (toAxes, squareOf); src/tasks/JPBoardScan.cpp (points, padsOf); src/tasks/JPBoardScan.h (kMostSizeMm); src/tasks/JPFootprintFinder.cpp; src/tasks/JPPeriodicErrorFit.cpp (fit); src/tasks/JPPeriodicErrorFit.h (kLeastFinds, kOutlierSpread, kLeastOutlierMm); src/app/JPlacerCameraTasks.cpp (scanBoard, findPads, kScanSearchMm, kScanLeastScore); src/app/JPlacerMachine.cpp (scanPeriodicError, applyPeriodicError, clearPeriodicError); src/setup/JPSetupProperties.cpp (periodicErrorForm) -->
+<!-- src: src/machine/JPPeriodicErrorConfig.h; src/machine/JPCell.cpp (toAxes, squareOf); src/tasks/JPBoardScan.cpp (points, padsOf); src/tasks/JPBoardScan.h (kMostSizeMm); src/tasks/JPFootprintFinder.cpp; src/tasks/JPPeriodicErrorFit.cpp (fit); src/tasks/JPPeriodicErrorFit.h (kLeastFinds, kOutlierSpread, kLeastOutlierMm, kMostWaveMm); src/app/JPlacerCameraTasks.cpp (scanBoard, findPads, kScanSearchMm, kScanLeastScore); src/app/JPlacerMachine.cpp (scanPeriodicError, applyPeriodicError, clearPeriodicError); src/setup/JPSetupProperties.cpp (periodicErrorForm) -->
 
 
 ### Jog

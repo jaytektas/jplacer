@@ -555,6 +555,12 @@ bool JPlacerCameraTasks::findPads(JPCameraPanel* panel, const JPCameraCalibratio
     JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(drawn), text = std::string(text)] {
         if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kScanShownMs);
     });
+    // Kept, numbered, beside the vision debug pictures (as a placement check's).
+    if (!m_findsTo.empty()) {
+        char name[96];
+        std::snprintf(name, sizeof name, "%03d %s %s.png", ++m_findCount, point.id.c_str(), r.found ? "found" : "not-found");
+        JPStageUtil::writePicture((std::filesystem::path(m_findsTo) / name).string(), drawn);
+    }
     if (!r.found) {
         char b[96];
         std::snprintf(b, sizeof b, "pads not matched within %.1f mm (score %.2f)", kScanSearchMm, r.score);
@@ -593,8 +599,21 @@ void JPlacerCameraTasks::scanBoard(const std::string& axisId, double periodMm, c
     });
     auto scan = std::make_shared<JPPeriodicErrorConfig::Scan>();
     JPCameraPanel* top = camera;
+    std::string stamp = JPWhen::now();
+    for (char& ch : stamp)
+        if (ch == ' ' || ch == ':') ch = '-';
+    const std::string folder = (std::filesystem::path(JPlacerPaths::configDir()) / "log" / "vision" / ("board-scan " + board + " " + stamp)).string();
     run(*camera, "Scanning " + board + " for " + name + "'s periodic error",
-        [this, top, axisId, alongY, periodMm, board, points, scan](std::string& words, const auto& progress) {
+        [this, top, axisId, alongY, periodMm, board, points, scan, folder](std::string& words, const auto& progress) {
+            std::error_code made;
+            std::filesystem::create_directories(folder, made);
+            m_findsTo = made ? std::string() : folder;
+            m_findCount = 0;
+            struct Done {
+                std::string& to;
+                ~Done() { to.clear(); }
+            } done { m_findsTo };
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "board scan pictures: " << (made ? "not kept (" + made.message() + ")" : folder);
             JPCameraCalibration cal;
             if (!JPCameraLook::calibration(m_cell, top->feed(), cal, words)) return false;
             const std::string light = top->camera().lightActuator();
@@ -613,8 +632,11 @@ void JPlacerCameraTasks::scanBoard(const std::string& axisId, double periodMm, c
                     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  board scan " << p.id << ": " << lost;
                     continue;
                 }
-                const auto at = m_cell.jogBase().find(axisId);
-                finds.push_back({ p.designX, p.designY, x, y, at == m_cell.jogBase().end() ? (alongY ? p.y : p.x) : at->second });
+                // Where the axis was sent for this look (one copy of the positions: an iterator into a second copy's
+                // end read garbage, and the fit with it a wave of a metre).
+                const auto base = m_cell.jogBase();
+                const auto at = base.find(axisId);
+                finds.push_back({ p.designX, p.designY, x, y, at == base.end() ? (alongY ? p.y : p.x) : at->second });
                 JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  board scan " << p.id << ": design " << p.designX << ", " << p.designY
                                                             << ", expected " << p.x << ", " << p.y << ", found " << x << ", " << y;
             }

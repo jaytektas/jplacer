@@ -61,6 +61,12 @@ bool JPPeriodicErrorFit::fit(const std::vector<Find>& finds, double periodMm, bo
         why = std::to_string(finds.size()) + " footprints found; at least " + std::to_string(kLeastFinds) + " are needed";
         return false;
     }
+    const auto [least, most] = std::minmax_element(finds.begin(), finds.end(), [](const Find& a, const Find& b) { return a.at < b.at; });
+    if (most->at - least->at < periodMm) {
+        why = "the footprints found span " + std::to_string(int(std::lround(most->at - least->at))) + " mm along the axis, less than one "
+            + std::to_string(int(std::lround(periodMm))) + " mm turn of its drive";
+        return false;
+    }
     const double k = 2 * M_PI / periodMm;
     std::vector<bool> kept(finds.size(), true);
     cv::Mat p;
@@ -135,6 +141,10 @@ bool JPPeriodicErrorFit::fit(const std::vector<Find>& finds, double periodMm, bo
         q.acrossFit = p.at<double>(6) * s + p.at<double>(7) * c;
         q.outlier = !kept[i];
         scan.points.push_back(q);
+    }
+    if (std::hypot(p.at<double>(4), p.at<double>(5)) > kMostWaveMm || std::hypot(p.at<double>(6), p.at<double>(7)) > kMostWaveMm) {
+        why = "the fit found a wave too big for a drive: the footprints found cannot tell it from the board's own place";
+        return false;
     }
     scan.periodMm = periodMm;
     scan.alongSin = p.at<double>(4);

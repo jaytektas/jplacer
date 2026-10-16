@@ -33,6 +33,9 @@ public:
     // A find further off the fit than this many times the finds' typical distance (and at least kLeastOutlierMm)
     // is left out.
     static constexpr double kOutlierSpread = 4.0, kLeastOutlierMm = 0.03;
+    // A wave bigger than this (mm) is no drive's: the finds cannot tell it from the board's own fit, and none is
+    // given. The finds must cover at least one turn along the axis.
+    static constexpr double kMostWaveMm = 0.5;
 };
 
 } // inline namespace jf
