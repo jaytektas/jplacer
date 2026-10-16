@@ -376,15 +376,16 @@ An X or Y axis's **Periodic Error** tab sets and measures it:
   jplacer's coordinates are where the head really is: each move is sent what puts the head there (a move
   along the axis moves the axis across it too), and the controller's report is read back the same way.
 - **Scan Board** measures it on the Job tab's chosen board, its fiducials checked first. The head camera
-  goes to every footprint whose pads mirror each other through its middle and alike (two-pad chips, a
-  fiducial's one pad), square to the machine (its turn within 2 degrees of a multiple of 90), with nothing
-  on its pads (a placement not yet placed, or a fiducial), in order along the axis; it finds the
-  footprint's middle by its symmetry within 0.5 mm of where it should be, as OpenPnP's
-  DetectRectlinearSymmetry finds a part. Pads are copper from the same artwork as the fiducials, so they
-  are a ruler with a mark every few millimetres. Where each was found is fitted against where the board's
-  design puts it: the board as it lies (moved, turned and scaled) together with the wave along and across
-  the axis; a find more than 4 times the finds' typical distance off the fit (and more than 0.03 mm) is
-  left out and the fit made again (at least 8 finds are needed). The scan changes nothing.
+  goes to every footprint with nothing on its pads (a placement not yet placed, or a fiducial) and no more
+  than 8 mm across, in order along the axis. There its pads are drawn where they should be (turned and
+  mirrored as the camera is calibrated) and matched against the picture within 0.5 mm of there, as OpenPnP's
+  template fiducial locator matches a footprint: shown on the camera's view, where they should be in its
+  colour and where they were matched in green; a match scoring under 0.6 is not taken. Pads are copper from
+  the same artwork as the fiducials, so they are a ruler with a mark every few millimetres. Where each was
+  found is fitted against where the board's design puts it: the board as it lies (moved, turned and scaled)
+  together with the wave along and across the axis; a find more than 4 times the finds' typical distance off
+  the fit (and more than 0.03 mm) is left out and the fit made again (at least 8 finds are needed). The scan
+  changes nothing.
 - **Apply** puts what the last scan found in use, added to the correction in use (a step to undo);
   **Clear** takes the correction out of use. Scan again with it in use: what is left should be the
   finding's own noise. Calibrate the nozzles' offsets and the camera looking up again after applying it.
@@ -392,7 +393,7 @@ An X or Y axis's **Periodic Error** tab sets and measures it:
   footprints were off without and with it (RMS), the board's scale and turn, whether it was applied; and
   two graphs of how far the head was off at each footprint, along and across, with the wave fitted to them.
 
-<!-- src: src/machine/JPPeriodicErrorConfig.h; src/machine/JPCell.cpp (toAxes, squareOf); src/tasks/JPBoardScan.cpp (points, mirroredSize); src/tasks/JPBoardScan.h (kSquareDeg); src/tasks/JPPeriodicErrorFit.cpp (fit); src/tasks/JPPeriodicErrorFit.h (kLeastFinds, kOutlierSpread, kLeastOutlierMm); src/app/JPlacerCameraTasks.cpp (scanBoard, findMirrored, kScanSearchMm); src/app/JPlacerMachine.cpp (scanPeriodicError, applyPeriodicError, clearPeriodicError); src/setup/JPSetupProperties.cpp (periodicErrorForm) -->
+<!-- src: src/machine/JPPeriodicErrorConfig.h; src/machine/JPCell.cpp (toAxes, squareOf); src/tasks/JPBoardScan.cpp (points, padsOf); src/tasks/JPBoardScan.h (kMostSizeMm); src/tasks/JPFootprintFinder.cpp; src/tasks/JPPeriodicErrorFit.cpp (fit); src/tasks/JPPeriodicErrorFit.h (kLeastFinds, kOutlierSpread, kLeastOutlierMm); src/app/JPlacerCameraTasks.cpp (scanBoard, findPads, kScanSearchMm, kScanLeastScore); src/app/JPlacerMachine.cpp (scanPeriodicError, applyPeriodicError, clearPeriodicError); src/setup/JPSetupProperties.cpp (periodicErrorForm) -->
 
 
 ### Jog

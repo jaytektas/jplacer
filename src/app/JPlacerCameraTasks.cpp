@@ -20,7 +20,7 @@
 #include "pipeline/JPStageUtil.h"
 #include "tasks/JPBottomVision.h"
 #include "tasks/JPPeriodicErrorFit.h"
-#include "pipeline/JPRectlinearSymmetry.h"
+#include "tasks/JPFootprintFinder.h"
 #include "tasks/JPJobMachine.h"
 #include "tasks/JPVisionFeature.h"
 #include "ui/JPFootprintOverlay.h"
@@ -76,9 +76,9 @@ constexpr int kAutoFocusShownMs = 1000;
 constexpr int kTuneWaitMs = 12000;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
-// A board scan: how far from where a footprint should be its middle is looked for (mm), how much bigger than its pads
-// the box looked in, and how long each find is shown.
-constexpr double kScanSearchMm = 0.5, kScanBoxShare = 1.5;
+// A board scan: how far from where a footprint should be its pads are looked for (mm), the least match taken, and how
+// long each find is shown.
+constexpr double kScanSearchMm = 0.5, kScanLeastScore = 0.6;
 constexpr int    kScanShownMs = 800;
 // Looking for a mark under the camera: how far from the middle, and how small and big, as shares of the
 // picture's smaller side (as the calibration's first look).
@@ -508,10 +508,11 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
     start();
 }
 
-bool JPlacerCameraTasks::findMirrored(JPCameraPanel* panel, const JPCameraCalibration& cal, double sizeMm, double cameraX,
-                                      double cameraY, double& x, double& y, const std::string& shown, std::string& words) {
-    // The picture straightened as the camera is calibrated, as findRound; the footprint's middle where its cross-sections
-    // mirror best (OpenPnP's DetectRectlinearSymmetry, as bottom vision finds a part), square to the picture.
+bool JPlacerCameraTasks::findPads(JPCameraPanel* panel, const JPCameraCalibration& cal, const JPBoardScan::Point& point,
+                                  double cameraX, double cameraY, double& x, double& y, std::string& words) {
+    // The picture straightened as the camera is calibrated, as findRound; the footprint's pads drawn where they should
+    // be through the calibration (which knows how the camera is turned and mirrored) and matched there
+    // (JPFootprintFinder, as OpenPnP's template fiducial locator).
     cv::Mat bgr;
     if (!settledColour(panel->feed(), bgr, words)) return false;
     JPCameraCalibration on = cal;
@@ -523,37 +524,45 @@ bool JPlacerCameraTasks::findMirrored(JPCameraPanel* panel, const JPCameraCalibr
         }
     }
     double ex = bgr.cols / 2.0, ey = bgr.rows / 2.0;
-    on.pixelFor(x, y, cameraX, cameraY, ex, ey);
-    JPRectlinearSymmetry::Search q;
-    q.xCenter = int(std::lround(ex));
-    q.yCenter = int(std::lround(ey));
-    q.maxWidth = q.maxHeight = sizeMm * kScanBoxShare * on.scale();
-    q.searchDistance = kScanSearchMm * on.scale();
-    q.searchAngle = 2 * JPBoardScan::kSquareDeg;
-    q.superSampling = 2;
-    cv::Mat work = bgr.clone();
-    JPRectlinearSymmetry::ScoreRange range;
-    const auto seen = JPRectlinearSymmetry::find(work, q, range);
-    cv::Mat drawn = bgr.clone();
-    const int px = std::max(9, int(std::lround(sizeMm * on.scale() / 4)));
-    cv::drawMarker(drawn, cv::Point(q.xCenter, q.yCenter), cv::Scalar(255, 160, 0), cv::MARKER_CROSS, px, 1);
-    if (seen) {
-        cv::Point2f corners[4];
-        seen->points(corners);
-        for (int i = 0; i < 4; ++i) cv::line(drawn, corners[i], corners[(i + 1) % 4], cv::Scalar(0, 255, 0), 1);
-        cv::drawMarker(drawn, seen->center, cv::Scalar(0, 255, 0), cv::MARKER_CROSS, px, 2);
+    on.pixelFor(point.x, point.y, cameraX, cameraY, ex, ey);
+    std::vector<std::vector<cv::Point2d>> pads;
+    for (const auto& pad : point.pads) {
+        std::vector<cv::Point2d> px;
+        for (const auto& c : pad) {
+            double u = 0, v = 0;
+            if (!on.pixelFor(point.x + c[0], point.y + c[1], cameraX, cameraY, u, v)) {
+                words = "its pads cannot be placed in the picture";
+                return false;
+            }
+            px.emplace_back(u, v);
+        }
+        pads.push_back(std::move(px));
     }
+    const JPFootprintFinder::Result r = JPFootprintFinder::find(bgr, pads, kScanSearchMm * on.scale(), kScanLeastScore);
+    // Shown: where the pads should be (the camera's own colour), and where they were matched (green).
+    cv::Mat drawn = bgr.clone();
+    auto outline = [&drawn](const std::vector<std::vector<cv::Point2d>>& ps, double dx, double dy, const cv::Scalar& colour) {
+        for (const auto& p : ps) {
+            std::vector<cv::Point> q;
+            for (const cv::Point2d& c : p) q.emplace_back(int(std::lround(c.x + dx)), int(std::lround(c.y + dy)));
+            cv::polylines(drawn, q, true, colour, 1);
+        }
+    };
+    outline(pads, 0, 0, cv::Scalar(255, 160, 0));
+    if (r.found) outline(pads, r.dx, r.dy, cv::Scalar(0, 255, 0));
     char text[96];
-    std::snprintf(text, sizeof text, "%s - Symmetry %.1f", shown.c_str(), range.finalScore);
+    std::snprintf(text, sizeof text, "Board Scan %s - Score %.2f", point.id.c_str(), r.score);
     JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(drawn), text = std::string(text)] {
         if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kScanShownMs);
     });
-    if (!seen) {
-        words = "not found (Subject not found.)";
+    if (!r.found) {
+        char b[96];
+        std::snprintf(b, sizeof b, "pads not matched within %.1f mm (score %.2f)", kScanSearchMm, r.score);
+        words = b;
         return false;
     }
-    if (!on.machinePoint(seen->center.x, seen->center.y, cameraX, cameraY, x, y)) {
-        words = "found, but the camera's calibration cannot place it on the machine";
+    if (!on.machinePoint(ex + r.dx, ey + r.dy, cameraX, cameraY, x, y)) {
+        words = "matched, but the camera's calibration cannot place it on the machine";
         return false;
     }
     return true;
@@ -599,7 +608,7 @@ void JPlacerCameraTasks::scanBoard(const std::string& axisId, double periodMm, c
                 if (!m_cell.moveToolAndWait(cm, { p.x, p.y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
                 double x = p.x, y = p.y;
                 std::string lost;
-                if (!findMirrored(top, cal, p.sizeMm, p.x, p.y, x, y, "Board Scan " + p.id, lost)) {
+                if (!findPads(top, cal, p, p.x, p.y, x, y, lost)) {
                     ++missed;
                     JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  board scan " << p.id << ": " << lost;
                     continue;
