@@ -3186,6 +3186,12 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
     std::map<std::string, double> lagged;    // DistanceAware: each moved axis's lag after the move
     double approach = 1;
     bool needApproach = false;
+    // Off for a jog made with a tool's Z below its safe zone, the Jog panel's Backlash Off Below Safe Z on: decided
+    // here, from where the axes were sent (a job's moves never, nor the move after going up).
+    bool below = false;
+    if (m_jogMove && m_backlashOffBelowSafeZ)
+        for (const JPHeadConfig& h : m_config.heads) below = below || headBelowSafeZ(h.id);
+    const bool backlashOn = m_backlashOn && !below;
     {
         const auto from = toAxes(now, now);
         for (auto& [id, t] : hardware) {
@@ -3195,7 +3201,7 @@ bool JPCell::doMoveNow(std::map<std::string, double> targets, double speed, std:
             const double before = backlashApplied(id);
             const double offset = a->backlashOffset;
             const bool aware = a->backlash == JPAxisConfig::Backlash::DistanceAware;
-            if (!m_backlashOn || a->backlash == JPAxisConfig::Backlash::None || (aware ? a->backlashTable.empty() : offset == 0)) {
+            if (!backlashOn || a->backlash == JPAxisConfig::Backlash::None || (aware ? a->backlashTable.empty() : offset == 0)) {
                 if (before != 0) applied[id] = 0;
                 continue;
             }

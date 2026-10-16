@@ -239,7 +239,6 @@ private:
     JCheckBox*              m_backlash = nullptr;
     bool                    m_showingBacklash = false;   // the tick set by refreshBacklash, not by a click
     bool                    m_offBelowSafeZ = true;
-    bool                    m_backlashOffForZ = false;   // off because the head went below safe Z
     void refreshBacklash();
 };
 

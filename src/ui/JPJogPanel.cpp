@@ -387,7 +387,6 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
     m_backlash->onStateChanged.connect([this](bool on) {
         if (m_showingBacklash) return;
         m_cell.setBacklashCompensation(on, "Backlash Compensation unticked on the Jog panel");
-        m_backlashOffForZ = false;
     });
     page->addChildWidget(std::move(backlash));
     refreshBacklash();
@@ -397,22 +396,17 @@ std::unique_ptr<JWidget> JPJogPanel::jogPage(float size) {
 void JPJogPanel::refreshBacklash() {
     if (!m_backlash || m_tools.empty()) return;
     const JPMountConfig* mount = m_tools[m_tool].mount;
+    // The cell decides each jog as it is sent (JPCell::setBacklashOffBelowSafeZ): turned off and on from here, a
+    // moment late, it left a job's place move and bottom vision's look after going up uncompensated (on bench,
+    // parts placed 0.07 mm off in Y).
+    m_cell.setBacklashOffBelowSafeZ(m_offBelowSafeZ);
     const bool below = m_offBelowSafeZ && mount && m_cell.headBelowSafeZ(mount->headId);
-    // Off going below safe Z; on again coming back up, when going down is what turned it off.
-    if (below && m_cell.backlashCompensation()) {
-        m_cell.setBacklashCompensation(false, "the head is below safe Z (the Jog panel's Safety: Backlash Off Below Safe Z); "
-                                              "on again once it is back up");
-        m_backlashOffForZ = true;
-    } else if (!below && m_backlashOffForZ) {
-        m_cell.setBacklashCompensation(true);
-        m_backlashOffForZ = false;
-    }
     m_showingBacklash = true;
     m_backlash->setChecked(m_cell.backlashCompensation());
     m_showingBacklash = false;
     m_backlash->setEnabled(!below);
-    m_backlash->setTooltip(below ? "Off while the head is below safe Z (Safety: Backlash Off Below Safe Z): every move goes "
-                                   "straight to its place, nothing past it and back; on again once the head is back up"
+    m_backlash->setTooltip(below ? "The head is below safe Z (Safety: Backlash Off Below Safe Z): each jog goes straight to its "
+                                   "place, nothing past it and back; every other move, and jogs once the head is back up, compensated"
                                  : "Every move backlash compensated, as the axes say; off, every move goes straight to its "
                                    "place (nothing past it and back, as in a changer's slot). On each time jplacer starts");
 }
@@ -459,8 +453,8 @@ std::unique_ptr<JWidget> JPJogPanel::safetyPage() {
     JCheckBox* off = page->add(std::make_unique<JCheckBox>(
         m_graph, below, st.checkHeight + 2 * st.spacing + std::ceil(JTextHelper::measureWidth(below))));
     off->setChecked(m_offBelowSafeZ);
-    off->setTooltip("Backlash Compensation turned off while a Z of a tool on the head is below safe Z, and on again once it "
-                    "is back up: down among slots, feeders and boards, a move past the place and back hits something.");
+    off->setTooltip("Jogs made while a Z of a tool on the head is below safe Z go straight to their place: down among slots, "
+                    "feeders and boards, a move past the place and back hits something. No other move is touched.");
     off->onStateChanged.connect([this](bool on) {
         m_offBelowSafeZ = on;
         refreshBacklash();

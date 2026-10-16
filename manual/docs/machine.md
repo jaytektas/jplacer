@@ -315,13 +315,15 @@ tip its offset past a slot's point, into its wall. A move with **Backlash?** is 
 
 The Jog panel's **Backlash Compensation** (under the pad) turns every axis's compensation off, or on again,
 for every move from then on: a jog, a place button, a job, a tip change. It is ticked each time jplacer
-starts. With **Backlash Off Below Safe Z** (the Safety tab, ticked to begin with, kept for next time) it is
-turned off as soon as a Z of a tool on the head is below its safe Z (where it was sent, not where its motor stopped: an axis stops on its nearest step, so one sent to safe Z may read a fraction of a step below it), shown unticked and greyed meanwhile, and
-ticked again once every Z is back up, when going down is what turned it off. Each axis's Backlash
-Compensation tab says under its method whether compensation is on now (**Compensation Now**), and when it
-is off, why: unticked on the Jog panel, the head below safe Z, or backlash being calibrated.
+starts. With **Backlash Off Below Safe Z** (the Safety tab, ticked to begin with, kept for next time) a jog
+made while a Z of a tool on the head is below its safe Z (where it was sent, not where its motor stopped: an
+axis stops on its nearest step, so one sent to safe Z may read a fraction of a step below it) goes straight
+to its place, nothing past it and back; it is decided as each jog is sent, and no other move is touched (a
+job's, a camera task's, a place button's, the move after going up: each compensated). Meanwhile the box is
+shown greyed. Each axis's Backlash Compensation tab says under its method whether compensation is on now
+(**Compensation Now**), and when it is off, why: unticked on the Jog panel, or backlash being calibrated.
 
-<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure; setSpeedOverPrecision); src/tasks/JPTipChanger.cpp (run); src/ui/JPJogPanel.cpp (jogPage, refreshBacklash, safetyPage); src/machine/JPCell.cpp (setBacklashCompensation, backlashOffBecause, headBelowSafeZ, belowSafeZone); src/setup/JPSetupProperties.cpp (axisForm); src/app/JPlacerMachine.cpp (applySetup, unhomed); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
+<!-- src: src/machine/JPAxisConfig.h (Backlash); src/machine/JPCell.cpp (doMove: overshoot, approach, applied; updatePositions; reconfigure; setSpeedOverPrecision); src/tasks/JPTipChanger.cpp (run); src/ui/JPJogPanel.cpp (jogPage, refreshBacklash, safetyPage); src/machine/JPCell.cpp (setBacklashCompensation, backlashOffBecause, headBelowSafeZ, belowSafeZone, doMove: backlashOn); src/machine/JPCell.h (setBacklashOffBelowSafeZ); src/setup/JPSetupProperties.cpp (axisForm); src/app/JPlacerMachine.cpp (applySetup, unhomed); src/openpnp/JPOpenPnpMachineImporter.cpp (backlash) -->
 
 **Calibrate** on an X or Y axis's Backlash Compensation tab measures its play with the camera that rides on
 it, over the head's homing fiducial (the machine homed, the camera calibrated), compensation off while it

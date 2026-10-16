@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- Backlash Off Below Safe Z now only affects jogs made while a nozzle is down. Before, it switched the machine's
+  compensation off whenever a nozzle went below safe Z and back on a moment after it came up, too late for the
+  next move: a job's move to the place after bottom vision, bottom vision's own correcting move, and Position
+  Nozzle after Test Alignment all went without backlash compensation. On the bench parts landed about 0.1 mm off
+  in Y.
 - An X or Y axis's drive that puts the head off the same way every turn (a belt pulley not quite round on its
   shaft) can be measured and corrected: Machine Setup › the axis › Periodic Error. Set the Drive Period (a
   pulley's teeth times the belt's pitch), then Scan Board finds every bare footprint's pads on the Job tab's

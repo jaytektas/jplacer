@@ -363,6 +363,11 @@ public:
     // distance-aware back-off); a directional offset still shifts where a move ends. For moves among things
     // that a move past the target would hit (a nozzle tip changer's slots).
     void setSpeedOverPrecision(bool on) { m_speedOverPrecision = on; }
+    // The Jog panel's Backlash Off Below Safe Z: a jog made while a Z of a tool on the head is below its safe zone
+    // goes straight to its place, nothing past it and back (down among slots, feeders and boards, that hits
+    // something). Decided as each jog is sent, from where the axes were sent; no other move is touched (a job's, a
+    // camera task's, Position Nozzle's: each, after going up, compensated).
+    void setBacklashOffBelowSafeZ(bool on) { m_backlashOffBelowSafeZ = on; }
     // The controller axes' positions as their controllers report them: with
     // a directional backlash offset in effect, the axis's plus it (where the
     // drive was sent). positions() gives the axes' own.
@@ -664,6 +669,7 @@ private:
     std::map<std::string, double>      m_backlashLag;
     std::map<std::string, double>      m_reported;   // controller axes, as reported
     std::atomic<bool>                  m_backlashOn{ true };
+    std::atomic<bool>                  m_backlashOffBelowSafeZ{ false };   // setBacklashOffBelowSafeZ
     mutable std::mutex                 m_backlashWhyMutex;
     std::string                        m_backlashWhy;   // why it is off
     std::atomic<bool>                  m_speedOverPrecision{ false };   // setSpeedOverPrecision
