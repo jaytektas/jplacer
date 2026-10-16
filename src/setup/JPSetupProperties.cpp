@@ -768,6 +768,7 @@ void periodicErrorForm(JPFormBuilder& add, JPCellConfig& cell, const std::string
                    p.periodMm = v;
                },
                3);
+    add.reshapes("drivePeriod");   // set or taken away: the correction, its buttons and the last scan shown or not
     add.tip("How far the axis travels for one turn of what drives it: a belt pulley's teeth times the belt's pitch (15 "
             "teeth of HTD 3M: 45 mm), a screw's lead. A pulley not quite round on its shaft puts the head off the same "
             "way every turn, along the axis and, driven at both ends, across it; a board scan measures that. 0: none.");
