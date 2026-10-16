@@ -1,0 +1,1289 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Using jplacer, pick-and-place machine control.">
+      
+      
+      
+        <link rel="canonical" href="https://jaytektas.github.io/jplacer/tables.html">
+      
+      
+        <link rel="prev" href="menus.html">
+      
+      
+        <link rel="next" href="machine.html">
+      
+      
+        
+      
+      
+      <link rel="icon" href="img/jplacer.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Tables - jplacer User Manual</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+        <script src="https://unpkg.com/iframe-worker/shim"></script>
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tables" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="index.html" title="jplacer User Manual" class="md-header__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            jplacer User Manual
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Tables
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Light"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Light" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="amber"  aria-label="Dark"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Dark" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="index.html" title="jplacer User Manual" class="md-nav__button md-logo" aria-label="jplacer User Manual" data-md-component="logo">
+      
+  <img src="img/jplacer.png" alt="logo">
+
+    </a>
+    jplacer User Manual
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jaytektas/jplacer" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    jaytektas/jplacer
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="index.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jplacer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="menus.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Menus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tables
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="tables.html" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#sorting-choosing-and-copying" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sorting, choosing and copying
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moving-and-widening-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Moving and widening columns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#views" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Views
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Columns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#editing-many-rows-pasting-and-undo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Editing many rows, pasting and undo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#job-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Job fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="machine-setup.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobs.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="panels.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Panels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="boards.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="parts.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="packages.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="vision.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vision
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="pipeline-editor.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="feeders.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feeders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="issues.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issues &amp; Solutions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="log.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="preferences.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="updates.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates and betas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="whats-new.html" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    What's new
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="tables">Tables<a class="headerlink" href="#tables" title="Permanent link">&para;</a></h1>
+<p>Every table in jplacer works the same way: the parts, packages and their pads, boards, panels and their
+placements, the job's boards, feeders and vision settings. You can sort it, choose rows, move, widen and hide
+its columns, and add fields of your own to what its rows are.</p>
+<h2 id="sorting-choosing-and-copying">Sorting, choosing and copying<a class="headerlink" href="#sorting-choosing-and-copying" title="Permanent link">&para;</a></h2>
+<p>Click a column's heading to sort by it; click it again to turn it round. Clicking another heading sorts by
+that first and by the earlier ones after it (up to three); the later ones' arrows are fainter. Choose
+several rows with <strong>Shift</strong>+click and <strong>Ctrl</strong>+click; <strong>Ctrl+A</strong> chooses them all, and <strong>Ctrl+C</strong> copies the
+chosen rows, a tab between cells (in the columns' order as shown).</p>
+<!-- src: src/ui/JPTable.cpp (clickHeader, selectView, handleKeyEvent, copySelection) -->
+
+<h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
+<p><strong>Search</strong>, at the right of a toolbar, shows only the rows with the text typed anywhere in them, in any
+column, a hidden one's too, whatever its case. The text is a regular expression: <code>^C0402</code> finds rows with
+something starting C0402. Beside it, while it searches, how many rows it leaves of how many (<em>12 of 340</em>),
+and in each cell what it matched is marked. A row found only in a column the table does not show has a mark
+at its start, and pointing at it says which column it was found in. The <strong>✕</strong> at its right end empties it.</p>
+<!-- src: src/ui/JPUiParts.cpp (search); src/ui/JPSearchField.cpp (attach, updateCount); src/ui/JPTable.cpp (setFilter, rowPasses, unsearchedRowCount, populateRenderPrimitives: markMatch, the hidden mark; handleMouseMove) -->
+
+<p>A column's heading and a colon first searches that column alone: <code>lcsc: C15</code> finds the rows whose LCSC
+starts with or holds C15, and <code>lcsc:</code> alone the rows with anything in it. As you type the start of a
+column's heading, the rest of it shows greyed after what you typed; <strong>Tab</strong> (or <strong>→</strong> at the end) takes it,
+with the colon. A colon after something that is no column's heading (<code>http://</code>) is part of the search.</p>
+<!-- src: src/ui/JPSearchField.cpp (completion, handleKeyEvent, populateRenderPrimitives); src/ui/JPTable.cpp (setFilter, columnNames) -->
+
+<h2 id="moving-and-widening-columns">Moving and widening columns<a class="headerlink" href="#moving-and-widening-columns" title="Permanent link">&para;</a></h2>
+<p>Drag a heading's edge to widen a column; the columns after it give way. Drag a heading sideways to move its
+column. While it is dragged the table shows how it will look: the column floats with the pointer and the
+others move aside to make its place. Letting go keeps it there; <strong>Escape</strong> puts every column back as it was.
+Each table keeps its columns' order, widths and sort as you leave them, the next time jplacer starts too.
+They are kept by what each column is, not by its heading, so a column you rename keeps its place.</p>
+<!-- src: src/ui/JPTable.cpp (setColumnWidth, previewDrop, endColumnDrag, applyState, keepState, order); src/ui/JPTableModel.h (Column::key, keyOf); src/app/JPlacerApp.cpp (s_loadState, s_saveState); src/app/JPlacerSettings.h (kTableState) -->
+
+<h2 id="views">Views<a class="headerlink" href="#views" title="Permanent link">&para;</a></h2>
+<p>A <strong>view</strong> is a table's layout kept under a name: which columns it shows, their order and widths, and its
+sort. Each table has its own, and switching between them changes the whole layout in one click: a simple
+view, a supplier's, a production view, your own. Each starts with two: <strong>Standard</strong>, the table as jplacer
+ships it, and <strong>All Fields</strong>, every column, always (those you add later too; its ticks in <strong>Columns</strong> are
+greyed, as it hides none). Whatever you change in a view (a column shown or hidden, moved, widened, a sort)
+is kept in that view as you change it: there is nothing to save.</p>
+<!-- src: src/ui/JPTable.cpp (readViews, saveViews, showView, keepState, order: All Fields, setColumnShown); src/ui/JPTable.h (View) -->
+
+<p>Beside <strong>Columns</strong> on the toolbar, each view has a button showing its icon, its name in its tooltip; the view
+shown is lit. Click one to show it, or press <strong>Ctrl+1</strong> to <strong>Ctrl+9</strong> in the table for its first nine (the
+keys can be changed in <strong>Edit ▸ Preferences…</strong>, as <strong>Show View 1</strong> to <strong>9</strong>). Drag a button along the row to
+move its view there. Right-click it for its own menu:</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Show "<em>name</em>"</strong></td>
+<td>Shows it.</td>
+</tr>
+<tr>
+<td><strong>Rename…</strong></td>
+<td>Gives it another name.</td>
+</tr>
+<tr>
+<td><strong>Icon</strong></td>
+<td>The icon its button shows: List, Columns, Star, Truck, Wrench, Eye, Person, Clipboard, Tag, Flag, Box, Gear or Check.</td>
+</tr>
+<tr>
+<td><strong>Duplicate</strong></td>
+<td>A copy of it beside it (as shown now, changes and all), shown.</td>
+</tr>
+<tr>
+<td><strong>Locked</strong></td>
+<td>Keeps the view as it is: a change while it is shown lasts only until another view is shown, its button marked with a dot meanwhile. Unlocked while changed, the change is its own.</td>
+</tr>
+<tr>
+<td><strong>Keeps Its Search</strong></td>
+<td>The view keeps the search typed while it is shown, and puts it back in <strong>Search</strong> whenever it is shown again: a production view of feeders showing only those enabled, a view of the parts with no height.</td>
+</tr>
+<tr>
+<td><strong>Revert View</strong></td>
+<td>(the view shown) Puts it back as it was kept, the changes since it was shown undone.</td>
+</tr>
+<tr>
+<td><strong>Delete View</strong></td>
+<td>Takes it away (a table keeps one view at least).</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/ui/JPTableTools.cpp (ViewButton, rebuild, dropIndex); src/ui/JPTable.cpp (viewMenu, moveView, duplicateView, deleteView, setViewLocked, setViewKeepsSearch, revertView, renameView, setViewIcon); src/ui/JPViewIcons.cpp; src/app/JPlacerApp.cpp (table.view) -->
+
+<h2 id="columns">Columns<a class="headerlink" href="#columns" title="Permanent link">&para;</a></h2>
+<p><strong>Columns</strong> (the table icon), at the end of a toolbar's icons after a divider, starts with the table's
+views: each one (the one shown ticked, <em>(changed)</em> after a locked one changed), <strong>New View…</strong> (a view made
+from the one shown, named as you say, with an icon no other view has yet) and <strong>This View</strong>, the view shown's
+own menu. Then it chooses which columns the table shows: a tick for each column shown; click one to hide it
+or to show it again in its place, at the width it had. The last column showing cannot be hidden. <strong>Reset Columns</strong> at
+the bottom shows them all again, as they first were. Which columns are shown is kept with the rest of the
+table's layout, each table its own. The tables on the <strong>Job</strong>, <strong>Boards</strong>, <strong>Panels</strong>, <strong>Parts</strong>,
+<strong>Packages</strong>, <strong>Vision</strong>, <strong>Feeders</strong> and <strong>Issues &amp; Solutions</strong> tabs have it and their views, the
+footprint's pads too, and the table a feeder's <strong>Part</strong> or a part's <strong>Package</strong> drops has them beside its filter (its views its own,
+though no fields are added or edited from it, as it is only chosen from). A table with no view buttons (those
+in a window of their own) is a plain table: its <strong>Columns</strong> and its headings' menu show and hide its columns,
+and offer no views and no fields to add or edit.</p>
+<!-- src: src/ui/JPUiParts.cpp (tableTools); src/ui/JPTableTools.cpp; src/ui/JPTable.cpp (columnsMenu, setColumnShown, columnsShown, allColumns, resetColumns); src/ui/JPIssuesPanel.cpp; src/ui/JPTable.h (setHasTools, setOffersFields); src/ui/JPTableTools.cpp (attach); src/ui/JPChooserTable.cpp (barControl); src/ui/JPPartsPanel.cpp; src/ui/JPPackagesPanel.cpp; src/ui/JPJobPanel.cpp; src/ui/JPJobPlacementsPanel.cpp; src/ui/JPBoardTools.cpp; src/ui/JPPanelDefinitionPanel.cpp; src/ui/JPFeedersPanel.cpp; src/ui/JPVisionSettingsPanel.cpp -->
+
+<p>Right-click a heading for that column's menu: <strong>Hide "<em>name</em>"</strong>, <strong>Show in Every View</strong> (shown in each of
+the table's views, not only the one shown), <strong>Add Field After "<em>name</em>"…</strong>, <strong>Edit Field "<em>name</em>"…</strong> and
+<strong>Reset Columns</strong>.</p>
+<!-- src: src/ui/JPTable.cpp (buildHeaderMenu, prepareContextMenu, showInEveryView) -->
+
+<h2 id="editing-many-rows-pasting-and-undo">Editing many rows, pasting and undo<a class="headerlink" href="#editing-many-rows-pasting-and-undo" title="Permanent link">&para;</a></h2>
+<p>A value typed into a cell, a tick or a choice, in a row that is one of several chosen, goes into every row
+chosen: choose 50 parts, type <em>LCSC</em> in one row's <strong>Supplier</strong>, and it is in all 50. Choose the rows, then
+type (or press <strong>F2</strong>) in the cell, tick it, or pick its choice; a double-click in one of the chosen rows edits
+them all too, where a plain click on one chooses it alone. A row that cannot take the value (one whose cell
+cannot be changed) is left as it is; a value refused by one row is taken by none, the cell staying open to put
+it right. The status line says how many were changed.</p>
+<!-- src: src/ui/JPTable.cpp (editRows, setCells, stopEditing, toggle, openChoices, handleMousePress, handleMouseRelease); src/app/JPlacerApp.cpp (s_status) -->
+
+<p><strong>Ctrl+V</strong> pastes what <strong>Ctrl+C</strong> copied, or a block of cells copied from a spreadsheet (a tab between
+cells, a line a row): from the chosen cell, down the rows and along the columns as the table shows them. One
+value goes into every row chosen. A cell that cannot be changed is passed over, and the status line says how
+many. A value a cell cannot take (a word for a number, a choice it does not have) and nothing at all is
+pasted, the first few refused named.</p>
+<!-- src: src/ui/JPTable.cpp (paste, setCellValue) -->
+
+<p>Each change is one step <strong>Edit ▸ Undo</strong> (Ctrl+Z) takes back and <strong>Edit ▸ Redo</strong> (Ctrl+Y) makes again,
+however many cells it changed, named for it ("Undo Change Rank of 12 Placements", "Undo Change 3 Cells of 2
+Rows"). The library's tables (parts, packages and their pads) are undone as the library's changes are (see
+<a href="parts.html#undo-and-redo">Parts</a>); the others' steps are kept with Machine Setup's and the library's, the last
+made first, the last 200 of them.</p>
+<!-- src: src/ui/JPTableHistory.cpp (record); src/ui/JPTable.cpp (putCells, setCells); src/ui/JPPartsTableModel.h (ownHistory); src/app/JPlacerApp.cpp (m_tableEdits); src/app/JPlacerUndo.cpp -->
+
+<h2 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h2>
+<p>Each column of a table of things (parts, placements, feeders…) is one of their <strong>fields</strong>. jplacer has its
+own, the columns each table has always had, and you can add as many of your own as you want: an LCSC part
+number, a supplier, a reel's size, a customer's order number. A field belongs to the kind of thing, not to
+one table: a field added to placements is a column of the Job tab's placements, a panel's
+fiducials, and every other table of placements. And the import offers each one to fill (see
+<a href="boards.html">Importing a board</a>).</p>
+<!-- src: src/model/JPFieldSet.h; src/model/JPFieldSet.cpp (builtIns, kinds); src/ui/JPFieldsModel.h; src/ui/JPTable.cpp (setModel) -->
+
+<p><strong>Add Field…</strong>, in <strong>Columns</strong> and on a heading's menu, adds one. Give it a <strong>Name</strong> (unique among that kind's
+fields, and without a colon), a <strong>Type</strong>, and the <strong>Import matches</strong>: the headings of a CAD file's or BOM's
+column that the import takes for it, commas between (its name always counts, and upper and lower case,
+spaces and punctuation do not matter). It shows in the table you added it from, at the end or after the
+column whose heading you right-clicked, and is hidden in the other tables of its kind until you tick it in
+their <strong>Columns</strong>.</p>
+<!-- src: src/app/JPlacerFieldDialog.cpp; src/model/JPField.cpp (matchesHeading); src/model/JPFieldSet.cpp (nameFree, add); src/ui/JPTable.cpp (fieldAdded, order); src/ui/JPFieldsModel.cpp (column: hiddenAtFirst) -->
+
+<p>The type says how its values are typed and shown:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Typed as</th>
+<th>Shown</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Text</strong></td>
+<td>anything</td>
+<td>as typed</td>
+</tr>
+<tr>
+<td><strong>Number</strong></td>
+<td>a number (<code>12</code>, <code>-0.5</code>, <code>12,5</code>)</td>
+<td>as typed, on the right, sorted as numbers</td>
+</tr>
+<tr>
+<td><strong>Length</strong></td>
+<td>a length in any units (<code>1.2</code>, <code>40mil</code>, <code>0.5in</code>); without units, the System Units</td>
+<td>in the System Units, sorted by length</td>
+</tr>
+<tr>
+<td><strong>Yes/No</strong></td>
+<td></td>
+<td>a tick box</td>
+</tr>
+<tr>
+<td><strong>Choice</strong></td>
+<td>one of its <strong>Choices</strong> (commas between when you make it)</td>
+<td>picked from its list; the empty one at the end takes it out</td>
+</tr>
+</tbody>
+</table>
+<p>A value that is not one of its type is refused, and the cell stays open to put it right. Emptying a cell
+takes its value out.</p>
+<!-- src: src/model/JPField.cpp (parse, text); src/ui/JPFieldsModel.cpp (column, text, setText, setChoice, setChecked, compare); src/ui/JPTable.cpp (stopEditing) -->
+
+<p><strong>Edit Fields…</strong> (in <strong>Columns</strong>) lists every field of that kind: its name, its type (jplacer's own for its
+fields), whose it is, whether jplacer needs it, its import matches, and how many have a value in each of
+yours. <strong>Edit…</strong>, or a double-click, or <strong>Edit Field "<em>name</em>"…</strong> on a heading, opens the field: rename any
+field, and change the import matches of one an import fills; a field of yours also its type and choices.
+Changing a field of yours to another type reads its values again as that type. Those it cannot read are
+named first, and emptied once you agree.</p>
+<!-- src: src/app/JPlacerFieldsDialog.cpp; src/app/JPlacerFieldDialog.cpp (keep); src/model/JPFieldRecords.cpp (unconvertible, convert, count) -->
+
+<p><strong>Delete…</strong> takes a field of yours away with its values (how many have one is said first). A field of
+jplacer's you have no use for is <strong>Removed…</strong>: it leaves every table, the import and the search, its values
+staying as they are (jplacer uses some of them itself), until <strong>Restore</strong> in <strong>Edit Fields…</strong> brings it back.
+The fields jplacer cannot work without have no <strong>Delete…</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Table of</th>
+<th>Kept always</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parts</td>
+<td>ID, Height, Package</td>
+</tr>
+<tr>
+<td>Packages</td>
+<td>ID</td>
+</tr>
+<tr>
+<td>Pads</td>
+<td>Name, X, Y, Width, Length, Rot.</td>
+</tr>
+<tr>
+<td>Placements</td>
+<td>ID, Part, Side, X, Y, Rot.</td>
+</tr>
+<tr>
+<td>Boards and panels where they lie</td>
+<td>Board/Panel Id, Side, X, Y, Z, Rot., Enabled?</td>
+</tr>
+<tr>
+<td>Boards, Panels</td>
+<td>Board Name, Panel Name</td>
+</tr>
+<tr>
+<td>Feeders</td>
+<td>ID, Name, Part, Type, Enabled</td>
+</tr>
+<tr>
+<td>Vision settings</td>
+<td>Name</td>
+</tr>
+</tbody>
+</table>
+<!-- src: src/model/JPFieldSet.cpp (builtIns: required; remove; restore); src/app/JPlacerFieldDialog.cpp (remove); src/app/JPlacerFieldsDialog.cpp (Restore) -->
+
+<p>The fields are kept in <code>fields.json</code> in the configuration folder. Each thing keeps its own values with it:
+a part's, a package's and its pads' in the library, a placement's and a board's in the board's file, a
+panel's in its file, the job's boards and the job's own in the job, a feeder's in <code>feeders.json</code>, vision
+settings' in <code>vision-settings.json</code>. A placement's values are its board's: on the <strong>Job</strong> tab, a board used
+more than once keeps no values of its own, so there they are shown and not changed.</p>
+<!-- src: src/model/JPFields.cpp; src/model/JPFieldValues.cpp (write, read); src/model/JPLibraryStore.cpp (custom); src/model/JPPlacement.cpp; src/model/JPBoard.cpp; src/model/JPPanel.cpp; src/model/JPPlacementsHolderLocation.cpp; src/model/JPJob.cpp; src/model/JPFeeder.cpp; src/model/JPConfiguration.cpp (save, load); src/ui/JPPlacementsTableModel.cpp (customEditable) -->
+
+<h2 id="job-fields">Job fields<a class="headerlink" href="#job-fields" title="Permanent link">&para;</a></h2>
+<p>A job has no table of its own, so its fields are in <strong>Job ▸ Job Fields…</strong>: a row for each field added to
+jobs, its value changed in place, and <strong>Add Field…</strong> and <strong>Edit Fields…</strong> as every table has them. The job's
+values are kept in its file.</p>
+<!-- src: src/app/JPlacerJobFieldsDialog.cpp; src/app/JPlacerMenuBuilder.cpp (job.fields); src/app/JPlacerOpenPnpTabs.cpp (openJobFields) -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="menus.html" class="md-footer__link md-footer__link--prev" aria-label="Previous: Menus">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Menus
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="machine.html" class="md-footer__link md-footer__link--next" aria-label="Next: Machine">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Machine
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.top", "navigation.footer", "search.highlight", "search.suggest", "toc.integrate"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
