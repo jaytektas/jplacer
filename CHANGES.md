@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- A part discarded by hand while a job is paused (after bottom vision could not find it, say) is picked again
+  when the job goes on: before, the job went back to look for it on the empty nozzle.
 - A job wastes less time between a place and the next pick. The job's state was told to the signalers before
   every step, each time waiting for the screen to draw its next frame (up to 160 ms right after a place), and
   each step's look at the job waited for a frame too: on the bench 1.4 s went by at safe Z between placements.

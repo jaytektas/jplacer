@@ -280,13 +280,15 @@ A job goes as OpenPnP's does:
 <!-- src: src/machine/JPJobProcessorConfig.h; src/tasks/JPJobProcessor.cpp (preFlight, plan, ordered, planner, pick, align, place, cleanup); src/tasks/JPCellJobMachine.cpp (alignPart); src/tasks/JPBottomVision.cpp (findOffsets); src/tasks/JPAlignRequests.cpp; src/tasks/JPFiducialLocator.cpp; src/model/JPFiducialFit.cpp; src/tasks/JPCellJobMachine.cpp (locateFiducial, changeTip) -->
 
 When something fails, the job pauses and says why (**Job Error**); the board, placement, part or feeder
-it is about is chosen on its tab. **Resume** goes on from there. With **Defer Errors** (or a placement's
+it is about is chosen on its tab. **Resume** goes on from there. A part taken off its nozzle while the job is
+paused (the Jog panel's **Discard**, after bottom vision could not find it, say) is fed and picked again for its
+placement when the job goes on, rather than looked for on the nozzle. With **Defer Errors** (or a placement's
 own error handling set to Defer), a placement that fails is put off instead: its feeder's fault is
 counted (shown in the Feeders tab's **Faults**; by default three in its last six feeds turn the feeder off), and it
 is tried again later, up to Machine Setup's Max Placement Attempts, or left in error; the job goes on, and says at its end how many
 errors there were.
 
-<!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault) -->
+<!-- src: src/tasks/JPJobProcessor.cpp (plannedStep, finish); src/app/JPlacerJobRun.cpp (run); src/app/JPlacerOpenPnpTabs.cpp (showSource); src/model/JPFeeder.cpp (recordJobFault); src/app/JPlacerMachine.cpp (onPartGone, setNozzlePart) -->
 
 **Deleting during a run.** A placement deleted while the job runs or is paused (or a board taken out of
 the job) is left out of the run from the next step. If its part is already on a nozzle, the part is

@@ -6,7 +6,8 @@
 // that says it is empty, a tray of one). The feed retried as the feeder's Feed Retry Count says and the feeder then
 // turned off; the pick retried as its Pick Retry Count says when the part-on check fails; the part's Pick Retry Count
 // feeding again, the next feeder for the part taken when one is off; an empty feeder failed over at once; and with
-// Defer, placements tried again later, the feeders' faults counted (turned off past the fault limit, by priority).
+// Defer, placements tried again later, the feeders' faults counted (turned off past the fault limit, by priority); a
+// part taken off its nozzle by hand while the job is paused, picked again when it resumes.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
@@ -20,6 +21,7 @@
 
 #include <cstdio>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -68,11 +70,16 @@ public:
         why = "Refusing to pick";
         return false;
     }
-    // NT1's part-on check, Absolute, 0.5 to 1.0 (OpenPnP's test tip).
-    bool vacuumChecked(const std::string&, VacuumStep step) const override { return step == VacuumStep::AfterPick; }
+    // NT1's part-on check, Absolute, 0.5 to 1.0 (OpenPnP's test tip); with `beforePlace`, before the place too, the
+    // part gone at the check numbered `goneAt` (counting from 0).
+    bool beforePlace = false;
+    int  checks = 0, goneAt = -1;
+    bool vacuumChecked(const std::string&, VacuumStep step) const override {
+        return step == VacuumStep::AfterPick || (beforePlace && step == VacuumStep::BeforePlace);
+    }
     bool partOn(const std::string&, bool& on, std::string&) override {
         const double v = std::stod(vacuum);
-        on = v >= 0.5 && v <= 1.0;
+        on = v >= 0.5 && v <= 1.0 && checks++ != goneAt;
         return true;
     }
 };
@@ -137,8 +144,8 @@ struct Bench {
         board->placements.push_back(p);
     }
     int feeds(const JPFeeder& f) { return feedCount[f.id()]; }
-    // OpenPnP's runJob: run to its end (an error ends it).
-    void run() {
+    // OpenPnP's runJob: run to its end (an error ends it, unless `onError` says to carry on).
+    void run(const std::function<bool(const std::string&)>& onError = {}) {
         JPJobProcessor::Hooks hooks;
         hooks.event = [this](const std::string& event, const JJson& globals, std::string&) {
             if (event == "Feeder.BeforeFeed") ++feedCount[globals["feeder"].str()];
@@ -151,7 +158,7 @@ struct Bench {
             if (r == JPJobProcessor::Result::Finished) return;
             if (r == JPJobProcessor::Result::Failed) {
                 std::fprintf(stderr, "Exception %s\n", failure.message.c_str());
-                return;
+                if (!onError || !onError(failure.message)) return;
             }
         }
         assert(false && "the job did not end");
@@ -276,6 +283,25 @@ void testPlacementRetryNeverDisablesAnyFeeder() {
     assert(b.feedCount[id] == 10);   // 5 tries of each of 2 placements
 }
 
+void testPartTakenOffWhilePaused() {
+    // The part lost before the place: the job pauses; the part taken off the nozzle by hand (the Jog panel's
+    // Discard) and the job resumed, a part is fed and picked again for R1, and placed.
+    Bench b;
+    const std::string id = b.feeder("F1", 100, 20, -5, 5).id();
+    b.placement("R1", 10, 10, 0);
+    b.machine.beforePlace = true;
+    b.machine.goneAt = 1;   // after the pick (0), before the place (1)
+    int errors = 0;
+    b.run([&](const std::string& message) {
+        assert(message == "No part vacuum-detected on nozzle before place." && ++errors == 1);
+        assert(b.machine.holdingPart("N1") == "R0402-1k");
+        b.machine.holding("N1", "");
+        return true;
+    });
+    assert(errors == 1 && b.feedCount[id] == 2 && b.machine.pickCount == 2);
+    assert(b.activePlacements() == 0 && b.machine.holdingPart("N1").empty());
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -284,7 +310,8 @@ int main(int argc, char** argv) {
         { "testFeederPickRetry", testFeederPickRetry }, { "testPartPickRetry", testPartPickRetry },
         { "testPartFailover", testPartFailover }, { "testPlacementRetry", testPlacementRetry },
         { "testPlacementRetryDisablesOneFeeder", testPlacementRetryDisablesOneFeeder },
-        { "testPlacementRetryNeverDisablesAnyFeeder", testPlacementRetryNeverDisablesAnyFeeder } };
+        { "testPlacementRetryNeverDisablesAnyFeeder", testPlacementRetryNeverDisablesAnyFeeder },
+        { "testPartTakenOffWhilePaused", testPartTakenOffWhilePaused } };
     if (argc > 1) {
         tests.at(argv[1])();
         return 0;

@@ -809,6 +809,24 @@ JPJobProcessor::Step JPJobProcessor::plannedStep(Step step, Step after) {
         return after;
     }
     Planned& p = m_planned[index];
+    // Its part taken off the nozzle while the job was paused (Discard on the Jog panel after a failed alignment):
+    // picked again, as after a pick that failed, and every part on the nozzles aligned again from there.
+    if (step == Step::Pick || step == Step::Align || step == Step::Place)
+        if (const auto on = m_partOn.find(p.nozzleId); on != m_partOn.end() && m_machine.holdingPart(p.nozzleId).empty()) {
+            const JobPlacement& j = m_jobPlacements[p.job];
+            std::string nozzle = p.nozzleId;
+            for (const auto& n : m_machine.nozzles())
+                if (n.id == p.nozzleId) nozzle = n.name;
+            JLOGC(JPlacerLog::kJob, JLogLevel::Info) << j.partName << " for " << j.placementId << " is no longer on nozzle "
+                                                     << nozzle << ": picked again";
+            m_partOn.erase(on);
+            m_rotationOffset.erase(p.nozzleId);
+            m_partsFeeder.erase(p.nozzleId);
+            if (step != Step::Pick) {
+                m_completed.clear();
+                return Step::Pick;
+            }
+        }
     try {
         switch (step) {
             case Step::ChangeNozzleTips: changeNozzleTip(p); break;

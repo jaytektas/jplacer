@@ -8,6 +8,7 @@
 
 #include "tasks/JPJobMachine.h"
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -25,7 +26,15 @@ public:
     std::optional<JPLocation> cameraLocation() const override { return std::nullopt; }
     bool cameraReaches(const JPLocation&) const override { return true; }
     TipPush tipPush(const std::string&) const override { return { true, 1.0 }; }
-    std::string holdingPart(const std::string&) const override { return {}; }
+    std::map<std::string, std::string> held;   // by nozzle: the part on it, as the job says
+    std::string holdingPart(const std::string& n) const override {
+        const auto h = held.find(n);
+        return h == held.end() ? std::string() : h->second;
+    }
+    void holding(const std::string& n, const std::string& part) override {
+        if (part.empty()) held.erase(n);
+        else held[n] = part;
+    }
     std::string chosenNozzle() const override { return {}; }
     bool positionActuator(const std::string&, std::array<std::optional<double>, 4>, double, bool, std::string&) override { return true; }
     bool zeroActuatorRotation(const std::string&, std::string&) override { return true; }
