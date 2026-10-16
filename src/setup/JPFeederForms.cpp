@@ -93,12 +93,20 @@ JPFormBuilder::Named partNames(const JPConfiguration& config, bool none) {
 }
 
 // The feeder's Part, chosen from the library's parts (the Parts tab's table dropped), loaded with its
-// packaging's values (JPFeederPackaging::load); `none`: "" (no part) among them. On the row begun, when one is.
+// packaging's values (JPFeederPackaging::load), its feed count reset as Reset does; `none`: "" (no part) among them.
+// On the row begun, when one is.
 void partChoice(JPFormBuilder& add, JPConfiguration& config, std::function<JPFeeder&()> f, bool none = false) {
     const JPFormBuilder::Named parts = partNames(config, none);
     // A part the library has not (deleted since): none shown.
     add.byName("part", "Part", parts, [&config, f] { return config.part(f().partId()) ? f().partId() : std::string(); },
-               [&config, f](const std::string& id) { JPFeederPackaging::load(config, f(), id); });
+               [&config, f](const std::string& id) {
+                   const bool another = id != f().partId();
+                   JPFeederPackaging::load(config, f(), id);
+                   // Another part: a fresh tape, fed from its first part, as Reset does.
+                   std::string why;
+                   if (another && !JPFeederForms::act(config, f().id(), "resetFeedCount", why))
+                       JLOGC(JPlacerLog::kUi, JLogLevel::Warn) << f().name() << ": its feed count was not reset: " << why;
+               });
     add.searchable(JPLibrarySearch::parts(config, parts.ids), JPLibrarySearch::kPartsTable);
     add.reshapes("part");   // its Packaging lists the new part's
 }

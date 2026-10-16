@@ -3,11 +3,12 @@
 
 // Every kind of feeder's page: a new feeder of each of OpenPnP's classes is of its typed kind, its page is made,
 // and every field on it reads and takes back what it reads (each field reaching its kind's own settings); and the
-// feeder comes back through jplacer's file as its kind.
+// feeder comes back through jplacer's file as its kind; another part chosen for a feeder resets its count.
 // Tests check with assert(); a Release build must not compile it away.
 #undef NDEBUG
 #include <cassert>
 
+#include "model/JPStripFeeder.h"
 #include "setup/JPFeederForms.h"
 
 #include <cstdio>
@@ -41,6 +42,22 @@ int main() {
         const JPFeeder back = JPFeeder::fromJson(JJson::parse(config.feeder(id)->toJson().dump()));
         assert(back.typed() && back.className() == className);
     }
+    // Another part chosen for a feeder: its count reset, as Reset does; the same part again: left.
+    for (const char* id : { "P1", "P2" }) {
+        auto part = std::make_shared<JPPart>();
+        part->id = id;
+        config.addPart(part);
+    }
+    JPFeeder strip = JPFeeder::create(JPStripFeeder::kClass, "P1");
+    const std::string stripId = strip.id();
+    config.addFeeder(std::move(strip));
+    config.feeder(stripId)->setFeedCount(5);
+    config.feeder(stripId)->setVisionFound(1, JPLocation(JPLengthUnit::Millimeters, 1, 2, 0, 0));
+    JPSetupProperties::Form form = JPFeederForms::forFeeder(config, stripId, nullptr, {});
+    assert(form.model.set("part", JVariant(std::string("P1"))) && config.feeder(stripId)->feedCount() == 5);
+    assert(form.model.set("part", JVariant(std::string("P2"))));
+    assert(config.feeder(stripId)->partId() == "P2" && config.feeder(stripId)->feedCount() == 0);
+    assert(!config.feeder(stripId)->visionLocation);
     fs::remove_all(dir);
     return 0;
 }

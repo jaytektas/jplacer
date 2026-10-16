@@ -10,6 +10,8 @@ notes.
 
 ## Unreleased
 
+- Choosing another part for a feeder resets its feed count, as Reset does, so the new tape is fed from its
+  first part.
 - A strip feeder's Auto Setup puts the camera over the first part, and the next pick goes there, even after the
   feeder has fed parts with vision: the holes vision had found were kept and the pick worked out from them
   until Reset was pressed. Typing or capturing a hole location forgets them too.
