@@ -168,13 +168,17 @@ public:
         rows().push_back(std::move(r));
     }
     // The same, each button with what its tooltip says.
-    struct Action { std::string label, action, tooltip; };
+    struct Action {
+        std::string label, action, tooltip;
+        bool        enabled = true;   // greyed when not
+    };
     void actionsWithTips(const std::vector<Action>& buttons) {
         Row r;
         r.kind = Row::Kind::Actions;
         for (const Action& b : buttons) {
             JPSetupProperties::Cell c { b.action, b.label };
             c.tooltip = b.tooltip;
+            c.enabled = b.enabled;
             r.cells.push_back(std::move(c));
         }
         rows().push_back(std::move(r));

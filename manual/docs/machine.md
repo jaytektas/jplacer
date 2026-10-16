@@ -359,6 +359,41 @@ compensated.
 
 <!-- src: src/tasks/JPBacklashCalibrator.cpp (run, kTestMoveMm, kLargeMoveMm, kStepTestMm, kPasses, kDampening, kFinestMm); src/tasks/JPBacklashCalibrator.h (Options, kSpeeds, kMaxSneakUpMm); src/app/JPlacerCameraTasks.cpp (calibrateBacklash); src/app/JPlacerMachine.cpp (setupAction); src/setup/JPSetupProperties.cpp (backlashResults) -->
 
+#### Periodic error
+
+A belt pulley not quite round on its shaft, or a screw not quite straight, puts the head off where it is sent
+by a little, the same way on every turn: ahead for half a turn, behind for the other half, a wave along
+the axis as long as one turn. A gantry driven at both ends by two such pulleys also twists, the other axis
+off by a wave of its own. The camera cannot see it by itself, as it rides on the same axis, but the
+nozzle, some distance from the camera, lands where the axis puts it at that other place: parts land off
+by different amounts in different places on the board.
+
+An X or Y axis's **Periodic Error** tab sets and measures it:
+
+- **Drive Period**: how far the axis travels for one turn of its drive: a belt pulley's teeth times the
+  belt's pitch (15 teeth of HTD 3M: 45 mm), a screw's lead. 0: none.
+- **Correction in Use**: the wave in use, along the axis and across it (the other axis named), or none.
+  jplacer's coordinates are where the head really is: each move is sent what puts the head there (a move
+  along the axis moves the axis across it too), and the controller's report is read back the same way.
+- **Scan Board** measures it on the Job tab's chosen board, its fiducials checked first. The head camera
+  goes to every footprint whose pads mirror each other through its middle and alike (two-pad chips, a
+  fiducial's one pad), square to the machine (its turn within 2 degrees of a multiple of 90), with nothing
+  on its pads (a placement not yet placed, or a fiducial), in order along the axis; it finds the
+  footprint's middle by its symmetry within 0.5 mm of where it should be, as OpenPnP's
+  DetectRectlinearSymmetry finds a part. Pads are copper from the same artwork as the fiducials, so they
+  are a ruler with a mark every few millimetres. Where each was found is fitted against where the board's
+  design puts it: the board as it lies (moved, turned and scaled) together with the wave along and across
+  the axis; a find more than 4 times the finds' typical distance off the fit (and more than 0.03 mm) is
+  left out and the fit made again (at least 8 finds are needed). The scan changes nothing.
+- **Apply** puts what the last scan found in use, added to the correction in use (a step to undo);
+  **Clear** takes the correction out of use. Scan again with it in use: what is left should be the
+  finding's own noise. Calibrate the nozzles' offsets and the camera looking up again after applying it.
+- **Last Scan**: the board, how many footprints were found and left out, the wave found, how far the
+  footprints were off without and with it (RMS), the board's scale and turn, whether it was applied; and
+  two graphs of how far the head was off at each footprint, along and across, with the wave fitted to them.
+
+<!-- src: src/machine/JPPeriodicErrorConfig.h; src/machine/JPCell.cpp (toAxes, squareOf); src/tasks/JPBoardScan.cpp (points, mirroredSize); src/tasks/JPBoardScan.h (kSquareDeg); src/tasks/JPPeriodicErrorFit.cpp (fit); src/tasks/JPPeriodicErrorFit.h (kLeastFinds, kOutlierSpread, kLeastOutlierMm); src/app/JPlacerCameraTasks.cpp (scanBoard, findMirrored, kScanSearchMm); src/app/JPlacerMachine.cpp (scanPeriodicError, applyPeriodicError, clearPeriodicError); src/setup/JPSetupProperties.cpp (periodicErrorForm) -->
+
 
 ### Jog
 

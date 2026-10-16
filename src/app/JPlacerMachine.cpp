@@ -2167,6 +2167,12 @@ void JPlacerMachine::setupAction(const std::string& path, const std::string& act
             view->showPicture(shown, "Background problems: as seen, and the problems marked", kProblemsMs);
     } else if (action == "calibrateBacklash" && path.rfind("axis:", 0) == 0) {
         calibrateBacklash(path.substr(5), nullptr);
+    } else if (action == "scanPeriodicError" && path.rfind("axis:", 0) == 0) {
+        scanPeriodicError(path.substr(5));
+    } else if (action == "applyPeriodicError" && path.rfind("axis:", 0) == 0) {
+        applyPeriodicError(path.substr(5));
+    } else if (action == "clearPeriodicError" && path.rfind("axis:", 0) == 0) {
+        clearPeriodicError(path.substr(5));
     } else if (action == "homeNozzleZ" && path.rfind("nozzle:", 0) == 0) {
         homeNozzle(path.substr(7));
     } else if (action.rfind("whiteBalance", 0) == 0 && path.rfind("camera:", 0) == 0) {
@@ -2824,6 +2830,65 @@ void JPlacerMachine::calibrateBacklash(const std::string& axisId, std::function<
         });
         m_setup->remakeForm();
     }, std::move(finished));
+}
+
+void JPlacerMachine::scanPeriodicError(const std::string& axisId) {
+    if (!m_cameraTasks || !m_cell) return;
+    const JPPeriodicErrorConfig& w = m_cell->config().periodicError;
+    if (w.axis != axisId || w.periodMm <= 0) {
+        m_window.showStatus("Board scan: set the axis's Drive Period first", kErrorMs);
+        return;
+    }
+    std::string board, why;
+    std::vector<JPBoardScan::Point> points;
+    if (boardScanPoints) points = boardScanPoints(board, why);
+    else why = "no job";
+    if (points.empty()) {
+        m_window.showStatus("Board scan: " + why, kErrorMs);
+        return;
+    }
+    // Kept as the axis's last scan as soon as it is made (a measurement, not a change to undo); put in use by Apply.
+    m_cameraTasks->scanBoard(axisId, w.periodMm, board, std::move(points), [this, axisId](const JPPeriodicErrorConfig::Scan& scan) {
+        measured([&](JPCellConfig& cell) {
+            if (cell.periodicError.axis == axisId) cell.periodicError.lastScan = scan;
+        });
+        if (m_setup) {
+            m_setup->remakeForm();
+            m_setup->showNode("axis:" + axisId);
+        }
+    });
+}
+
+void JPlacerMachine::applyPeriodicError(const std::string& axisId) {
+    if (!m_setup || !m_cell) return;
+    const JPPeriodicErrorConfig& w = m_cell->config().periodicError;
+    if (w.axis != axisId || !w.lastScan || w.lastScan->applied) return;
+    std::string name = axisId;
+    if (const JPAxisConfig* a = m_cell->config().axis(axisId)) name = a->name;
+    // The wave found is what was left with the correction in use: added to it.
+    m_setup->change("Periodic error of " + name + " in use", [&](JPCellConfig& cell) {
+        JPPeriodicErrorConfig& p = cell.periodicError;
+        if (p.axis != axisId || !p.lastScan) return;
+        p.alongSin += p.lastScan->alongSin;
+        p.alongCos += p.lastScan->alongCos;
+        p.acrossSin += p.lastScan->acrossSin;
+        p.acrossCos += p.lastScan->acrossCos;
+        p.lastScan->applied = true;
+    });
+    m_setup->remakeForm();
+}
+
+void JPlacerMachine::clearPeriodicError(const std::string& axisId) {
+    if (!m_setup || !m_cell) return;
+    std::string name = axisId;
+    if (const JPAxisConfig* a = m_cell->config().axis(axisId)) name = a->name;
+    m_setup->change("Periodic error of " + name + " taken out of use", [&](JPCellConfig& cell) {
+        JPPeriodicErrorConfig& p = cell.periodicError;
+        if (p.axis != axisId) return;
+        p.alongSin = p.alongCos = p.acrossSin = p.acrossCos = 0;
+        if (p.lastScan) p.lastScan->applied = false;
+    });
+    m_setup->remakeForm();
 }
 
 void JPlacerMachine::calibrateTip(const std::string& tipId, std::function<void(bool ok)> finished) {

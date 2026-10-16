@@ -19,6 +19,8 @@
 #include "common/JPlacerPaths.h"
 #include "pipeline/JPStageUtil.h"
 #include "tasks/JPBottomVision.h"
+#include "tasks/JPPeriodicErrorFit.h"
+#include "pipeline/JPRectlinearSymmetry.h"
 #include "tasks/JPJobMachine.h"
 #include "tasks/JPVisionFeature.h"
 #include "ui/JPFootprintOverlay.h"
@@ -74,6 +76,10 @@ constexpr int kAutoFocusShownMs = 1000;
 constexpr int kTuneWaitMs = 12000;
 // How long a result stays in the status bar.
 constexpr int kResultMs = 8000;
+// A board scan: how far from where a footprint should be its middle is looked for (mm), how much bigger than its pads
+// the box looked in, and how long each find is shown.
+constexpr double kScanSearchMm = 0.5, kScanBoxShare = 1.5;
+constexpr int    kScanShownMs = 800;
 // Looking for a mark under the camera: how far from the middle, and how small and big, as shares of the
 // picture's smaller side (as the calibration's first look).
 constexpr double kMarkSearchShare = 0.3;
@@ -500,6 +506,130 @@ void JPlacerCameraTasks::calibrateRunoutCamera(const std::string& nozzleId, Came
         });
     };
     start();
+}
+
+bool JPlacerCameraTasks::findMirrored(JPCameraPanel* panel, const JPCameraCalibration& cal, double sizeMm, double cameraX,
+                                      double cameraY, double& x, double& y, const std::string& shown, std::string& words) {
+    // The picture straightened as the camera is calibrated, as findRound; the footprint's middle where its cross-sections
+    // mirror best (OpenPnP's DetectRectlinearSymmetry, as bottom vision finds a part), square to the picture.
+    cv::Mat bgr;
+    if (!settledColour(panel->feed(), bgr, words)) return false;
+    JPCameraCalibration on = cal;
+    if (const auto straight = JPStraightPicture::of(cal, panel->camera().looksUp, panel->camera().showAll)) {
+        cv::Mat flat;
+        if (straight->straighten(bgr, flat)) {
+            bgr = flat;
+            on = straight->calibration();
+        }
+    }
+    double ex = bgr.cols / 2.0, ey = bgr.rows / 2.0;
+    on.pixelFor(x, y, cameraX, cameraY, ex, ey);
+    JPRectlinearSymmetry::Search q;
+    q.xCenter = int(std::lround(ex));
+    q.yCenter = int(std::lround(ey));
+    q.maxWidth = q.maxHeight = sizeMm * kScanBoxShare * on.scale();
+    q.searchDistance = kScanSearchMm * on.scale();
+    q.searchAngle = 2 * JPBoardScan::kSquareDeg;
+    q.superSampling = 2;
+    cv::Mat work = bgr.clone();
+    JPRectlinearSymmetry::ScoreRange range;
+    const auto seen = JPRectlinearSymmetry::find(work, q, range);
+    cv::Mat drawn = bgr.clone();
+    const int px = std::max(9, int(std::lround(sizeMm * on.scale() / 4)));
+    cv::drawMarker(drawn, cv::Point(q.xCenter, q.yCenter), cv::Scalar(255, 160, 0), cv::MARKER_CROSS, px, 1);
+    if (seen) {
+        cv::Point2f corners[4];
+        seen->points(corners);
+        for (int i = 0; i < 4; ++i) cv::line(drawn, corners[i], corners[(i + 1) % 4], cv::Scalar(0, 255, 0), 1);
+        cv::drawMarker(drawn, seen->center, cv::Scalar(0, 255, 0), cv::MARKER_CROSS, px, 2);
+    }
+    char text[96];
+    std::snprintf(text, sizeof text, "%s - Symmetry %.1f", shown.c_str(), range.finalScore);
+    JMainThreadDispatcher::instance().post([alive = std::weak_ptr<bool>(m_alive), panel, frame = frameOf(drawn), text = std::string(text)] {
+        if (const auto a = alive.lock(); a && *a) panel->view().showPicture(frame, text, kScanShownMs);
+    });
+    if (!seen) {
+        words = "not found (Subject not found.)";
+        return false;
+    }
+    if (!on.machinePoint(seen->center.x, seen->center.y, cameraX, cameraY, x, y)) {
+        words = "found, but the camera's calibration cannot place it on the machine";
+        return false;
+    }
+    return true;
+}
+
+void JPlacerCameraTasks::scanBoard(const std::string& axisId, double periodMm, const std::string& board,
+                                   std::vector<JPBoardScan::Point> points, std::function<void(const JPPeriodicErrorConfig::Scan&)> done) {
+    // The head camera that rides on the axis.
+    JPCameraPanel* camera = nullptr;
+    for (JPCameraPanel* p : m_cameras) {
+        const JPMountConfig& m = p->camera().mount;
+        if (!camera && !p->camera().looksUp && (m.axisX == axisId || m.axisY == axisId)) camera = p;
+    }
+    std::string name = axisId;
+    const JPAxisConfig* axis = m_cell.config().axis(axisId);
+    if (axis) name = axis->name;
+    std::string why = !camera ? "no camera on a head rides on axis " + name : notReady(camera, true, false);
+    if (why.empty() && (!axis || (axis->type != JPAxisConfig::Type::X && axis->type != JPAxisConfig::Type::Y)))
+        why = "axis " + name + " is not an X or Y axis";
+    if (!why.empty()) {
+        m_window.showStatus("Board scan: " + why, kResultMs);
+        return;
+    }
+    const bool alongY = axis->type == JPAxisConfig::Type::Y;
+    // Along the axis, each pass the same way (the backlash the same at every find).
+    std::sort(points.begin(), points.end(), [alongY](const JPBoardScan::Point& a, const JPBoardScan::Point& b) {
+        return alongY ? std::make_pair(a.y, a.x) < std::make_pair(b.y, b.x) : std::make_pair(a.x, a.y) < std::make_pair(b.x, b.y);
+    });
+    auto scan = std::make_shared<JPPeriodicErrorConfig::Scan>();
+    JPCameraPanel* top = camera;
+    run(*camera, "Scanning " + board + " for " + name + "'s periodic error",
+        [this, top, axisId, alongY, periodMm, board, points, scan](std::string& words, const auto& progress) {
+            JPCameraCalibration cal;
+            if (!JPCameraLook::calibration(m_cell, top->feed(), cal, words)) return false;
+            const std::string light = top->camera().lightActuator();
+            if (!light.empty() && top->camera().light.beforeCapture) m_cell.switchActuatorAndWait(light, true, words);
+            const JPMountConfig& cm = top->camera().mount;
+            std::vector<JPPeriodicErrorFit::Find> finds;
+            size_t missed = 0;
+            for (size_t i = 0; i < points.size(); ++i) {
+                const JPBoardScan::Point& p = points[i];
+                progress(p.id + ", " + std::to_string(i + 1) + " of " + std::to_string(points.size()));
+                if (!m_cell.moveToolAndWait(cm, { p.x, p.y, std::nullopt, std::nullopt }, kTaskSpeed, words)) return false;
+                double x = p.x, y = p.y;
+                std::string lost;
+                if (!findMirrored(top, cal, p.sizeMm, p.x, p.y, x, y, "Board Scan " + p.id, lost)) {
+                    ++missed;
+                    JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  board scan " << p.id << ": " << lost;
+                    continue;
+                }
+                const auto at = m_cell.jogBase().find(axisId);
+                finds.push_back({ p.designX, p.designY, x, y, at == m_cell.jogBase().end() ? (alongY ? p.y : p.x) : at->second });
+                JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "  board scan " << p.id << ": design " << p.designX << ", " << p.designY
+                                                            << ", expected " << p.x << ", " << p.y << ", found " << x << ", " << y;
+            }
+            if (!JPPeriodicErrorFit::fit(finds, periodMm, alongY, *scan, words)) {
+                if (missed) words += " (" + std::to_string(missed) + " not found)";
+                return false;
+            }
+            scan->when = JPWhen::now();
+            scan->board = board;
+            size_t left = 0;
+            for (const auto& q : scan->points) left += q.outlier;
+            char buf[240];
+            std::snprintf(buf, sizeof buf,
+                          "%zu footprints (%zu not found, %zu left out): wave %.4f mm along, %.4f mm across; off %.4f mm "
+                          "without it, %.4f mm with it",
+                          finds.size(), missed, left, std::hypot(scan->alongSin, scan->alongCos),
+                          std::hypot(scan->acrossSin, scan->acrossCos), scan->rmsBefore, scan->rmsAfter);
+            words = buf;
+            JLOGC(JPlacerLog::kCamera, JLogLevel::Info) << "Board scan of " << board << ": " << words;
+            return true;
+        },
+        [scan, done](bool ok) {
+            if (ok && done) done(*scan);
+        });
 }
 
 bool JPlacerCameraTasks::findRound(JPCameraPanel* panel, const JPCameraCalibration& cal, double diameterMm, double cameraX,

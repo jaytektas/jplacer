@@ -595,6 +595,9 @@ private:
     void compensateRunout(const JPMountConfig& mount, std::map<std::string, double>& targets, bool stepped) const;
     std::map<std::string, double> toAxes(std::map<std::string, double> square,
                                          const std::map<std::string, double>& now) const;
+    // The other way: square coordinates (where the head is) from the axes' own, a drive's periodic error and the
+    // squareness taken in; axes it does not name as they are.
+    std::map<std::string, double> squareOf(std::map<std::string, double> axes) const;
 
     JPCellConfig                                m_config;
     bool                                        m_jogMove = false;   // the move under way is a jog (cell thread)

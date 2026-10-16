@@ -34,6 +34,7 @@ JJson JPCellConfig::toJson() const {
     j["actuators"] = toArray(actuators);
     if (!signalers.empty()) j["signalers"] = toArray(signalers);
     if (!squareness.axisX.empty()) j["squareness"] = squareness.toJson();
+    if (!periodicError.axis.empty()) j["periodicError"] = periodicError.toJson();
     if (homeAfterEnabled) j["homeAfterEnabled"] = true;
     if (parkAfterHome) j["parkAfterHome"] = true;
     if (discardLocation) j["discardLocation"] = discardLocation->toJson();
@@ -71,6 +72,7 @@ bool JPCellConfig::fromJson(const JJson& j, std::string& error) {
     for (const JJson& a : j["actuators"].arr()) c.actuators.push_back(JPActuatorConfig::fromJson(a));
     for (const JJson& s : j["signalers"].arr()) c.signalers.push_back(JPSignalerConfig::fromJson(s));
     c.squareness = JPSquarenessConfig::fromJson(j["squareness"]);
+    c.periodicError = JPPeriodicErrorConfig::fromJson(j["periodicError"]);
     // The machine's, as OpenPnP's; kept before as the machine's homeAfterConnect, or a controller's.
     c.homeAfterEnabled = j["homeAfterEnabled"].boolean() || j["homeAfterConnect"].boolean();
     for (const JJson& d : j["drivers"].arr()) c.homeAfterEnabled = c.homeAfterEnabled || d["homeAfterConnect"].boolean();
@@ -199,6 +201,12 @@ std::vector<std::string> JPCellConfig::problems() const {
             const JPAxisConfig* a = axis(*id);
             if (!a || a->kind != JPAxisConfig::Kind::Controller)
                 out.push_back("the squareness correction names an axis that is not a controller's in this cell");
+        }
+    if (!periodicError.axis.empty())
+        for (const std::string* id : { &periodicError.axis, &periodicError.crossAxis }) {
+            const JPAxisConfig* a = axis(*id);
+            if (!a || a->kind != JPAxisConfig::Kind::Controller)
+                out.push_back("the periodic error correction names an axis that is not a controller's in this cell");
         }
     return out;
 }

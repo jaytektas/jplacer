@@ -16,6 +16,7 @@
 #include "JPVisionConfig.h"
 #include "JPNozzleConfig.h"
 #include "JPNozzleTipConfig.h"
+#include "JPPeriodicErrorConfig.h"
 #include "JPSquarenessConfig.h"
 
 #include <optional>
@@ -37,6 +38,7 @@ struct JPCellConfig {
     std::vector<JPActuatorConfig> actuators;
     std::vector<JPSignalerConfig> signalers;   // OpenPnP's: told how a job runs
     JPSquarenessConfig            squareness;   // the gantry's Y lean, when measured
+    JPPeriodicErrorConfig         periodicError;   // a drive's once-a-turn error (an eccentric pulley), when set
     bool                          homeAfterEnabled = false;   // OpenPnP's: home as soon as the machine is on
     bool                          parkAfterHome    = false;   // park once homed (after visual homing)
     std::optional<JPMachineLocation>     discardLocation;            // where a part not wanted is dropped

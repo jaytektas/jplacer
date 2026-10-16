@@ -218,6 +218,7 @@ bool JPSetupEdits::remove(JPCellConfig& cell, const std::string& path, std::stri
         for (const JPActuatorConfig& a : cell.actuators)
             if (mountUses(a.mount, p.id)) users.push_back("actuator " + a.name);
         if (cell.squareness.axisX == p.id || cell.squareness.axisY == p.id) users.push_back("the squareness correction");
+        if (cell.periodicError.axis == p.id || cell.periodicError.crossAxis == p.id) users.push_back("the periodic error correction");
     } else if (p.kind == "head") {
         for (const JPNozzleConfig& n : cell.nozzles)
             if (n.mount.headId == p.id) users.push_back("nozzle " + n.name);

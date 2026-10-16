@@ -12,6 +12,7 @@
 #include "JPlacerScriptVision.h"
 #include "JPlacerTestMotion.h"
 #include "JPlacerTipChanges.h"
+#include "tasks/JPBoardScan.h"
 #include "tasks/JPJobMachine.h"
 
 #include "machine/JPCell.h"
@@ -219,12 +220,21 @@ public:
     std::function<JJson(const JJson& request)> onScriptJobRequest;
     // The job's boards (each board in panels too), for the Jog panel's Board Protection.
     std::function<std::vector<const JPBoardLocation*>()> jobBoards;
+    // A board scan's footprints (JPBoardScan): the Job tab's chosen board's, and its name; none (and why) when no
+    // board is chosen or it has none.
+    std::function<std::vector<JPBoardScan::Point>(std::string& board, std::string& why)> boardScanPoints;
     // The machine a job runs on, for a script's vision (OpenPnP's VisionUtils.readQrCode).
     std::function<JPCellJobMachine*()> scriptJobMachine;
     // Calibrate a camera, or an X or Y axis's backlash (as Machine Setup's
     // buttons do); `finished`: whether it was done.
     void calibrateCamera(const std::string& cameraId, std::function<void(bool ok)> finished);
     void calibrateBacklash(const std::string& axisId, std::function<void(bool ok)> finished);
+    // A drive's periodic error measured by a board scan with the camera riding on `axisId` (the Job tab's chosen
+    // board's footprints), kept as the axis's last scan (Machine Setup shows it); Apply puts it in use, Clear takes
+    // it out (each a step to undo).
+    void scanPeriodicError(const std::string& axisId);
+    void applyPeriodicError(const std::string& axisId);
+    void clearPeriodicError(const std::string& axisId);
     // A nozzle tip calibrated (its runout, and its background as its method
     // says) on the nozzle it is loaded on; `finished`: whether it was.
     void calibrateTip(const std::string& tipId, std::function<void(bool ok)> finished);

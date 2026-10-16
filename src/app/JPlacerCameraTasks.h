@@ -9,6 +9,7 @@
 #include "tasks/JPVisualTest.h"
 #include "tasks/JPBackgroundCalibration.h"
 #include "tasks/JPBacklashCalibrator.h"
+#include "tasks/JPBoardScan.h"
 #include "tasks/JPRunoutCalibrator.h"
 #include "ui/JPCameraPanel.h"
 
@@ -144,6 +145,11 @@ public:
     // Measure an X or Y axis's backlash with the head camera over the head's
     // homing mark (JPBacklashCalibrator). `done` (main thread): what it found,
     // in use already, for the owner to keep.
+    // A board scan (JPBoardScan, JPPeriodicErrorFit): the head camera riding on `axisId` over each of `points` in
+    // turn along it, the middle of the footprint found there by its symmetry, then the drive's periodic error of
+    // `periodMm` fitted to them all with the board as it lies. `done` (main thread): the scan, of `board`.
+    void scanBoard(const std::string& axisId, double periodMm, const std::string& board, std::vector<JPBoardScan::Point> points,
+                   std::function<void(const JPPeriodicErrorConfig::Scan&)> done);
     void calibrateBacklash(const std::string& axisId, std::function<void(const JPBacklashCalibrator::Result&)> done,
                            std::function<void(bool ok)> finished = nullptr);
     // Finish a home with the camera (JPVisualHoming), through the first
@@ -180,6 +186,10 @@ private:
     int         m_findCount = 0;
     bool findRound(JPCameraPanel* panel, const JPCameraCalibration& cal, double diameterMm, double cameraX, double cameraY,
                    double& x, double& y, const std::string& shown, std::string& words);
+    // As findRound, a footprint's middle by its symmetry (OpenPnP's DetectRectlinearSymmetry), a box `sizeMm`
+    // across at most, within kScanSearchMm of (x, y).
+    bool findMirrored(JPCameraPanel* panel, const JPCameraCalibration& cal, double sizeMm, double cameraX, double cameraY,
+                      double& x, double& y, const std::string& shown, std::string& words);
     // Runs `task` on the worker with `camera` shown and running; its answer
     // (ok, words) comes back on the main thread to `done`. `progress` from the
     // task is shown as it goes.

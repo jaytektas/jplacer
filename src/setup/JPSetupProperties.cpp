@@ -738,6 +738,97 @@ void backlashResults(JPFormBuilder& add, const JPBacklashCalibration& k) {
              "against the mean of them all: each should land within the tolerance of the others.");
 }
 
+// An X or Y axis's drive's periodic error (JPPeriodicErrorConfig): its period, the correction in use, and the last
+// board scan, with its finds and its fit.
+void periodicErrorForm(JPFormBuilder& add, JPCellConfig& cell, const std::string& id) {
+    using A = JPAxisConfig;
+    JPCellConfig* c = &cell;
+    const A* self = cell.axis(id);
+    if (!self) return;
+    // The axis across it: the first controller axis of the other kind.
+    std::string cross;
+    for (const A& o : cell.axes)
+        if (cross.empty() && o.kind == A::Kind::Controller && o.id != id
+            && o.type == (self->type == A::Type::Y ? A::Type::X : A::Type::Y))
+            cross = o.id;
+    add.tab("Periodic Error");
+    add.group("Drive");
+    add.length("drivePeriod", "Drive Period", [c, id] { return c->periodicError.axis == id ? c->periodicError.periodMm : 0.0; },
+               [c, id, cross](double v) {
+                   JPPeriodicErrorConfig& p = c->periodicError;
+                   if (v <= 0) {
+                       if (p.axis == id) p = {};
+                       return;
+                   }
+                   if (p.axis != id) {
+                       p = {};
+                       p.axis = id;
+                       p.crossAxis = cross;
+                   }
+                   p.periodMm = v;
+               },
+               3);
+    add.tip("How far the axis travels for one turn of what drives it: a belt pulley's teeth times the belt's pitch (15 "
+            "teeth of HTD 3M: 45 mm), a screw's lead. A pulley not quite round on its shaft puts the head off the same "
+            "way every turn, along the axis and, driven at both ends, across it; a board scan measures that. 0: none.");
+    const JPPeriodicErrorConfig& w = cell.periodicError;
+    if (w.axis != id || w.periodMm <= 0) return;
+    const A* across = cell.axis(w.crossAxis);
+    char b[160];
+    if (w.active())
+        std::snprintf(b, sizeof b, "%.4f mm along, %.4f mm across (%s)", w.alongSize(), w.acrossSize(),
+                      across ? across->name.c_str() : "none");
+    add.text("periodicInUse", "Correction in Use", [v = std::string(w.active() ? b : "none")] { return v; }, nullptr);
+    add.actionsWithTips({ { "Scan Board", "scanPeriodicError",
+                            "The head camera finds the middle of every bare footprint on the Job tab's chosen board whose "
+                            "pads mirror through it (two-pad chips, fiducials), against where the board's design puts it; "
+                            "the board is fitted as it lies with the drive's wave. Check the board's fiducials first." },
+                          { "Apply", "applyPeriodicError", "Put the wave the last scan found in use (added to the one in use).",
+                            w.lastScan && !w.lastScan->applied },
+                          { "Clear", "clearPeriodicError", "Take the correction out of use.", w.active() } });
+    add.note("The scan changes nothing: Apply puts what it found in use, a step to undo. Scan again with it in use: what "
+             "is left should be the finding's own noise. Calibrate the nozzles' offsets and the camera looking up again "
+             "after applying it.");
+    if (!w.lastScan) return;
+    const JPPeriodicErrorConfig::Scan& k = *w.lastScan;
+    add.group("Last Scan " + JPWhen::withAgo(k.when));
+    size_t left = 0;
+    for (const auto& q : k.points) left += q.outlier;
+    auto row = [&add](const std::string& name, const std::string& label, const std::string& value) {
+        add.text(name, label, [value] { return value; }, nullptr);
+    };
+    row("scanBoard", "Board", k.board);
+    std::snprintf(b, sizeof b, "%zu (%zu left out: off the rest)", k.points.size(), left);
+    row("scanFinds", "Footprints Found", b);
+    std::snprintf(b, sizeof b, "%.4f mm along, %.4f mm across", std::hypot(k.alongSin, k.alongCos), std::hypot(k.acrossSin, k.acrossCos));
+    row("scanWave", "Wave Found", b);
+    std::snprintf(b, sizeof b, "%.4f mm without the wave, %.4f mm with it", k.rmsBefore, k.rmsAfter);
+    row("scanOff", "Footprints Off (RMS)", b);
+    std::snprintf(b, sizeof b, "%.5f, turned %.3f deg", k.scale, k.rotationDeg);
+    row("scanBoardFit", "Board Scale", b);
+    row("scanApplied", "Applied", k.applied ? "yes" : "no");
+    auto wavePlot = [&k](bool along) {
+        auto plot = std::make_shared<JPPlot>();
+        plot->kind = JPPlot::Kind::Points;
+        plot->xTitle = "axis at mm";
+        plot->yTitle = "head off mm";
+        plot->series.push_back({ "found", JPPlot::Tone::First, {} });
+        plot->series.push_back({ "fit", JPPlot::Tone::Second, {} });
+        plot->series.push_back({ "left out", JPPlot::Tone::Muted, {} });
+        for (const auto& q : k.points) {
+            plot->series[q.outlier ? 2 : 0].points.push_back({ q.at, along ? q.along : q.across });
+            plot->series[1].points.push_back({ q.at, along ? q.alongFit : q.acrossFit });
+        }
+        return plot;
+    };
+    add.plot("Along the Axis", wavePlot(true));
+    add.note("How far the head was off where it was sent, along the axis, at each footprint (the board's own place, turn "
+             "and scale taken out), and the wave fitted to them. Points round the wave: the drive's error; points scattered "
+             "far from it: the finding's noise, or not a once-a-turn error.");
+    add.plot("Across the Axis", wavePlot(false));
+    add.note("The same across: a gantry driven at both ends twisting as the two pulleys come round out of step.");
+}
+
 void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f, const JPSetupProperties::Live& live) {
     using A = JPAxisConfig;
     auto a = finder(cell.axes, id);
@@ -986,6 +1077,7 @@ void axisForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form
                  "tries it with moves from random places.");
     }
     if (const auto& k = a().backlashCalibration) backlashResults(add, *k);
+    if (a().kind == A::Kind::Controller && (a().type == A::Type::X || a().type == A::Type::Y)) periodicErrorForm(add, cell, id);
 }
 
 void headForm(JPCellConfig& cell, const std::string& id, JPSetupProperties::Form& f, JPConfiguration* config) {

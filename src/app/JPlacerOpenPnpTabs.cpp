@@ -932,6 +932,17 @@ JPlacerOpenPnpTabs::JPlacerOpenPnpTabs(JAppWindow& window, JSceneGraph& graph, J
     // What scripts ask of the job (OpenPnP's gui.jobTab, Utils2D, VisionUtils.readQrCode).
     m_machine.scriptJobMachine = [this]() -> JPCellJobMachine* { return &m_jobRun->jobMachine(); };
     m_machine.onScriptJobRequest = [this](const JJson& request) { return scriptJobRequest(request); };
+    // A board scan's footprints: the Job tab's chosen board's.
+    m_machine.boardScanPoints = [this](std::string& board, std::string& why) -> std::vector<JPBoardScan::Point> {
+        const auto chosen = m_jobPanel->selections();
+        if (chosen.size() != 1) {
+            why = "choose one board on the Job tab";
+            return {};
+        }
+        const JPPlacementsHolderLocation& l = *chosen.front();
+        board = l.id;
+        return JPBoardScan::points(m_job.configuration(), m_job.job(), l, why);
+    };
     m_machine.jobBoards = [this] {
         std::vector<const JPBoardLocation*> boards;
         for (const JPBoardLocation* b : m_job.job().boardLocations()) boards.push_back(b);

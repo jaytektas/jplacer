@@ -414,9 +414,7 @@ bool JPCell::doPark(const std::string& headId, double speed, std::string& why) {
     }
     if (clamped) {
         JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": the park place is past a soft limit; parking at the limit";
-        target = axes;
-        if (const JPSquarenessConfig& q = m_config.squareness; q.active() && target.count(q.axisX) && target.count(q.axisY))
-            target[q.axisX] += q.xPerY * (target[q.axisY] - q.atY);   // back to square coordinates for the move
+        target = squareOf(axes);   // back to square coordinates for the move
     }
     return doMove(target, speed, why);
 }
@@ -2045,12 +2043,8 @@ void JPCell::updatePositions(const std::string& driverId, const JPFirmwareProfil
             const auto applied = m_backlashApplied.find(a.id);
             m_axisPositions[a.id] = m_positions[a.id] = reported - (applied == m_backlashApplied.end() ? 0 : applied->second);
         }
-        // Square coordinates from the axes' own: X takes back the Y axis's lean.
-        if (const JPSquarenessConfig& q = m_config.squareness; q.active()) {
-            const auto x = m_axisPositions.find(q.axisX), y = m_axisPositions.find(q.axisY);
-            if (x != m_axisPositions.end() && y != m_axisPositions.end())
-                m_positions[q.axisX] = x->second + q.xPerY * (y->second - q.atY);
-        }
+        // Square coordinates from the axes' own: X takes back the Y axis's lean, a drive its periodic error.
+        for (const auto& [id, v] : squareOf(m_axisPositions)) m_positions[id] = v;
         for (const JPAxisConfig& a : m_config.axes) {
             if (!a.transformed()) continue;
             const auto in = m_positions.find(a.inputAxisId);
@@ -2182,9 +2176,8 @@ bool JPCell::doHome(std::string& why) {
                 m_positions[a.id] = a.homeCoordinate;
             if (!a.transformed()) m_sent[a.id] = a.homeCoordinate;
         }
-        // The home coordinates are the axes' own; squarely, X takes the lean.
-        if (const JPSquarenessConfig& q = m_config.squareness; q.active() && m_sent.count(q.axisX) && m_sent.count(q.axisY))
-            m_sent[q.axisX] += q.xPerY * (m_sent[q.axisY] - q.atY);
+        // The home coordinates are the axes' own; squarely, X takes the lean, a drive its periodic error.
+        m_sent = squareOf(m_sent);
     }
     JLOGC(JPlacerLog::kCell, JLogLevel::Info) << m_config.name << ": homed";
     return true;
@@ -2400,11 +2393,42 @@ double JPCell::backlashApplied(const std::string& axisId) const {
 std::map<std::string, double> JPCell::toAxes(std::map<std::string, double> square,
                                              const std::map<std::string, double>& now) const {
     const JPSquarenessConfig& q = m_config.squareness;
-    if (!q.active() || (!square.count(q.axisX) && !square.count(q.axisY))) return square;
-    const double x = square.count(q.axisX) ? square.at(q.axisX) : now.at(q.axisX);
-    const double y = square.count(q.axisY) ? square.at(q.axisY) : now.at(q.axisY);
-    square[q.axisX] = x - q.xPerY * (y - q.atY);
+    const JPPeriodicErrorConfig& w = m_config.periodicError;
+    auto at = [&now](const std::string& id) {
+        const auto i = now.find(id);
+        return i == now.end() ? 0.0 : i->second;
+    };
+    // Where an axis not moved is, straightened as the squareness has it (a moved one's target, once it is).
+    auto straightNow = [&](const std::string& id) {
+        double v = at(id);
+        if (q.active() && id == q.axisX) v -= q.xPerY * (at(q.axisY) - q.atY);
+        return v;
+    };
+    if (q.active() && (square.count(q.axisX) || square.count(q.axisY))) {
+        const double x = square.count(q.axisX) ? square.at(q.axisX) : at(q.axisX);
+        const double y = square.count(q.axisY) ? square.at(q.axisY) : at(q.axisY);
+        square[q.axisX] = x - q.xPerY * (y - q.atY);
+    }
+    // A drive's periodic error (an eccentric pulley): the axis sent where the head comes to the place, and the axis
+    // across it as far back as the twist carries it; moving the one moves the other.
+    if (w.active() && (square.count(w.axis) || (!w.crossAxis.empty() && square.count(w.crossAxis)))) {
+        const double a = w.axisFor(square.count(w.axis) ? square.at(w.axis) : straightNow(w.axis));
+        if (square.count(w.axis)) square[w.axis] = a;
+        if (!w.crossAxis.empty())
+            square[w.crossAxis] = (square.count(w.crossAxis) ? square.at(w.crossAxis) : straightNow(w.crossAxis)) - w.across(a);
+    }
     return square;
+}
+
+std::map<std::string, double> JPCell::squareOf(std::map<std::string, double> axes) const {
+    if (const JPPeriodicErrorConfig& w = m_config.periodicError; w.active() && axes.count(w.axis)) {
+        const double a = axes.at(w.axis);
+        axes[w.axis] = a + w.along(a);
+        if (const auto c = axes.find(w.crossAxis); c != axes.end()) c->second += w.across(a);
+    }
+    if (const JPSquarenessConfig& q = m_config.squareness; q.active() && axes.count(q.axisX) && axes.count(q.axisY))
+        axes[q.axisX] += q.xPerY * (axes.at(q.axisY) - q.atY);
+    return axes;
 }
 
 void JPCell::setVision(const JPVisionConfig& vision) {

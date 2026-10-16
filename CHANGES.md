@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- An X or Y axis's drive that puts the head off the same way every turn (a belt pulley not quite round on its
+  shaft) can be measured and corrected: Machine Setup › the axis › Periodic Error. Set the Drive Period (a
+  pulley's teeth times the belt's pitch), then Scan Board finds the middle of every bare two-pad footprint on
+  the Job tab's chosen board with the camera and fits the wave from them; Apply puts it in use for every move.
+  On the bench parts landed up to 0.1 mm off depending on where on the board they were.
 - A tip put on for a pick on the Feeders tab (Change On Manual Pick) is now measured straight after, as its Auto
   Recalibration says. Before, only a job measured it, and a manual pick went ahead with its runout unknown.
 - Jog's Position Nozzle comes the last of the way down at the tip's Approach Speed, as a pick or place does. Before,
