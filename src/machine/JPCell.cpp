@@ -2512,7 +2512,23 @@ void JPCell::moveTool(const JPMountConfig& mount, std::array<std::optional<doubl
         if (to[3] && !mount.axisRotation.empty()) across[mount.axisRotation] = *to[3] - rotationModeOffsetOf(mount);
         compensateRunout(mount, across, false);
         if (ok && !across.empty()) ok = doMove(across, speed, why);
-        if (ok && to[2] && !mount.axisZ.empty()) ok = doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed, why);
+        if (ok && to[2] && !mount.axisZ.empty()) {
+            // A nozzle's tip's approach, as a pick or place goes down (doAt): the last of the way slowly, from its
+            // height above. Without it a nozzle sent to a camera's height on the board drove straight into the part.
+            double approach = 0, down = 1;
+            if (const JPNozzleConfig* n = nozzleOf(mount))
+                for (const JPNozzleTipConfig& t : m_config.nozzleTips)
+                    if (t.id == n->tipId && t.approachHeightMm > 0) {
+                        approach = t.approachHeightMm;
+                        down = std::clamp(t.approachSpeedPercent, 1, 100) / 100.0;
+                    }
+            if (!belowSafeZone(mount.axisZ, *to[2] - zOffsetOf(mount))) {   // not going down to work
+                approach = 0;
+                down = 1;
+            }
+            if (approach > 0) ok = doMove({ { mount.axisZ, *to[2] + approach - zOffsetOf(mount) } }, speed, why);
+            if (ok) ok = doMove({ { mount.axisZ, *to[2] - zOffsetOf(mount) } }, speed * down, why);
+        }
         m_speedOverPrecision = was;
         ok = finished(ok, why);
         m_moving = false;
@@ -2704,7 +2720,10 @@ void JPCell::setBacklashCompensation(bool on, const std::string& why) {
         std::lock_guard lk(m_backlashWhyMutex);
         m_backlashWhy = on ? std::string() : why;
     }
-    if (m_backlashOn.exchange(on) != on) onBacklashCompensation.emit(on);
+    if (m_backlashOn.exchange(on) == on) return;
+    // Said in the log: every move after it is (or is not) compensated, which a measurement made then depends on.
+    JLOGC(JPlacerLog::kCell, JLogLevel::Info) << "Backlash compensation " << (on ? "on" : "off: " + why);
+    onBacklashCompensation.emit(on);
 }
 
 std::string JPCell::backlashOffBecause() const {

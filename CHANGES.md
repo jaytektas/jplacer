@@ -10,6 +10,11 @@ notes.
 
 ## Unreleased
 
+- A tip put on for a pick on the Feeders tab (Change On Manual Pick) is now measured straight after, as its Auto
+  Recalibration says. Before, only a job measured it, and a manual pick went ahead with its runout unknown.
+- Jog's Position Nozzle comes the last of the way down at the tip's Approach Speed, as a pick or place does. Before,
+  it went straight down at full speed.
+- The log says whenever backlash compensation is turned off or on, and why.
 - Jog's Position Nozzle with a part aligned on it (Test Alignment) puts the part's centre where the camera looks,
   not the nozzle's, as a job's place does. Before, the part landed off by its offset on the nozzle (0.4 mm on the
   bench), on the board and back over the bottom camera alike.

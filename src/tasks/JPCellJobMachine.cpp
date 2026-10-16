@@ -245,7 +245,7 @@ bool JPCellJobMachine::changeTip(const std::string& nozzleId, const std::string&
             return false;
         }
         for (const Half& h : halves) m_onMain([&] { m_host.setTipOn(nozzle.id, h.after); });
-        return true;
+        return calibrateLoaded(nozzleId, tipId, why);
     }
     JPTipChanger::Hooks hooks;
     hooks.ask = m_ask;
@@ -273,7 +273,18 @@ bool JPCellJobMachine::changeTip(const std::string& nozzleId, const std::string&
         }
         m_onMain([&] { m_host.setTipOn(nozzle.id, h.after); });
     }
-    return true;
+    return calibrateLoaded(nozzleId, tipId, why);
+}
+
+bool JPCellJobMachine::calibrateLoaded(const std::string& nozzleId, const std::string& tipId, std::string& why) {
+    // OpenPnP's loadNozzleTip: the tip just put on measured as its Auto Recalibration says, NozzleTipChange on every
+    // load, MachineHome when not yet measured on this nozzle (NozzleTipChangeInJob: a run's Calibrate Nozzle Tip step).
+    // Left to the run alone, a tip changed for a pick on the Feeders tab was never measured.
+    std::string trigger;
+    for (const JPNozzleTipConfig& t : config().nozzleTips)
+        if (t.id == tipId) trigger = t.runoutCalibration.recalibration;
+    if ((trigger != "NozzleTipChange" && trigger != "MachineHome") || tipCalibrated(nozzleId)) return true;
+    return calibrateTip(nozzleId, why);
 }
 
 bool JPCellJobMachine::rotate(const std::string& nozzleId, double angle, std::string& why) {

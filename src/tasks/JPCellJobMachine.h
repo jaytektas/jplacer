@@ -149,6 +149,8 @@ private:
     JPCellConfig config() const;
     std::string  headId(const JPCellConfig& c) const;
     JPCell*      cell(std::string& why) const;
+    // The tip just loaded on the nozzle measured as its Auto Recalibration says (OpenPnP's loadNozzleTip).
+    bool calibrateLoaded(const std::string& nozzleId, const std::string& tipId, std::string& why);
     // A camera made ready to look: its picture in front, its light on as its settings say.
     void prepare(JPCell& cell, JPCameraFeed& feed);
     // The camera to (viewX, viewY), one settled look for a round mark of
