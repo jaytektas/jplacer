@@ -18,6 +18,9 @@ inline namespace jf {
 void JPlacerSignalers::signal(JPSignalerConfig::JobState state,
                               const std::function<void(const std::function<void()>&)>& onMain) {
     using State = JPSignalerConfig::JobState;
+    if (m_told == state) return;
+    m_told.reset();
+    bool done = true;
     JPCell* cell = nullptr;
     std::vector<JPSignalerConfig> signalers;
     onMain([&] {
@@ -40,8 +43,12 @@ void JPlacerSignalers::signal(JPSignalerConfig::JobState state,
         if (const auto it = m_actuated.find(s.id); it != m_actuated.end() && it->second == on) continue;
         std::string why;
         if (cell->switchActuatorAndWait(s.actuatorId, on, why)) m_actuated[s.id] = on;
-        else JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "signaler " << s.name << ": " << why;
+        else {
+            done = false;
+            JLOGC(JPlacerLog::kJob, JLogLevel::Warn) << "signaler " << s.name << ": " << why;
+        }
     }
+    if (done) m_told = state;
 }
 
 } // inline namespace jf

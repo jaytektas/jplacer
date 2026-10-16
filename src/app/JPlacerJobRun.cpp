@@ -435,6 +435,14 @@ void JPlacerJobRun::checkJob() {
 
 void JPlacerJobRun::run() {
     m_worker = std::thread([this] {
+        // While the run goes, the screen's thread takes its hand-offs as they come (the framework's burst: a short
+        // wait for the next one each frame) rather than once a frame: a step reading the job there waited for the
+        // next frame each time, 31-37 ms, a dozen times between a place and the next pick.
+        JMainThreadDispatcher::instance().setBurstSource(this, true);
+        struct Done {
+            const void* source;
+            ~Done() { JMainThreadDispatcher::instance().setBurstSource(source, false); }
+        } done { this };
         using JobState = JPSignalerConfig::JobState;
         auto signal = [this](JobState state) {
             m_signalers.signal(state, [this](const std::function<void()>& fn) { onMain(fn); });

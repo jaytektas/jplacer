@@ -10,6 +10,9 @@ notes.
 
 ## Unreleased
 
+- A job wastes less time between a place and the next pick. The job's state was told to the signalers before
+  every step, each time waiting for the screen to draw its next frame (up to 160 ms right after a place), and
+  each step's look at the job waited for a frame too: on the bench 1.4 s went by at safe Z between placements.
 - Backlash Off Below Safe Z now only affects jogs made while a nozzle is down. Before, it switched the machine's
   compensation off whenever a nozzle went below safe Z and back on a moment after it came up, too late for the
   next move: a job's move to the place after bottom vision, bottom vision's own correcting move, and Position
