@@ -23,13 +23,11 @@ notes.
 - Backlash Off Below Safe Z now only affects jogs made while a nozzle is down. Before, it switched the machine's
   compensation off whenever a nozzle went below safe Z and back on a moment after it came up, too late for the
   next move: a job's move to the place after bottom vision, bottom vision's own correcting move, and Position
-  Nozzle after Test Alignment all went without backlash compensation. On the bench parts landed about 0.1 mm off
-  in Y.
+  Nozzle after Test Alignment all went without backlash compensation.
 - An X or Y axis's drive that puts the head off the same way every turn (a belt pulley not quite round on its
   shaft) can be measured and corrected: Machine Setup › the axis › Periodic Error. Set the Drive Period (a
   pulley's teeth times the belt's pitch), then Scan Board finds every bare footprint's pads on the Job tab's
   chosen board with the camera and fits the wave from them; Apply puts it in use for every move.
-  On the bench parts landed up to 0.1 mm off depending on where on the board they were.
 - A tip put on for a pick on the Feeders tab (Change On Manual Pick) is now measured straight after, as its Auto
   Recalibration says. Before, only a job measured it, and a manual pick went ahead with its runout unknown.
 - Jog's Position Nozzle comes the last of the way down at the tip's Approach Speed, as a pick or place does. Before,
@@ -81,11 +79,6 @@ notes.
   blocked nozzle, for Part Off) are told apart, wide enough for the pump's level to drift. Where the sensor
   reads the pump's side of the valve, Part Off reads as the valve closes (Valve close 0). A method that
   cannot tell the two apart gives way to the one that can; when neither can, it says so and sets nothing.
-- jplacer for Windows 10 and 11 (64-bit): an installer, `jplacer-<version>-setup.exe`, that puts jplacer in
-  Program Files and the Start menu and updates it in place, and a zip to run without installing. USB
-  cameras are read through Windows' own camera support (Media Foundation), with the same camera settings
-  (exposure in the same units, so Auto-Tune works alike); scripts (Python and JavaScript) and GStreamer
-  cameras work as on Linux.
 
 ## 0.1.73
 
