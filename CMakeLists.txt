@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #   cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/jframework-sdk
-find_package(JFramework 0.1 CONFIG REQUIRED)
+find_package(JFramework 0.2 CONFIG REQUIRED)   # 0.2: the rebuilt file chooser — an older SDK is refused, not shipped
 # libj_platform.a is a static archive, so it exports none of its own private
 # dependencies. The updater talks HTTPS through JHttpClient, so OpenSSL is a
 # hard dependency here rather than an optional one.
